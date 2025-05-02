@@ -44,6 +44,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
      Route::get('/products/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('admin.products.edit');
      Route::put('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('admin.products.update');
      Route::delete('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'destroy'])->name('admin.products.destroy');
+     
      // Category routes
      Route::get('/categories', [App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('admin.categories.index');
      Route::get('/categories/create', [App\Http\Controllers\Admin\CategoryController::class, 'create'])->name('admin.categories.create');
@@ -54,7 +55,6 @@ Route::prefix('admin')->middleware('auth')->group(function () {
      Route::patch('/orders/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('admin.orders.update-status');
      Route::post('/orders/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('admin.orders.sync-quickbooks');
      
-     
-     
+  
      // Future routes for products, categories, orders, and users will be added here
 });

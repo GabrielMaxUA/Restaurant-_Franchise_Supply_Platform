@@ -14,6 +14,7 @@ class ProductVariant extends Model
         'name',
         'price_adjustment',
         'inventory_count',
+        'image_url',  // Make sure this is included
     ];
 
     public function product()

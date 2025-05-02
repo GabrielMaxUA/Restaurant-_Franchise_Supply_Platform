@@ -30,23 +30,23 @@
                 </div>
                 
                 <div class="col-md-6">
-              <div class="form-group">
-                  <label for="category_id">Category <span class="text-danger">*</span></label>
-                  <select class="form-control @error('category_id') is-invalid @enderror" 
-                      id="category_id" name="category_id" required>
-                      <option value="">-- Select Category --</option>
-                      @foreach($categories as $category)
-                          <option value="{{ $category->id }}" 
-                              {{ old('category_id') == $category->id ? 'selected' : '' }}>
-                              {{ $category->name }}
-                          </option>
-                      @endforeach
-                  </select>
-                  @error('category_id')
-                      <div class="invalid-feedback">{{ $message }}</div>
-                  @enderror
-              </div>
-            </div>
+                    <div class="form-group">
+                        <label for="category_id">Category <span class="text-danger">*</span></label>
+                        <select class="form-control @error('category_id') is-invalid @enderror" 
+                            id="category_id" name="category_id" required>
+                            <option value="">-- Select Category --</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}" 
+                                    {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('category_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
             </div>
             
             <div class="form-group mb-3">
@@ -106,6 +106,7 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
                 <small class="form-text text-muted">You can select multiple images. Supported formats: JPG, PNG, GIF</small>
+                <div id="product-image-preview" class="mt-2 row"></div>
             </div>
             
             <h4 class="mt-4">Product Variants</h4>
@@ -140,6 +141,20 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Variant Image Upload -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Variant Image (Optional)</label>
+                                    <input type="file" class="form-control variant-image"
+                                      name="variant_image_0" accept="image/*">
+
+                                    <small class="form-text text-muted">Upload an image specific to this variant (e.g., different color).</small>
+                                    <div class="variant-image-preview mt-2 row"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -161,9 +176,73 @@
 
 @section('scripts')
 <script>
-    // JavaScript to handle dynamic variant addition
+    // JavaScript to handle dynamic variant addition and image previews
     document.addEventListener('DOMContentLoaded', function() {
         let variantIndex = 0;
+        
+        // Image preview for product images
+        document.getElementById('images').addEventListener('change', function(event) {
+            const previewContainer = document.getElementById('product-image-preview');
+            previewContainer.innerHTML = ''; // Clear previous previews
+            
+            Array.from(this.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-2 mb-2';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card h-100';
+                    
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'card-img-top';
+                    img.style.height = '120px';
+                    img.style.objectFit = 'cover';
+                    img.alt = 'Product Image Preview';
+                    
+                    card.appendChild(img);
+                    col.appendChild(card);
+                    previewContainer.appendChild(col);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+        
+        // Function to set up variant image preview
+        function setupVariantImagePreview(variantImageInput, previewContainer) {
+            variantImageInput.addEventListener('change', function(event) {
+                previewContainer.innerHTML = ''; // Clear previous preview
+                
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const col = document.createElement('div');
+                        col.className = 'col-md-3 mb-2';
+                        
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'card-img-top';
+                        img.style.height = '100px';
+                        img.style.objectFit = 'cover';
+                        img.alt = 'Variant Image Preview';
+                        
+                        card.appendChild(img);
+                        col.appendChild(card);
+                        previewContainer.appendChild(col);
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+        }
+        
+        // Setup initial variant image preview
+        const initialVariantImage = document.querySelector('.variant-image');
+        const initialPreviewContainer = document.querySelector('.variant-image-preview');
+        setupVariantImagePreview(initialVariantImage, initialPreviewContainer);
         
         // Handle placeholder removal and add validation classes on focus
         const priceInputs = document.querySelectorAll('.price-input');
@@ -234,44 +313,63 @@
             variantIndex++;
             
             const variantTemplate = `
-                <div class="card mb-3 variant-card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Variant Name</label>
-                                    <input type="text" class="form-control" name="variants[${variantIndex}][name]" 
-                                        placeholder="e.g., Size, Color, Package">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Price Adjustment ($)</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" step="0.01" class="form-control price-input" 
-                                            name="variants[${variantIndex}][price_adjustment]" value="0.00"
-                                            placeholder="0.00">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>Inventory Count</label>
-                                    <input type="number" min="0" class="form-control" 
-                                        name="variants[${variantIndex}][inventory_count]" value="0"
-                                        placeholder="Enter quantity">
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-danger mt-2 remove-variant">
-                            <i class="fas fa-trash me-2"></i>Remove Variant
-                        </button>
+    <div class="card mb-3 variant-card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Variant Name</label>
+                        <input type="text" class="form-control" name="variants[${variantIndex}][name]" 
+                            placeholder="e.g., Size, Color, Package">
                     </div>
                 </div>
-            `;
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Price Adjustment ($)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" class="form-control price-input" 
+                                name="variants[${variantIndex}][price_adjustment]" value="0.00"
+                                placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>Inventory Count</label>
+                        <input type="number" min="0" class="form-control" 
+                            name="variants[${variantIndex}][inventory_count]" value="0"
+                            placeholder="Enter quantity">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="form-group">
+                        <label>Variant Image (Optional)</label>
+                        <input type="file" class="form-control variant-image" 
+                            name="variant_image_${variantIndex}" accept="image/*">
+                        <small class="form-text text-muted">Upload an image specific to this variant (e.g., different color).</small>
+                        <div class="variant-image-preview mt-2 row"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-sm btn-danger mt-2 remove-variant">
+                <i class="fas fa-trash me-2"></i>Remove Variant
+            </button>
+        </div>
+    </div>
+`;
+
             
             document.getElementById('variants-container').insertAdjacentHTML('beforeend', variantTemplate);
+            
+            // Setup image preview for the new variant
+            const newVariantImage = document.querySelector(`.variant-card:last-child .variant-image`);
+            const newPreviewContainer = document.querySelector(`.variant-card:last-child .variant-image-preview`);
+            setupVariantImagePreview(newVariantImage, newPreviewContainer);
             
             // Add event listeners to new remove buttons
             document.querySelectorAll('.remove-variant').forEach(button => {
@@ -297,15 +395,6 @@
             });
         });
     });
-    const imagesInput = document.getElementById('images');
-if (imagesInput.files.length === 0) {
-    imagesInput.classList.add('is-invalid');
-    document.getElementById('images-error').style.display = 'block';
-    isValid = false;
-} else {
-    imagesInput.classList.remove('is-invalid');
-    document.getElementById('images-error').style.display = 'none';
-}
 </script>
 
 <style>
@@ -320,6 +409,12 @@ if (imagesInput.files.length === 0) {
     .price-input:focus {
         box-shadow: none;
         border-color: #86b7fe;
+    }
+    
+    .variant-image-preview img, 
+    #product-image-preview img {
+        object-fit: cover;
+        border-radius: 4px;
     }
 </style>
 @endsection

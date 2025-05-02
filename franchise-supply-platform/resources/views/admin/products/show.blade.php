@@ -21,26 +21,64 @@
             <div class="card-body text-center">
                 @if($product->images->count() > 0)
                     <div id="productImageCarousel" class="carousel slide" data-bs-ride="carousel">
-                        <div class="carousel-inner">
+                        <!-- Carousel indicators for multiple images -->
+                        @if($product->images->count() > 1)
+                            <div class="carousel-indicators">
+                                @foreach($product->images as $index => $image)
+                                    <button type="button" data-bs-target="#productImageCarousel" 
+                                        data-bs-slide-to="{{ $index }}" 
+                                        class="{{ $index == 0 ? 'active' : '' }}"
+                                        aria-current="{{ $index == 0 ? 'true' : 'false' }}"
+                                        aria-label="Slide {{ $index + 1 }}"></button>
+                                @endforeach
+                            </div>
+                        @endif
+                        
+                        <!-- Fixed height carousel container -->
+                        <div class="carousel-inner" style="height: 300px;">
                             @foreach($product->images as $index => $image)
-                                <div class="carousel-item {{ $index == 0 ? 'active' : '' }}">
-                                    <img src="{{ asset('storage/' . $product->images->first()->image_url) }}" 
-                                         class="d-block w-100 img-fluid" 
+                                <div class="carousel-item h-100 {{ $index == 0 ? 'active' : '' }}">
+                                    <img src="{{ asset('storage/' . $image->image_url) }}" 
+                                         class="d-block w-100 h-100 img-fluid" 
+                                         style="object-fit: contain;"
                                          alt="{{ $product->name }} image {{ $index + 1 }}">
                                 </div>
                             @endforeach
                         </div>
+                        
+                        <!-- Enhanced navigation arrows -->
                         @if($product->images->count() > 1)
-                            <button class="carousel-control-prev" type="button" data-bs-target="#productImageCarousel" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productImageCarousel" data-bs-slide="prev" style="background: rgba(0,0,0,0.2); width: 40px; height: 40px; border-radius: 50%; top: 50%; transform: translateY(-50%); margin-left: 10px;">
+                                <span class="carousel-control-prev-icon" style="width: 24px; height: 24px;" aria-hidden="true"></span>
                                 <span class="visually-hidden">Previous</span>
                             </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#productImageCarousel" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productImageCarousel" data-bs-slide="next" style="background: rgba(0,0,0,0.2); width: 40px; height: 40px; border-radius: 50%; top: 50%; transform: translateY(-50%); margin-right: 10px;">
+                                <span class="carousel-control-next-icon" style="width: 24px; height: 24px;" aria-hidden="true"></span>
                                 <span class="visually-hidden">Next</span>
                             </button>
                         @endif
                     </div>
+                    
+                    <!-- Thumbnails with fixed height -->
+                    @if($product->images->count() > 1)
+                        <div class="mt-3">
+                            <div class="row">
+                                @foreach($product->images as $index => $image)
+                                    <div class="col-3 mb-2">
+                                        <a href="#" data-bs-target="#productImageCarousel" data-bs-slide-to="{{ $index }}" class="d-block">
+                                            <div style="height: 60px; width: 100%; overflow: hidden;">
+                                                <img src="{{ asset('storage/' . $image->image_url) }}" 
+                                                     class="img-thumbnail" 
+                                                     style="object-fit: cover; height: 100%; width: 100%;"
+                                                     alt="Thumbnail {{ $index + 1 }}">
+                                            </div>
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                    
                     <div class="mt-3 text-muted">
                         <small>{{ $product->images->count() }} image(s) available</small>
                     </div>
@@ -112,38 +150,50 @@
                 <h5 class="mt-4 mb-3">Product Variants</h5>
                 @if($product->variants->count() > 0)
                     <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Price Adjustment</th>
-                                    <th>Final Price</th>
-                                    <th>Inventory</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($product->variants as $variant)
-                                    <tr>
-                                        <td>{{ $variant->name }}</td>
-                                        <td>
-                                            @if($variant->price_adjustment > 0)
-                                                <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
-                                            @elseif($variant->price_adjustment < 0)
-                                                <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                            @else
-                                                <span class="text-muted">$0.00</span>
-                                            @endif
-                                        </td>
-                                        <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
-                                        <td>
-                                            <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
-                                                {{ $variant->inventory_count }} in stock
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                       <!-- Inside your variants table in show.blade.php -->
+                      <table class="table table-bordered table-striped">
+                          <thead class="table-light">
+                              <tr>
+                                  <th>Image</th> <!-- New column -->
+                                  <th>Name</th>
+                                  <th>Price Adjustment</th>
+                                  <th>Final Price</th>
+                                  <th>Inventory</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              @foreach($product->variants as $variant)
+                                  <tr>
+                                      <td class="text-center">
+                                          @if($variant->image_url)
+                                              <img src="{{ asset('storage/' . $variant->image_url) }}" 
+                                                   class="img-thumbnail" 
+                                                   style="height: 50px; width: 50px; object-fit: cover;"
+                                                   alt="{{ $variant->name }} image">
+                                          @else
+                                              <span class="text-muted"><i class="fas fa-image fa-2x text-light"></i></span>
+                                          @endif
+                                      </td>
+                                      <td>{{ $variant->name }}</td>
+                                      <td>
+                                          @if($variant->price_adjustment > 0)
+                                              <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
+                                          @elseif($variant->price_adjustment < 0)
+                                              <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
+                                          @else
+                                              <span class="text-muted">$0.00</span>
+                                          @endif
+                                      </td>
+                                      <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
+                                      <td>
+                                          <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
+                                              {{ $variant->inventory_count }} in stock
+                                          </span>
+                                      </td>
+                                  </tr>
+                              @endforeach
+                          </tbody>
+                      </table>
                     </div>
                 @else
                     <div class="alert alert-light text-center">
