@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CheckRole
 {
@@ -12,20 +13,36 @@ class CheckRole
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure  $next
+     * @param  string  $role
      * @return mixed
      */
-    public function handle(Request $request, Closure $next, ...$roles)
+    public function handle(Request $request, Closure $next, $role)
     {
-        if (!$request->user() || !$request->user()->role) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Check if user is logged in
+        if (!Auth::check()) {
+            return redirect()->route('login');
         }
-
-        foreach ($roles as $role) {
-            if ($request->user()->role->name === $role) {
-                return $next($request);
+        
+        // Check if user has the required role
+        $user = Auth::user();
+        
+        if (!$user->relationLoaded('role')) {
+            $user->load('role');
+        }
+        
+        if ($user->role->name !== $role) {
+            if ($user->role->name === 'admin') {
+                return redirect()->route('admin.dashboard')
+                    ->with('error', 'You do not have permission to access that page.');
+            } elseif ($user->role->name === 'franchisee') {
+                return redirect()->route('franchisee.dashboard')
+                    ->with('error', 'You do not have permission to access that page.');
+            } else {
+                return redirect('/')
+                    ->with('error', 'You do not have permission to access that page.');
             }
         }
-
-        return response()->json(['message' => 'Unauthorized'], 403);
+        
+        return $next($request);
     }
 }

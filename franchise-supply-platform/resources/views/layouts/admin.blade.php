@@ -153,6 +153,7 @@
             </div>
             
             <!-- Main Content -->
+             
             <div class="col-md-9 col-lg-10 ms-sm-auto main-content">
                 <!-- Top Navigation -->
                 <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
@@ -161,7 +162,7 @@
                         <div class="d-flex">
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? 'Admin' }}
+                                    <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                     <li><a class="dropdown-item" href="{{ url('/admin/profile') }}">Profile</a></li>
@@ -174,7 +175,16 @@
                 </nav>
                 
                 <!-- Page Content -->
-                <div class="container-fluid">  
+                <div class="container-fluid">
+                    @if(!session('hide_welcome'))
+                    <div class="alert alert-success persistent-guide mb-4">
+                        <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}!</h4>
+                        <p>Platform Status: <strong>{{ \App\Models\Order::where('status', 'pending')->count() }}</strong> pending orders and <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->count() }}</strong> items low on inventory.</p>
+                        <hr>
+                        <p class="mb-0">Check the dashboard for more insights about the supply platform status.</p>
+                    </div>
+                    @endif
+                    
                     @yield('content')
                 </div>
             </div>
