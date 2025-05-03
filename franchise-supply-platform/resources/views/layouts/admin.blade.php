@@ -34,6 +34,27 @@
         .navbar-brand {
             font-weight: bold;
         }
+        
+        /* Persistent guide styling */
+        .persistent-guide {
+            /* Make sure the alert is always visible */
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            /* Add a subtle highlight to distinguish permanent guides */
+            border-left: 3px solid #0d6efd;
+        }
+
+        /* Remove the fade effect that might hide persistent guides */
+        .persistent-guide.fade {
+            transition: none !important;
+        }
+
+        /* Prevent close buttons from being added to persistent guides */
+        .persistent-guide .close,
+        .persistent-guide .btn-close {
+            display: none !important;
+        }
     </style>
 
 <style>
@@ -166,11 +187,12 @@
     <!-- Optional JavaScript -->
     @yield('scripts')
 
-        <!-- Add the auto-dismiss script RIGHT HERE, after the @yield('scripts') -->
-        <script>
-        // Auto-dismiss alerts after 5 seconds
+    <!-- Add the auto-dismiss script RIGHT HERE, after the @yield('scripts') -->
+    <script>
+        // Auto-dismiss alerts after 5 seconds (except persistent guides)
         document.addEventListener('DOMContentLoaded', function() {
-            const alerts = document.querySelectorAll('.alert');
+            // Only select alerts that are NOT persistent guides
+            const alerts = document.querySelectorAll('.alert:not(.persistent-guide)');
             
             alerts.forEach(function(alert) {
                 // Set timeout to start fade out after 4.5 seconds
@@ -187,58 +209,58 @@
             });
         });
     </script>
-    <!-- Floating Alerts Container -->
-<div id="floating-alerts-container"></div>
 
-<script>
-    // Function to create and display floating alerts
-    function showFloatingAlert(message, type) {
-        const alertsContainer = document.getElementById('floating-alerts-container');
-        
-        // Create alert element
-        const alertElement = document.createElement('div');
-        alertElement.className = `alert alert-${type}  fade show alert-float`;
-        alertElement.innerHTML = `
-            ${message}
-          
-        `;
-        
-        // Add to the container
-        alertsContainer.appendChild(alertElement);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            alertElement.classList.add('fade-out');
+    <!-- Floating Alerts Container -->
+    <div id="floating-alerts-container"></div>
+
+    <script>
+        // Function to create and display floating alerts
+        function showFloatingAlert(message, type) {
+            const alertsContainer = document.getElementById('floating-alerts-container');
+            
+            // Create alert element
+            const alertElement = document.createElement('div');
+            alertElement.className = `alert alert-${type} fade show alert-float`;
+            alertElement.innerHTML = `
+                ${message}
+            `;
+            
+            // Add to the container
+            alertsContainer.appendChild(alertElement);
+            
+            // Auto-dismiss after 5 seconds
             setTimeout(() => {
-                if (alertElement.parentNode) {
-                    alertElement.parentNode.removeChild(alertElement);
-                }
-            }, 500);
-        }, 4500);
-    }
-    
-    // Check for session messages on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Check for success message
-        @if(session('success'))
-            showFloatingAlert("{{ session('success') }}", "success");
-        @endif
+                alertElement.classList.add('fade-out');
+                setTimeout(() => {
+                    if (alertElement.parentNode) {
+                        alertElement.parentNode.removeChild(alertElement);
+                    }
+                }, 500);
+            }, 4500);
+        }
         
-        // Check for error message
-        @if(session('error'))
-            showFloatingAlert("{{ session('error') }}", "danger");
-        @endif
-        
-        // Check for warning message
-        @if(session('warning'))
-            showFloatingAlert("{{ session('warning') }}", "warning");
-        @endif
-        
-        // Check for info message
-        @if(session('info'))
-            showFloatingAlert("{{ session('info') }}", "info");
-        @endif
-    });
-</script>
+        // Check for session messages on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for success message
+            @if(session('success'))
+                showFloatingAlert("{{ session('success') }}", "success");
+            @endif
+            
+            // Check for error message
+            @if(session('error'))
+                showFloatingAlert("{{ session('error') }}", "danger");
+            @endif
+            
+            // Check for warning message
+            @if(session('warning'))
+                showFloatingAlert("{{ session('warning') }}", "warning");
+            @endif
+            
+            // Check for info message
+            @if(session('info'))
+                showFloatingAlert("{{ session('info') }}", "info");
+            @endif
+        });
+    </script>
 </body>
 </html>

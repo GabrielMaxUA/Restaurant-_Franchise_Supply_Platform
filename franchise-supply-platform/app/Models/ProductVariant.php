@@ -26,4 +26,12 @@ class ProductVariant extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    // Add this relationship to the ProductVariant model
+    public function images()
+      {
+          return $this->hasMany(VariantImage::class, 'variant_id');
+      }
+
+      
 }

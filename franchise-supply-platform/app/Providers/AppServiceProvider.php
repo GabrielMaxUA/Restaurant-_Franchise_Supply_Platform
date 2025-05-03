@@ -23,5 +23,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $router = $this->app->make(Router::class);
         $router->aliasMiddleware('role', CheckRole::class);
+        
+        \Illuminate\Http\Request::macro('isValidSize', function() {
+          return true; // Override the size validation
+      });
     }
 }
