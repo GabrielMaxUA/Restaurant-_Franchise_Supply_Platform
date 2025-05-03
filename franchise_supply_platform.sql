@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 02, 2025 at 05:29 AM
+-- Generation Time: May 03, 2025 at 03:58 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -38,8 +38,8 @@ CREATE TABLE `categories` (
 --
 
 INSERT INTO `categories` (`id`, `name`, `description`) VALUES
-(1, 'burgers', 'juicy nice ones'),
-(2, 'vodka', 'really need a shot now myself');
+(2, 'vodka', 'really need a shot now myself'),
+(3, 'spanish guitar', 'sleak and tricky');
 
 -- --------------------------------------------------------
 
@@ -124,8 +124,8 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`) VALUES
-(42, 'balalaika', '123', 123.00, 2, 12, '2025-05-02 02:52:34'),
-(43, 'machineGun', '123', 123.00, 2, 1, '2025-05-02 03:00:01');
+(59, 'balalayka', NULL, 123.00, NULL, 123, '2025-05-03 01:00:15'),
+(60, 'Max', NULL, 123.00, 3, 123, '2025-05-03 01:06:02');
 
 -- --------------------------------------------------------
 
@@ -144,10 +144,14 @@ CREATE TABLE `product_images` (
 --
 
 INSERT INTO `product_images` (`id`, `product_id`, `image_url`) VALUES
-(17, 42, 'product-images/9bbCI8HIGuA0htlhbQgs0x6O5ITdF4cUurw0ru0n.png'),
-(18, 42, 'product-images/r89Ak4zphIKwEENMsJls9tZDSem3qEgbTADdvAcN.png'),
-(19, 42, 'product-images/bpH7FFIafn0KUZORFTKGB307z84hrmye1MDzkYXL.png'),
-(20, 43, 'product-images/75yQjjf6ou3iNniyNQRTpY9DtpYh8RjDjG2TQO8I.png');
+(32, 59, 'product-images/68156a9fbbf68_1746234015.png'),
+(33, 59, 'product-images/68156a9fef9d3_1746234015.png'),
+(34, 59, 'product-images/68156aa05a342_1746234016.png'),
+(35, 59, 'product-images/68156aa09d537_1746234016.png'),
+(36, 60, 'product-images/68156bfb5084d_1746234363.png'),
+(37, 60, 'product-images/68156bfba9b46_1746234363.png'),
+(38, 60, 'product-images/68156db0121c3_1746234800.png'),
+(39, 59, 'product-images/68156dea745d0_1746234858.png');
 
 -- --------------------------------------------------------
 
@@ -160,8 +164,19 @@ CREATE TABLE `product_variants` (
   `product_id` int(10) UNSIGNED NOT NULL,
   `name` varchar(100) NOT NULL,
   `price_adjustment` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `inventory_count` int(11) NOT NULL DEFAULT 0
+  `inventory_count` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `product_variants`
+--
+
+INSERT INTO `product_variants` (`id`, `product_id`, `name`, `price_adjustment`, `inventory_count`, `created_at`, `updated_at`) VALUES
+(10, 59, 'box of 10', 123.00, 123, '2025-05-03 05:00:15', '2025-05-03 05:00:15'),
+(11, 60, 'box of 10', 123.00, 123, '2025-05-03 05:06:02', '2025-05-03 05:06:02'),
+(12, 60, '123', 123.00, 123, '2025-05-03 05:06:02', '2025-05-03 05:06:02');
 
 -- --------------------------------------------------------
 
@@ -211,15 +226,41 @@ CREATE TABLE `users` (
   `password_hash` varchar(255) NOT NULL,
   `email` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
-  `role_id` int(10) UNSIGNED NOT NULL
+  `role_id` int(10) UNSIGNED NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`) VALUES
-(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '555-123-4567', 1);
+INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`, `created_at`, `updated_at`) VALUES
+(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '555-123-4567', 1, '2025-05-02 22:22:44', NULL),
+(2, 'admin1', '$2y$12$ytgg9BQkjrgjdT.dL4ab3ew43uMVt0ScJb8lo3vCACRX1/Hd3q4A6', 'max@example.com', '416-856-0684', 2, '2025-05-03 02:22:55', '2025-05-03 02:23:23');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `variant_images`
+--
+
+CREATE TABLE `variant_images` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `variant_id` int(10) UNSIGNED NOT NULL,
+  `image_url` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `variant_images`
+--
+
+INSERT INTO `variant_images` (`id`, `variant_id`, `image_url`) VALUES
+(19, 10, 'variant-images/68156a9f779e4_1746234015.png'),
+(20, 11, 'variant-images/68156bfa65ac7_1746234362.png'),
+(21, 11, 'variant-images/68156bfaad375_1746234362.png'),
+(22, 12, 'variant-images/68156bfaee50e_1746234362.png'),
+(23, 10, 'variant-images/68156e143bcd8_1746234900.png');
 
 --
 -- Indexes for dumped tables
@@ -308,6 +349,13 @@ ALTER TABLE `users`
   ADD KEY `idx_user_role` (`role_id`);
 
 --
+-- Indexes for table `variant_images`
+--
+ALTER TABLE `variant_images`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `variant_images_variant_id_foreign` (`variant_id`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -315,7 +363,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `migrations`
@@ -345,19 +393,19 @@ ALTER TABLE `personal_access_tokens`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `product_variants`
 --
 ALTER TABLE `product_variants`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -369,7 +417,13 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `variant_images`
+--
+ALTER TABLE `variant_images`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- Constraints for dumped tables
@@ -412,6 +466,12 @@ ALTER TABLE `product_variants`
 --
 ALTER TABLE `users`
   ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`);
+
+--
+-- Constraints for table `variant_images`
+--
+ALTER TABLE `variant_images`
+  ADD CONSTRAINT `variant_images_variant_id_foreign` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
