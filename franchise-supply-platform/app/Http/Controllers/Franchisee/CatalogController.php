@@ -9,7 +9,7 @@ use App\Models\Category;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\Auth;
-
+use App\Models\ProductFavorite;
 class CatalogController extends Controller
 {
     /**
@@ -23,9 +23,21 @@ class CatalogController extends Controller
         // Build the query with eager loading
         $query = Product::with(['category', 'images', 'variants', 'variants.images']);
         
+        // Add favorite status check for the current user
+        $query->withCount(['favoritedBy as is_favorite' => function($query) {
+            $query->where('users.id', Auth::id());
+        }]);
+        
         // Apply category filter
         if ($request->filled('category')) {
             $query->where('category_id', $request->category);
+        }
+        
+        // For "show favorites only" filter
+        if ($request->has('favorites') && $request->favorites == 1) {
+            $query->whereHas('favoritedBy', function($query) {
+                $query->where('users.id', Auth::id());
+            });
         }
         
         // Apply search filter
@@ -126,8 +138,7 @@ class CatalogController extends Controller
     public function show($id)
     {
         $product = Product::with(['category', 'images', 'variants', 'variants.images'])
-            ->findOrFail($id);
-            
+            ->findOrFail($id); 
         // Convert inventory_count to stock_status
         if ($product->inventory_count <= 0) {
             $product->stock_status = 'out_of_stock';
@@ -168,4 +179,59 @@ class CatalogController extends Controller
         
         return view('franchisee.product_details', compact('product', 'relatedProducts'));
     }
+
+    public function catalog(Request $request)
+{
+    // Start with the base query
+    $query = Product::with(['category', 'images']);
+    
+    // Add this to check favorite status for the current user
+    $query->withCount(['favoritedBy as is_favorite' => function($query) {
+        $query->where('users.id', Auth::id());
+    }]);
+    
+    // Apply category filter if present
+    if ($request->has('category')) {
+        $query->where('category_id', $request->category);
+    }
+    
+    // For "show favorites only" filter
+    if ($request->has('favorites') && $request->favorites == 1) {
+        $query->whereHas('favoritedBy', function($query) {
+            $query->where('users.id', Auth::id());
+        });
+    }
+    
+    // Apply other filters as needed...
+    
+    // Get paginated results
+    $products = $query->paginate(15);
+    
+    // Load categories for the sidebar
+    $categories = Category::withCount('products')->get();
+    $total_products = Product::count();
+    
+    return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
+}
+
+public function toggleFavorite(Request $request)
+{
+    $productId = $request->input('product_id');
+    $userId = Auth::id();
+    
+    $favorite = ProductFavorite::where('user_id', $userId)
+        ->where('product_id', $productId)
+        ->first();
+        
+    if ($favorite) {
+        $favorite->delete();
+        return response()->json(['success' => true, 'is_favorite' => false]);
+    } else {
+        ProductFavorite::create([
+            'user_id' => $userId,
+            'product_id' => $productId
+        ]);
+        return response()->json(['success' => true, 'is_favorite' => true]);
+    }
+}
 }

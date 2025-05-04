@@ -18,8 +18,9 @@ class ProductController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
-    {
-        $query = Product::with(['category', 'images']);
+    { 
+
+        $query = Product::with(['category', 'images', 'variants.images']);
         
         // Filter by name
         if ($request->filled('name')) {

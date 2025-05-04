@@ -44,4 +44,16 @@ class Product extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(User::class, 'product_favorites', 'product_id', 'user_id');
+    }
+    
+    // Helper method to check if product is favorited by user
+    public function isFavoritedBy($userId)
+    {
+        return $this->favoritedBy()->where('users.id', $userId)->exists();
+    }
+
 }
