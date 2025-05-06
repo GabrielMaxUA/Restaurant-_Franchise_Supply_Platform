@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 06, 2025 at 04:34 AM
+-- Generation Time: May 06, 2025 at 10:29 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -65,11 +65,32 @@ CREATE TABLE `orders` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `status` enum('pending','approved','rejected','packed','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `shipping_address` varchar(255) DEFAULT NULL,
+  `shipping_city` varchar(255) DEFAULT NULL,
+  `shipping_state` varchar(255) DEFAULT NULL,
+  `shipping_zip` varchar(255) DEFAULT NULL,
+  `delivery_date` date DEFAULT NULL,
+  `delivery_time` varchar(255) DEFAULT NULL,
+  `delivery_preference` varchar(255) DEFAULT NULL,
+  `shipping_cost` decimal(10,2) DEFAULT 0.00,
+  `notes` text DEFAULT NULL,
+  `manager_name` varchar(255) DEFAULT NULL,
+  `contact_phone` varchar(255) DEFAULT NULL,
+  `payment_method` varchar(255) DEFAULT NULL,
+  `purchase_order` varchar(255) DEFAULT NULL,
   `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `qb_invoice_id` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `orders`
+--
+
+INSERT INTO `orders` (`id`, `user_id`, `status`, `shipping_address`, `shipping_city`, `shipping_state`, `shipping_zip`, `delivery_date`, `delivery_time`, `delivery_preference`, `shipping_cost`, `notes`, `manager_name`, `contact_phone`, `payment_method`, `purchase_order`, `total_amount`, `created_at`, `updated_at`, `qb_invoice_id`) VALUES
+(9, 5, 'delivered', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-09', 'morning', 'standard', 0.00, '', 'Default Manager', '1234567890', 'account', NULL, 132.84, '2025-05-06 17:30:35', '2025-05-06 17:52:07', NULL),
+(11, 5, 'approved', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-09', 'morning', 'standard', 0.00, '', 'Default Manager', '1234567890', 'account', NULL, 1328.40, '2025-05-06 18:26:39', '2025-05-06 18:27:46', NULL);
 
 -- --------------------------------------------------------
 
@@ -83,8 +104,18 @@ CREATE TABLE `order_items` (
   `product_id` int(10) UNSIGNED NOT NULL,
   `variant_id` int(10) UNSIGNED DEFAULT NULL,
   `quantity` int(10) UNSIGNED NOT NULL DEFAULT 1,
-  `price` decimal(10,2) NOT NULL
+  `price` decimal(10,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `order_items`
+--
+
+INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `quantity`, `price`, `created_at`, `updated_at`) VALUES
+(3, 9, 65, NULL, 1, 123.00, '2025-05-06 17:30:35', '2025-05-06 17:30:35'),
+(5, 11, 65, NULL, 10, 123.00, '2025-05-06 18:26:39', '2025-05-06 18:26:39');
 
 -- --------------------------------------------------------
 
@@ -138,8 +169,7 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`, `updated_at`) VALUES
-(62, 'balalayka', '123123123', 123.00, 4, 123, '2025-05-04 19:11:09', NULL),
-(63, 'machineGun', 'new update by warehouse', 123.00, 5, 11, '2025-05-05 23:06:39', '2025-05-06 06:33:45');
+(65, 'piano', NULL, 123.00, 5, 100, '2025-05-06 17:03:53', '2025-05-06 17:18:48');
 
 -- --------------------------------------------------------
 
@@ -152,14 +182,6 @@ CREATE TABLE `product_favorites` (
   `user_id` int(10) UNSIGNED NOT NULL,
   `product_id` int(10) UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `product_favorites`
---
-
-INSERT INTO `product_favorites` (`id`, `user_id`, `product_id`) VALUES
-(7, 4, 62),
-(8, 5, 63);
 
 -- --------------------------------------------------------
 
@@ -178,11 +200,7 @@ CREATE TABLE `product_images` (
 --
 
 INSERT INTO `product_images` (`id`, `product_id`, `image_url`) VALUES
-(41, 62, 'product-images/6817bbce3f5ce_1746385870.png'),
-(43, 62, 'product-images/6817bc00d9c33_1746385920.png'),
-(44, 62, 'product-images/6817bc0141dcc_1746385921.png'),
-(49, 62, 'product-images/6817bc032607d_1746385923.png'),
-(50, 63, 'product-images/681962e42d710_1746494180.png');
+(52, 65, 'product-images/681a08b97be22_1746536633.png');
 
 -- --------------------------------------------------------
 
@@ -199,13 +217,6 @@ CREATE TABLE `product_variants` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `product_variants`
---
-
-INSERT INTO `product_variants` (`id`, `product_id`, `name`, `price_adjustment`, `inventory_count`, `created_at`, `updated_at`) VALUES
-(13, 62, 'matrix', 123.00, 1, '2025-05-04 23:11:09', '2025-05-04 23:20:20');
 
 -- --------------------------------------------------------
 
@@ -242,6 +253,13 @@ CREATE TABLE `sessions` (
   `payload` text NOT NULL,
   `last_activity` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `sessions`
+--
+
+INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
+('fYeyVfWWOb2vZsKU8yBQb6AjJ3D11dNLQxQojx79', 1, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo4OntzOjY6Il90b2tlbiI7czo0MDoiZ3R0YzQzUEVVVGRZajB6MmVjQm1XbXpZblR4WWw4ZHNZeTFJR3Z0cSI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6MzY6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9hZG1pbi9wcm9kdWN0cyI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjU6ImFkbWluIjtzOjE1OiJsb3dfc3RvY2tfaXRlbXMiO2k6MDtzOjE4OiJvdXRfb2Zfc3RvY2tfaXRlbXMiO2k6MDtzOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToxO30=', 1746541668);
 
 -- --------------------------------------------------------
 
@@ -280,15 +298,6 @@ CREATE TABLE `variant_images` (
   `variant_id` int(10) UNSIGNED NOT NULL,
   `image_url` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `variant_images`
---
-
-INSERT INTO `variant_images` (`id`, `variant_id`, `image_url`) VALUES
-(29, 13, 'variant-images/6817bbcdcd928_1746385869.png'),
-(30, 13, 'variant-images/6817bc005debe_1746385920.png'),
-(31, 13, 'variant-images/6817bc01ee838_1746385921.png');
 
 --
 -- Indexes for dumped tables
@@ -411,13 +420,13 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -429,25 +438,25 @@ ALTER TABLE `personal_access_tokens`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
 
 --
 -- AUTO_INCREMENT for table `product_favorites`
 --
 ALTER TABLE `product_favorites`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
 
 --
 -- AUTO_INCREMENT for table `product_variants`
 --
 ALTER TABLE `product_variants`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -465,7 +474,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `variant_images`
 --
 ALTER TABLE `variant_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- Constraints for dumped tables
