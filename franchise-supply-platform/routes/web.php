@@ -124,7 +124,7 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::post('/cart/remove', [CartController::class, 'removeFromCart'])->name('franchisee.cart.remove');
   Route::get('/cart/clear', [CartController::class, 'clearCart'])->name('franchisee.cart.clear');
   Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('franchisee.cart.checkout');
-  Route::post('/cart/place-order', [CartController::class, 'placeOrder'])->name('franchisee.cart.place.order');
+  Route::post('/cart/place-order', [CartController::class, 'placeOrder'])->name('franchisee.cart.place-order');
   
   // Orders
   Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('franchisee.orders.pending');

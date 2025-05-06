@@ -25,6 +25,7 @@
         
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.75);
+            position: relative;
         }
         
         .sidebar .nav-link:hover {
@@ -34,6 +35,21 @@
         .sidebar .nav-link.active {
             color: white;
             font-weight: bold;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 10rem;
+            background-color: #dc3545;
+            color: white;
         }
         
         .main-content {
@@ -208,6 +224,12 @@
                             <a class="nav-link {{ request()->is('admin/orders*') ? 'active' : '' }}" href="{{ url('/admin/orders') }}">
                                 <i class="fas fa-shopping-cart me-2"></i>
                                 Orders
+                                @php
+                                    $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
+                                @endphp
+                                @if($pendingOrdersCount > 0)
+                                    <span class="notification-badge">{{ $pendingOrdersCount }}</span>
+                                @endif
                             </a>
                         </li>
                         <li class="nav-item">
@@ -239,6 +261,19 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Dashboard')</span>
                         <div class="d-flex">
+                            @php
+                                $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
+                            @endphp
+                            @if($pendingOrdersCount > 0)
+                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-warning me-3 position-relative">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ $pendingOrdersCount }}
+                                        <span class="visually-hidden">pending orders</span>
+                                    </span>
+                                </a>
+                            @endif
+                            
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
@@ -409,6 +444,72 @@
                 }
             });
         });
+    </script>
+    
+    <!-- Add auto-refresh for checking new orders -->
+    <script>
+        // Check for new orders every 30 seconds
+        setInterval(function() {
+            fetch('{{ url('/admin/orders/check-new') }}')
+                .then(response => response.json())
+                .then(data => {
+                    const pendingOrdersCount = data.pending_orders_count;
+                    
+                    // Update the notification badge in sidebar
+                    const sidebarBadge = document.querySelector('.nav-link .notification-badge');
+                    
+                    if (pendingOrdersCount > 0) {
+                        if (sidebarBadge) {
+                            sidebarBadge.textContent = pendingOrdersCount;
+                        } else {
+                            const ordersLink = document.querySelector('.nav-link:has(.fa-shopping-cart)');
+                            if (ordersLink) {
+                                const badge = document.createElement('span');
+                                badge.className = 'notification-badge';
+                                badge.textContent = pendingOrdersCount;
+                                ordersLink.appendChild(badge);
+                            }
+                        }
+                        
+                        // Update the notification bell in navbar
+                        let navbarBadge = document.querySelector('.navbar .badge');
+                        const navbarBell = document.querySelector('.navbar .btn-outline-warning');
+                        
+                        if (navbarBell) {
+                            if (navbarBadge) {
+                                navbarBadge.textContent = pendingOrdersCount;
+                            }
+                        } else {
+                            // Create notification bell if it doesn't exist
+                            const navbar = document.querySelector('.navbar .d-flex');
+                            if (navbar) {
+                                const bellLink = document.createElement('a');
+                                bellLink.href = '{{ url('/admin/orders?status=pending') }}';
+                                bellLink.className = 'btn btn-outline-warning me-3 position-relative';
+                                bellLink.innerHTML = `
+                                    <i class="fas fa-bell"></i>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        ${pendingOrdersCount}
+                                        <span class="visually-hidden">pending orders</span>
+                                    </span>
+                                `;
+                                navbar.prepend(bellLink);
+                            }
+                        }
+                    } else {
+                        // Remove badges if no pending orders
+                        if (sidebarBadge) {
+                            sidebarBadge.remove();
+                        }
+                        
+                        const navbarBell = document.querySelector('.navbar .btn-outline-warning');
+                        if (navbarBell) {
+                            navbarBell.remove();
+                        }
+                    }
+                })
+                .catch(error => console.error('Error checking for new orders:', error));
+        }, 30000);
     </script>
 </body>
 </html>

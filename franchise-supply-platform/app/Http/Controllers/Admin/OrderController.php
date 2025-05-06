@@ -15,9 +15,22 @@ class OrderController extends Controller
         return view('admin.orders.index', compact('orders'));
     }
 
+    public function checkNewOrders()
+    {
+        $pendingOrdersCount = Order::where('status', 'pending')->count();
+        $lowInventoryCount = Product::where('inventory_count', '<=', 10)->count();
+        
+        return response()->json([
+            'pending_orders_count' => $pendingOrdersCount,
+            'low_inventory_count' => $lowInventoryCount
+        ]);
+    }
+    
     public function show(Order $order)
     {
-        $order->load(['user', 'items.product', 'items.variant']);
+        // Eager load the order items with products and variants
+        $order->load(['items.product.images', 'items.variant', 'user']);
+        
         return view('admin.orders.show', compact('order'));
     }
 
@@ -26,58 +39,11 @@ class OrderController extends Controller
         $request->validate([
             'status' => 'required|in:pending,approved,rejected,packed,shipped,delivered,cancelled'
         ]);
-
-        $oldStatus = $order->status;
+        
         $order->status = $request->status;
         $order->save();
-
-        // Handle inventory updates when order is approved or rejected
-        if ($oldStatus == 'pending' && $request->status == 'approved') {
-            // Deduct inventory when order is approved
-            foreach ($order->items as $item) {
-                $product = $item->product;
-                
-                if ($product) {
-                    // If the product has variant
-                    if ($item->variant) {
-                        $variant = $item->variant;
-                        $variant->inventory_count = max(0, $variant->inventory_count - $item->quantity);
-                        $variant->save();
-                    } else {
-                        // Deduct from main product inventory
-                        $product->inventory_count = max(0, $product->inventory_count - $item->quantity);
-                        $product->save();
-                    }
-                }
-            }
-        } else if ($oldStatus == 'approved' && in_array($request->status, ['rejected', 'cancelled'])) {
-            // Return inventory when approved order is rejected or cancelled
-            foreach ($order->items as $item) {
-                $product = $item->product;
-                
-                if ($product) {
-                    // If the product has variant
-                    if ($item->variant) {
-                        $variant = $item->variant;
-                        $variant->inventory_count += $item->quantity;
-                        $variant->save();
-                    } else {
-                        // Add back to main product inventory
-                        $product->inventory_count += $item->quantity;
-                        $product->save();
-                    }
-                }
-            }
-        }
-
-        // Add QuickBooks integration code here (we'll implement this next)
-        if ($oldStatus == 'pending' && $request->status == 'approved') {
-            // Placeholder for QuickBooks sync
-            // $this->syncToQuickBooks($order);
-        }
-
-        return redirect()->route('admin.orders.show', $order)
-            ->with('success', "Order status updated to " . ucfirst($request->status));
+        
+        return redirect()->back()->with('success', "Order status updated to {$request->status}");
     }
 
     // This method will be implemented with the QuickBooks integration

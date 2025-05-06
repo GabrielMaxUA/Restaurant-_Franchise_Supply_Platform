@@ -199,11 +199,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" href="{{ url('/franchisee/cart') }}">
+                            <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" href="{{ url('/franchisee/cart') }}" id="sidebar-cart-link">
                                 <i class="fas fa-shopping-basket me-2"></i>
                                 Cart
                                 @if(session('cart') && count(session('cart')) > 0)
-                                <span class="badge bg-danger ms-2">{{ count(session('cart')) }}</span>
+                                <span class="badge bg-danger ms-2 cart-sidebar-count">{{ count(session('cart')) }}</span>
                                 @endif
                             </a>
                         </li>
@@ -242,10 +242,10 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Franchisee Dashboard')</span>
                         <div class="d-flex">
-                            <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative">
+                            <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative cart-btn" id="top-cart-btn">
                                 <i class="fas fa-shopping-cart"></i>
                                 @if(session('cart') && count(session('cart')) > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count">
                                     {{ count(session('cart')) }}
                                 </span>
                                 @endif
@@ -295,9 +295,59 @@
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Optional JavaScript -->
-    @yield('scripts')
-
+    <!-- Global cart update script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Global function to update all cart count badges
+            window.updateAllCartCountBadges = function(count) {
+                // Update top navigation cart badge
+                const topNavBadge = document.querySelector('#top-cart-btn .badge');
+                if (topNavBadge) {
+                    if (count > 0) {
+                        topNavBadge.textContent = count;
+                        topNavBadge.style.display = '';
+                    } else {
+                        topNavBadge.style.display = 'none';
+                    }
+                } else if (count > 0) {
+                    const cartBtn = document.querySelector('#top-cart-btn');
+                    if (cartBtn) {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count';
+                        newBadge.textContent = count;
+                        cartBtn.appendChild(newBadge);
+                    }
+                }
+                
+                // Update sidebar cart badge
+                const sidebarBadge = document.querySelector('#sidebar-cart-link .badge');
+                if (sidebarBadge) {
+                    if (count > 0) {
+                        sidebarBadge.textContent = count;
+                        sidebarBadge.style.display = '';
+                    } else {
+                        sidebarBadge.style.display = 'none';
+                    }
+                } else if (count > 0) {
+                    const sidebarLink = document.querySelector('#sidebar-cart-link');
+                    if (sidebarLink) {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'badge bg-danger ms-2 cart-sidebar-count';
+                        newBadge.textContent = count;
+                        sidebarLink.appendChild(newBadge);
+                    }
+                }
+            };
+            
+            // Listen for custom cart update events 
+            document.addEventListener('cartUpdated', function(e) {
+                if (e.detail && typeof e.detail.count !== 'undefined') {
+                    window.updateAllCartCountBadges(e.detail.count);
+                }
+            });
+        });
+    </script>
+    
     <!-- Auto-dismiss alerts script -->
     <script>
         // Auto-dismiss alerts after 5 seconds (except persistent guides)
@@ -463,5 +513,8 @@
             });
         });
     </script>
+    
+    <!-- Optional JavaScript -->
+    @yield('scripts')
 </body>
 </html>

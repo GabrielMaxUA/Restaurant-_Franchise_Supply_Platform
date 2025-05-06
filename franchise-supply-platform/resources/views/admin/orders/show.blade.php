@@ -190,6 +190,60 @@
     </div>
 </div>
 
+<!-- Shipping Information -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Shipping Information</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Shipping Address:</strong> {{ $order->shipping_address }}</p>
+                <p><strong>City:</strong> {{ $order->shipping_city }}</p>
+                <p><strong>State:</strong> {{ $order->shipping_state }}</p>
+                <p><strong>ZIP Code:</strong> {{ $order->shipping_zip }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Delivery Date:</strong> 
+                    @if($order->delivery_date)
+                        {{ \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') }}
+                    @else
+                        Not specified
+                    @endif
+                </p>
+                <p><strong>Delivery Time:</strong> 
+                    @if($order->delivery_time == 'morning')
+                        Morning (8:00 AM - 12:00 PM)
+                    @elseif($order->delivery_time == 'afternoon')
+                        Afternoon (12:00 PM - 4:00 PM)
+                    @elseif($order->delivery_time == 'evening')
+                        Evening (4:00 PM - 8:00 PM)
+                    @else
+                        {{ $order->delivery_time ?? 'Not specified' }}
+                    @endif
+                </p>
+                <p><strong>Delivery Method:</strong> 
+                    @if($order->delivery_preference == 'standard')
+                        Standard Delivery
+                    @elseif($order->delivery_preference == 'express')
+                        Express Delivery
+                    @else
+                        {{ $order->delivery_preference ?? 'Standard' }}
+                    @endif
+                </p>
+                <p><strong>Contact Phone:</strong> {{ $order->contact_phone ?? 'Not provided' }}</p>
+            </div>
+        </div>
+        
+        @if($order->notes)
+            <div class="mt-3">
+                <strong>Order Notes:</strong>
+                <p class="mt-2">{{ $order->notes }}</p>
+            </div>
+        @endif
+    </div>
+</div>
+
 <!-- Order Items -->
 <div class="card shadow mb-4">
     <div class="card-header py-3">
@@ -200,7 +254,7 @@
             <table class="table table-bordered">
                 <thead class="table-light">
                     <tr>
-                        <th>Product</th>
+                        <th width="50%">Product</th>
                         <th>Variant</th>
                         <th>Price</th>
                         <th>Quantity</th>
@@ -210,7 +264,25 @@
                 <tbody>
                     @forelse($order->items as $item)
                         <tr>
-                            <td>{{ $item->product->name ?? 'Unknown Product' }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    @if($item->product && $item->product->images && $item->product->images->count() > 0)
+                                        <img src="{{ asset('storage/' . $item->product->images->first()->image_url) }}" 
+                                             alt="{{ $item->product->name }}" 
+                                             class="me-3" 
+                                             style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                                    @else
+                                        <div class="bg-light d-flex align-items-center justify-content-center me-3" 
+                                             style="width: 50px; height: 50px; border-radius: 4px;">
+                                            <i class="fas fa-image text-secondary"></i>
+                                        </div>
+                                    @endif
+                                    <div>
+                                        <div class="font-weight-bold">{{ $item->product->name ?? 'Unknown Product' }}</div>
+                                        <div class="small text-muted">ID: {{ $item->product->id ?? 'N/A' }}</div>
+                                    </div>
+                                </div>
+                            </td>
                             <td>{{ $item->variant->name ?? 'N/A' }}</td>
                             <td>${{ number_format($item->price, 2) }}</td>
                             <td>{{ $item->quantity }}</td>
@@ -223,6 +295,14 @@
                     @endforelse
                 </tbody>
                 <tfoot class="table-light">
+                    <tr>
+                        <th colspan="4" class="text-end">Subtotal:</th>
+                        <th>${{ number_format($order->total_amount - ($order->shipping_cost ?? 0), 2) }}</th>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="text-end">Shipping:</td>
+                        <td>${{ number_format($order->shipping_cost ?? 0, 2) }}</td>
+                    </tr>
                     <tr>
                         <th colspan="4" class="text-end">Total:</th>
                         <th>${{ number_format($order->total_amount, 2) }}</th>

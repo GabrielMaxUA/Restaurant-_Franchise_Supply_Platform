@@ -8,10 +8,14 @@
 <style>
     .order-card {
         transition: all 0.2s ease;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
     }
     
     .order-card:hover {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
     }
     
     .filter-section {
@@ -27,19 +31,60 @@
         text-align: center;
     }
     
-    .order-summary {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+    .order-summary-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-bottom: 1rem;
     }
     
-    .order-summary-item {
-        flex: 1;
-        min-width: 120px;
-        padding: 10px;
+    .order-summary-table th {
         background-color: #f8f9fa;
-        border-radius: 0.25rem;
-        text-align: center;
+        padding: 10px 15px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        color: #495057;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .order-summary-table td {
+        padding: 10px 15px;
+        border-bottom: 1px solid #dee2e6;
+        vertical-align: middle;
+    }
+    
+    .order-summary-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .items-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .item-preview-image {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .item-preview-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        background-color: #6c757d;
+        color: white;
+        border-radius: 50%;
+        font-size: 12px;
     }
     
     .repeat-order-btn {
@@ -48,6 +93,20 @@
     
     .repeat-order-btn:hover {
         transform: scale(1.05);
+    }
+    
+    .date-info {
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .action-dropdown .dropdown-item {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+    
+    .action-dropdown .dropdown-item i {
+        width: 18px;
     }
 </style>
 @endsection
@@ -127,120 +186,88 @@
         <div class="col-md-12">
             <div class="list-group">
                 @foreach($orders as $order)
-                <div class="list-group-item p-0 mb-3 border rounded order-card">
-                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
-                        <div>
-                            <h5 class="mb-1">Order #{{ $order->order_number }}</h5>
-                            <p class="text-muted mb-0">
-                                <i class="far fa-calendar-alt me-1"></i> {{ $order->created_at->format('M d, Y') }}
-                                <span class="mx-2">|</span>
-                                <i class="far fa-clock me-1"></i> {{ $order->created_at->format('h:i A') }}
-                            </p>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="status-badge me-3">
+                <div class="list-group-item p-0 border rounded order-card">
+   <!-- Order Summary Table with adjusted height and icon colors -->
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th style="width: 80px">Image</th>
+                <th>Product</th>
+                <th style="width: 120px" class="text-center">Total</th>
+                <th style="width: 120px" class="text-center">Payment</th>
+                <th style="width: 180px" class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($orders as $order)
+            <tr>
+                <td>
+                    @if($order->items && $order->items->count() > 0)
+                        <img src="{{ $order->items->first()->product->images && $order->items->first()->product->images->count() > 0 ? asset('storage/' . $order->items->first()->product->images->first()->image_url) : asset('images/placeholder-product.jpg') }}" 
+                             alt="{{ $order->items->first()->product->name }}" 
+                             class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                    @else
+                        <img src="{{ asset('images/placeholder-product.jpg') }}" 
+                             alt="No product" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                    @endif
+                </td>
+                <td>
+                    <div class="d-flex flex-column">
+                        <div class="d-flex align-items-center mb-1">
+                            <span class="fw-medium">{{ $order->created_at->format('M d, Y') }}</span>
+                            <span class="mx-2">|</span>
+                            <span>{{ $order->created_at->format('h:i A') }}</span>
+                            <span class="ms-2">
                                 @if($order->status == 'delivered')
                                     <span class="badge bg-success">Delivered</span>
                                 @elseif($order->status == 'cancelled')
                                     <span class="badge bg-danger">Cancelled</span>
                                 @endif
                             </span>
-                            
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="orderActions{{ $order->id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Actions
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="orderActions{{ $order->id }}">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('franchisee.orders.details', $order->id) }}">
-                                            <i class="fas fa-eye me-2"></i> View Details
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('franchisee.orders.invoice', $order->id) }}">
-                                            <i class="fas fa-file-invoice me-2"></i> Download Invoice
-                                        </a>
-                                    </li>
-                                    @if($order->status == 'delivered')
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('franchisee.orders.repeat', $order->id) }}">
-                                            <i class="fas fa-sync-alt me-2"></i> Repeat Order
-                                        </a>
-                                    </li>
-                                    @endif
-                                </ul>
-                            </div>
                         </div>
+                        
+                        @if($order->items && $order->items->count() > 0)
+                            <div>
+                                @foreach($order->items->take(2) as $item)
+                                    <span class="d-block small">{{ $item->product->name }} 
+                                    @if($item->variant)
+                                        ({{ $item->variant->name }})
+                                    @endif
+                                    × {{ $item->quantity }}</span>
+                                @endforeach
+                                
+                                @if($order->items->count() > 2)
+                                    <span class="small text-muted">+{{ $order->items->count() - 2 }} more items</span>
+                                @endif
+                            </div>
+                        @endif
                     </div>
-                    
-                    <div class="p-3">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <h6 class="mb-2">Order Summary</h6>
-                                    <div class="order-summary">
-                                        <div class="order-summary-item">
-                                            <small class="text-muted">Items</small>
-                                            <h6 class="mb-0">{{ $order->total_items }}</h6>
-                                        </div>
-                                        <div class="order-summary-item">
-                                            <small class="text-muted">Total</small>
-                                            <h6 class="mb-0">${{ number_format($order->total, 2) }}</h6>
-                                        </div>
-                                        <div class="order-summary-item">
-                                            <small class="text-muted">Payment</small>
-                                            <h6 class="mb-0">{{ ucfirst($order->payment_method) }}</h6>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                @if($order->delivered_at)
-                                <p class="mb-0 small">
-                                    <i class="fas fa-truck me-1 text-success"></i> 
-                                    Delivered on {{ $order->delivered_at->format('M d, Y') }}
-                                </p>
-                                @elseif($order->cancelled_at)
-                                <p class="mb-0 small">
-                                    <i class="fas fa-ban me-1 text-danger"></i> 
-                                    Cancelled on {{ $order->cancelled_at->format('M d, Y') }}
-                                </p>
-                                @endif
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <h6 class="mb-2">Items Preview</h6>
-                                <div class="row g-2">
-                                    @foreach($order->items->take(4) as $item)
-                                    <div class="col-3">
-                                        <div class="position-relative">
-                                            <img src="{{ $item->product->image_url ?? asset('images/placeholder-product-small.jpg') }}" 
-                                                class="img-fluid rounded" alt="{{ $item->product->name }}" 
-                                                data-bs-toggle="tooltip" title="{{ $item->product->name }} ({{ $item->quantity }}x)">
-                                            <span class="position-absolute top-0 end-0 badge rounded-pill bg-secondary">
-                                                {{ $item->quantity }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    @endforeach
-                                    
-                                    @if(count($order->items) > 4)
-                                    <div class="col-3">
-                                        <div class="d-flex justify-content-center align-items-center bg-light rounded h-100">
-                                            <span class="text-muted">+{{ count($order->items) - 4 }} more</span>
-                                        </div>
-                                    </div>
-                                    @endif
-                                </div>
-                                
-                                @if($order->status == 'delivered')
-                                <div class="text-end mt-3">
-                                    <a href="{{ route('franchisee.orders.repeat', $order->id) }}" class="btn btn-sm btn-success repeat-order-btn">
-                                        <i class="fas fa-sync-alt me-1"></i> Repeat Order
-                                    </a>
-                                </div>
-                                @endif
-                            </div>
-                        </div>
+                </td>
+                <td class="text-center">
+                    <span class="fw-medium">${{ number_format($order->total_amount, 2) }}</span>
+                </td>
+                <td class="text-center">
+                    <span>{{ ucfirst($order->payment_method ?? 'Account') }}</span>
+                </td>
+                <td>
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm p-1 me-2" style="color: #0d6efd;" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-sm p-1 me-2" style="color:rgb(253, 135, 0);" title="Download Invoice">
+                            <i class="fas fa-file-invoice"></i>
+                        </a>
+                        <a href="{{ route('franchisee.orders.repeat', $order->id) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-sync-alt"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
                     </div>
                 </div>
                 @endforeach
@@ -313,3 +340,4 @@
         });
     }
 </script>
+@endsection

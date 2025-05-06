@@ -730,6 +730,81 @@
         @endif
     </div>
 </div>
+<!-- Add this at the bottom of your franchisee/catalog.blade.php file -->
+
+<!-- Quick Add to Cart Modal -->
+<div class="modal fade" id="quickAddToCartModal" tabindex="-1" aria-labelledby="quickAddToCartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quickAddToCartModalLabel">Add to Cart</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex mb-3">
+                    <div class="flex-shrink-0 me-3">
+                        <img src="" id="quickAddProductImage" class="img-thumbnail" style="width: 80px; height: 80px; object-fit: cover;" alt="Product Image">
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 id="quickAddProductName"></h5>
+                        <p class="mb-0 text-success" id="quickAddProductPrice"></p>
+                        <p class="mb-0 text-muted" id="quickAddProductStock"></p>
+                    </div>
+                </div>
+                
+                <form id="quickAddToCartForm" action="{{ route('franchisee.cart.add') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="product_id" id="quickAddProductId">
+                    <input type="hidden" name="variant_id" id="quickAddVariantId">
+                    
+                    <div class="mb-3">
+                        <label for="quickAddQuantity" class="form-label">Quantity</label>
+                        <div class="input-group">
+                            <button type="button" class="btn btn-outline-secondary" id="quickAddDecrement">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" class="form-control text-center" id="quickAddQuantity" name="quantity" value="1" min="1">
+                            <button type="button" class="btn btn-outline-secondary" id="quickAddIncrement">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="quickAddToCartSubmit">
+                    <i class="fas fa-cart-plus me-1"></i> Add to Cart
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Notification Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="cartToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            <div class="d-flex align-items-center">
+                <div id="cartToastMessage">Item added to cart</div>
+                <a href="{{ route('franchisee.cart') }}" class="btn btn-sm btn-outline-success ms-auto">View Cart</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Count Badge Update Element (Add this to your layout file in the header) -->
+<script id="cart-badge-template" type="text/template">
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count-badge">
+        {count}
+        <span class="visually-hidden">items in cart</span>
+    </span>
+</script>
 @endsection
 
 @section('scripts')
