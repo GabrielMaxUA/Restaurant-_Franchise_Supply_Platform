@@ -17,60 +17,106 @@
             min-height: 100vh;
             background-color: #343a40;
             color: white;
+            position: relative;
+            transition: transform 1s ease-in-out, margin-left 1s ease-in-out, width 1s ease-in-out;
+            width: 16.66667%; /* col-md-2 width */
+            z-index: 100;
         }
+        
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.75);
         }
+        
         .sidebar .nav-link:hover {
             color: rgba(255, 255, 255, 1);
         }
+        
         .sidebar .nav-link.active {
             color: white;
             font-weight: bold;
         }
+        
         .main-content {
             padding: 20px;
+            transition: margin-left 1s ease-in-out, width 1s ease-in-out;
         }
+        
         .navbar-brand {
             font-weight: bold;
         }
         
+        /* Sidebar toggle button styling - now always visible */
+        .sidebar-toggle {
+            position: fixed;
+            left: 16.66667%; /* Aligns with sidebar width */
+            margin-left: -15px; /* Half the button width */
+            top: 55px;
+            width: 30px;
+            height: 30px;
+            background-color: #343a40;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            border: 2px solid #6c757d;
+            z-index: 9999; /* Extremely high z-index to ensure visibility */
+            transition: left 1s ease-in-out, transform 0.3s;
+        }
+        
+        .sidebar-toggle:hover {
+            background-color: #212529;
+        }
+        
+        /* When sidebar is collapsed */
+        .sidebar-collapsed {
+            transform: translateX(-100%);
+            margin-left: -16.66667%;
+        }
+        
+        .content-expanded {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        /* Rotate icon when sidebar is toggled */
+        .icon-rotate {
+            transform: rotate(180deg);
+            transition: transform 0.5s;
+        }
+        
         /* Persistent guide styling */
         .persistent-guide {
-            /* Make sure the alert is always visible */
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            /* Add a subtle highlight to distinguish permanent guides */
             border-left: 3px solid #0d6efd;
         }
 
-        /* Remove the fade effect that might hide persistent guides */
         .persistent-guide.fade {
             transition: none !important;
         }
 
-        /* Prevent close buttons from being added to persistent guides */
         .persistent-guide .close,
         .persistent-guide .btn-close {
             display: none !important;
         }
-    </style>
-
-<style>
-         .alert-float {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 9999;
-        padding: 0.5rem 1rem;
-        max-width: 500px;
-        text-align: center;
-        border-radius: 4px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        animation: fadeInDown 0.5s;
-    }
+        
+        /* Other existing styles... */
+        .alert-float {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            padding: 0.5rem 1rem;
+            max-width: 500px;
+            text-align: center;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeInDown 0.5s;
+        }
         
         @keyframes fadeInDown {
             from {
@@ -95,6 +141,35 @@
         .fade-out {
             animation: fadeOut 0.5s forwards;
         }
+        
+        .card {
+            transition: transform .2s;
+        }
+        
+        a:hover .card {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+        .navbar{
+          padding-left: 20px;
+        }
+
+        .navbar-light{
+          margin-left: 12px !important;
+          margin-right: 12px !important;
+          background-color:rgba(51, 89, 128, 0.49) !important;
+          border-radius: 5px !important;
+          font-size: 3em !important;
+        }
+
+        .navbar-brand{
+          font-size: 1.2em !important;
+        }
+        .dropdown {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
     </style>
     
     @yield('styles')
@@ -103,7 +178,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+            <div id="sidebar" class="col-md-2 d-md-block sidebar">
                 <div class="position-sticky pt-3">
                     <div class="py-4 px-3 mb-4">
                         <h5 class="text-center">Restaurant Franchise</h5>
@@ -152,11 +227,15 @@
                 </div>
             </div>
             
+            <!-- Toggle button as a separate element outside the sidebar -->
+            <div id="sidebar-toggle" class="sidebar-toggle">
+                <i id="toggle-icon" class="fas fa-chevron-left"></i>
+            </div>
+            
             <!-- Main Content -->
-             
-            <div class="col-md-9 col-lg-10 ms-sm-auto main-content">
+            <div id="main-content" class="col-md-10 ms-sm-auto main-content">
                 <!-- Top Navigation -->
-                <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+                <nav class="navbar navbar-expand-lg navbar-light mb-4">
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Dashboard')</span>
                         <div class="d-flex">
@@ -197,7 +276,7 @@
     <!-- Optional JavaScript -->
     @yield('scripts')
 
-    <!-- Add the auto-dismiss script RIGHT HERE, after the @yield('scripts') -->
+    <!-- Auto-dismiss alerts script -->
     <script>
         // Auto-dismiss alerts after 5 seconds (except persistent guides)
         document.addEventListener('DOMContentLoaded', function() {
@@ -270,6 +349,65 @@
             @if(session('info'))
                 showFloatingAlert("{{ session('info') }}", "info");
             @endif
+        });
+    </script>
+    
+    <!-- Enhanced Sidebar toggle script with fixes -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+            const toggleIcon = document.getElementById('toggle-icon');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            // Check if sidebar state is stored in localStorage
+            // Default to NOT collapsed (sidebar visible by default)
+            const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            
+            // Apply initial state ONLY if explicitly collapsed
+            if (sidebarCollapsed) {
+                sidebar.classList.add('sidebar-collapsed');
+                mainContent.classList.add('content-expanded');
+                mainContent.classList.remove('col-md-10', 'ms-sm-auto');
+                // Use right-facing arrow immediately when collapsed
+                toggleIcon.classList.remove('fa-chevron-left');
+                toggleIcon.classList.add('fa-chevron-right');
+                // Position toggle button at edge of screen when sidebar is collapsed
+                sidebarToggleBtn.style.left = '15px';
+            }
+            
+            // Toggle sidebar when button is clicked
+            sidebarToggleBtn.addEventListener('click', function() {
+                // Toggle collapse class
+                sidebar.classList.toggle('sidebar-collapsed');
+                
+                if (sidebar.classList.contains('sidebar-collapsed')) {
+                    // Sidebar is now being hidden - immediately show right arrow
+                    toggleIcon.classList.remove('fa-chevron-left');
+                    toggleIcon.classList.add('fa-chevron-right');
+                    
+                    // Adjust content and button position
+                    mainContent.classList.add('content-expanded');
+                    mainContent.classList.remove('col-md-10', 'ms-sm-auto');
+                    sidebarToggleBtn.style.left = '15px';
+                    localStorage.setItem('sidebar-collapsed', 'true');
+                } else {
+                    // Sidebar is now being shown
+                    // Keep right arrow until sidebar is fully visible
+                    
+                    // Adjust content and button position immediately
+                    mainContent.classList.remove('content-expanded');
+                    mainContent.classList.add('col-md-10', 'ms-sm-auto');
+                    sidebarToggleBtn.style.left = '16.66667%';
+                    localStorage.setItem('sidebar-collapsed', 'false');
+                    
+                    // Wait for animation to complete before changing icon
+                    setTimeout(() => {
+                        toggleIcon.classList.remove('fa-chevron-right');
+                        toggleIcon.classList.add('fa-chevron-left');
+                    }, 1000); // Match the 1s animation time
+                }
+            });
         });
     </script>
 </body>

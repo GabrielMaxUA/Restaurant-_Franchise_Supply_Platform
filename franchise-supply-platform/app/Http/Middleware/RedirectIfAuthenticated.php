@@ -26,11 +26,20 @@ class RedirectIfAuthenticated
                 // Get the authenticated user
                 $user = Auth::guard($guard)->user();
                 
+                // Make sure role relationship is loaded
+                if (!$user->relationLoaded('role')) {
+                    $user->load('role');
+                }
+                
                 // Redirect based on role
-                if ($user->role->name === 'admin' || $user->role->name === 'warehouse') {
+                if ($user->role->name === 'admin') {
                     return redirect()->route('admin.dashboard');
+                } elseif ($user->role->name === 'warehouse') {
+                    return redirect()->route('warehouse.dashboard');
+                } elseif ($user->role->name === 'franchisee') {
+                    return redirect()->route('franchisee.dashboard');
                 } else {
-                    return redirect('/'); // For franchisees, you could redirect to a different page
+                    return redirect('/');
                 }
             }
         }

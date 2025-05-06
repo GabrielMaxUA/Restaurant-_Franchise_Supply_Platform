@@ -68,6 +68,40 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/orders/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('admin.orders.sync-quickbooks');
 });
 
+// Warehouse Routes - Protected by auth and role middleware
+Route::prefix('warehouse')->middleware(['auth', 'role:warehouse'])->group(function () {
+  // Dashboard
+  Route::get('/dashboard', [App\Http\Controllers\Warehouse\DashboardController::class, 'index'])->name('warehouse.dashboard');
+  
+  // Redirect /warehouse to dashboard
+  Route::get('/', function() {
+      return redirect('/warehouse/dashboard');
+  });
+  
+  // Product routes - using dedicated Warehouse controllers
+  Route::get('/products', [App\Http\Controllers\Warehouse\ProductController::class, 'index'])->name('warehouse.products.index');
+  Route::get('/products/create', [App\Http\Controllers\Warehouse\ProductController::class, 'create'])->name('warehouse.products.create');
+  Route::post('/products', [App\Http\Controllers\Warehouse\ProductController::class, 'store'])->name('warehouse.products.store');
+  Route::get('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'show'])->name('warehouse.products.show');
+  Route::get('/products/{product}/edit', [App\Http\Controllers\Warehouse\ProductController::class, 'edit'])->name('warehouse.products.edit');
+  Route::put('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'update'])->name('warehouse.products.update');
+  Route::delete('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'destroy'])->name('warehouse.products.destroy');
+  
+  // Category routes - using dedicated Warehouse controllers
+  Route::get('/categories', [App\Http\Controllers\Warehouse\CategoryController::class, 'index'])->name('warehouse.categories.index');
+  Route::get('/categories/create', [App\Http\Controllers\Warehouse\CategoryController::class, 'create'])->name('warehouse.categories.create');
+  Route::post('/categories', [App\Http\Controllers\Warehouse\CategoryController::class, 'store'])->name('warehouse.categories.store');
+  Route::get('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'show'])->name('warehouse.categories.show');
+  Route::get('/categories/{category}/edit', [App\Http\Controllers\Warehouse\CategoryController::class, 'edit'])->name('warehouse.categories.edit');
+  Route::put('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'update'])->name('warehouse.categories.update');
+  Route::delete('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'destroy'])->name('warehouse.categories.destroy');
+  
+  // Inventory management - using dedicated Warehouse controllers
+  Route::get('/inventory/low-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'lowStock'])->name('warehouse.inventory.low-stock');
+  Route::get('/inventory/out-of-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'outOfStock'])->name('warehouse.inventory.out-of-stock');
+  Route::get('/inventory/popular', [App\Http\Controllers\Warehouse\ProductController::class, 'mostPopular'])->name('warehouse.inventory.popular');
+});
+
 // Franchisee Routes - Protected by auth and role middleware
 Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(function () {
     

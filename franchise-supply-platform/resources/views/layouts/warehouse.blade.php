@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Franchisee Portal - Restaurant Supply Platform')</title>
+    <title>@yield('title', 'Warehouse Portal - Restaurant Franchise Supply Platform')</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -181,42 +181,45 @@
             <div id="sidebar" class="col-md-2 d-md-block sidebar">
                 <div class="position-sticky pt-3">
                     <div class="py-4 px-3 mb-4">
-                        <h5 class="text-center">Restaurant Franchise</h5>
-                        <p class="text-center mb-0">Franchisee Portal</p>
+                        <h5 class="text-center">Warehouse Portal</h5>
+                        <p class="text-center mb-0">Supply Management</p>
                     </div>
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/dashboard*') ? 'active' : '' }}" href="{{ url('/franchisee/dashboard') }}">
+                            <a class="nav-link {{ request()->is('warehouse/dashboard*') ? 'active' : '' }}" href="{{ url('/warehouse/dashboard') }}">
                                 <i class="fas fa-tachometer-alt me-2"></i>
                                 Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/catalog*') ? 'active' : '' }}" href="{{ url('/franchisee/catalog') }}">
+                            <a class="nav-link {{ request()->is('warehouse/products*') ? 'active' : '' }}" href="{{ url('/warehouse/products') }}">
                                 <i class="fas fa-box me-2"></i>
-                                Product Catalog
+                                Products
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" href="{{ url('/franchisee/cart') }}">
-                                <i class="fas fa-shopping-basket me-2"></i>
-                                Cart
-                                @if(session('cart') && count(session('cart')) > 0)
-                                <span class="badge bg-danger ms-2">{{ count(session('cart')) }}</span>
-                                @endif
+                            <a class="nav-link {{ request()->is('warehouse/categories*') ? 'active' : '' }}" href="{{ url('/warehouse/categories') }}">
+                                <i class="fas fa-tags me-2"></i>
+                                Categories
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/orders/pending*') ? 'active' : '' }}" href="{{ url('/franchisee/orders/pending') }}">
-                                <i class="fas fa-clock me-2"></i>
-                                Pending Orders
+                            <a class="nav-link {{ request()->is('warehouse/inventory/low-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/low-stock') }}">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Low Stock
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/orders/history*') ? 'active' : '' }}" href="{{ url('/franchisee/orders/history') }}">
-                                <i class="fas fa-history me-2"></i>
-                                Order History
+                            <a class="nav-link {{ request()->is('warehouse/inventory/out-of-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/out-of-stock') }}">
+                                <i class="fas fa-ban me-2"></i>
+                                Out of Stock
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->is('warehouse/inventory/popular*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/popular') }}">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Popular Products
                             </a>
                         </li>
                     </ul>
@@ -238,34 +241,18 @@
             <!-- Main Content -->
             <div id="main-content" class="col-md-10 ms-sm-auto main-content">
                 <!-- Top Navigation -->
-                <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+                <nav class="navbar navbar-expand-lg navbar-light mb-4">
                     <div class="container-fluid">
-                        <span class="navbar-brand mb-0 h1">@yield('page-title', 'Franchisee Dashboard')</span>
+                        <span class="navbar-brand mb-0 h1">@yield('page-title', 'Warehouse Dashboard')</span>
                         <div class="d-flex">
-                            <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative">
-                                <i class="fas fa-shopping-cart"></i>
-                                @if(session('cart') && count(session('cart')) > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                    {{ count(session('cart')) }}
-                                </span>
-                                @endif
-                            </a>
-                            
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? 'Franchisee' }}
+                                    <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? 'Warehouse Manager' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    <!-- <li><a class="dropdown-item" href="{{ url('/franchisee/profile') }}">
-                                        <i class="fas fa-user me-2"></i> Profile
-                                    </a></li> -->
-                                    <li><a class="dropdown-item" href="{{ url('/franchisee/settings') }}">
-                                        <i class="fas fa-cog me-2"></i> Settings
-                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/warehouse/profile') }}">Profile</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">Logout</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -274,20 +261,21 @@
                 
                 <!-- Page Content -->
                 <div class="container-fluid">
-                  @if(session('welcome_back') && !session('hide_welcome'))
-                  <div class="alert alert-success persistent-guide mb-4">
-                    <h4 class="alert-heading">
-                      <i class="fas fa-star me-2">
-                      </i> Welcome back, {{ session('user_name') ?? Auth::user()->username ?? 'Franchisee' }}!
-                    </h4>
-                      <p>Nice to see you back!</p>
-                      <hr>
-                      <p class="mb-0">Check the dashboard for more insights about your restaurant supply status.</p>
-                  </div>
-                  @endif
+                    <!-- Welcome banner -->
+                    @if(!session('hide_welcome'))
+                    <div class="alert {{ (\App\Models\Product::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\Product::where('inventory_count', '=', 0)->count() > 0) ? 'alert-danger' : 'alert-success' }} persistent-guide mb-4">
+                        <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
+                        <p>Inventory Status: 
+                            <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
+                            <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
+                        </p>
+                        <hr>
+                        <p class="mb-0">Check the dashboard for more insights about the inventory management status.</p>
+                    </div>
+                    @endif
+                    
+                    @yield('content')
                 </div>
-                
-                @yield('content')
             </div>
         </div>
     </div>
@@ -332,7 +320,9 @@
             // Create alert element
             const alertElement = document.createElement('div');
             alertElement.className = `alert alert-${type} fade show alert-float`;
-            alertElement.innerHTML = message;
+            alertElement.innerHTML = `
+                ${message}
+            `;
             
             // Add to the container
             alertsContainer.appendChild(alertElement);
@@ -427,39 +417,6 @@
                         toggleIcon.classList.add('fa-chevron-left');
                     }, 1000); // Match the 1s animation time
                 }
-            });
-        });
-    </script>
-    
-    <!-- Quantity selector script -->
-    <script>
-        // Handle quantity selector buttons
-        document.addEventListener('DOMContentLoaded', function() {
-            const decrementButtons = document.querySelectorAll('.quantity-decrement');
-            const incrementButtons = document.querySelectorAll('.quantity-increment');
-            
-            decrementButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const input = this.parentNode.querySelector('input');
-                    const currentValue = parseInt(input.value);
-                    if (currentValue > parseInt(input.min)) {
-                        input.value = currentValue - 1;
-                        // Trigger change event to update any listeners
-                        input.dispatchEvent(new Event('change'));
-                    }
-                });
-            });
-            
-            incrementButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const input = this.parentNode.querySelector('input');
-                    const currentValue = parseInt(input.value);
-                    if (currentValue < parseInt(input.max)) {
-                        input.value = currentValue + 1;
-                        // Trigger change event to update any listeners
-                        input.dispatchEvent(new Event('change'));
-                    }
-                });
             });
         });
     </script>

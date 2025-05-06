@@ -17,13 +17,8 @@ class Product extends Model
         'inventory_count'
     ];
 
-    // Disable timestamps since we don't have the updated_at column
-    public $timestamps = false;
-
-    // If you have a created_at column that should still be used
-    protected $dates = [
-        'created_at'
-    ];
+    // Enable timestamps since we have both created_at and updated_at columns
+    public $timestamps = true;
 
     public function category()
     {
@@ -55,5 +50,4 @@ class Product extends Model
     {
         return $this->favoritedBy()->where('users.id', $userId)->exists();
     }
-
 }

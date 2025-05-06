@@ -34,6 +34,9 @@ class CheckRole
             if ($user->role->name === 'admin') {
                 return redirect()->route('admin.dashboard')
                     ->with('error', 'You do not have permission to access that page.');
+            } elseif ($user->role->name === 'warehouse') {
+                return redirect()->route('warehouse.dashboard')
+                    ->with('error', 'You do not have permission to access that page.');
             } elseif ($user->role->name === 'franchisee') {
                 return redirect()->route('franchisee.dashboard')
                     ->with('error', 'You do not have permission to access that page.');

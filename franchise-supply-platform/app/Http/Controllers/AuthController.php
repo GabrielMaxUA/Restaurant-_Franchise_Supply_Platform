@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -71,22 +72,27 @@ class AuthController extends Controller
             
             // Redirect based on role
             if ($user->role->name === 'admin') {
-                return redirect()->route('admin.dashboard');
                 session([
-                  'welcome_back' => true,
-                  'user_name' => $user->username,  // Store the name in session
+                    'welcome_back' => true,
+                    'user_name' => $user->username,  // Store the name in session
                 ]);
+                return redirect()->route('admin.dashboard');
             } else if ($user->role->name === 'warehouse') {
-                return redirect()->route('admin.dashboard'); // For now, redirect to same dashboard
-            } else if ($user->role->name === 'franchisee') { // Fixed the typo here from "franchesee" to "franchisee"
+                // Set warehouse-specific session data
+                session([
+                    'welcome_back' => true,
+                    'user_name' => $user->username,
+                    'low_stock_items' => Product::where('inventory_count', '<=', 10)
+                        ->where('inventory_count', '>', 0)->count(),
+                    'out_of_stock_items' => Product::where('inventory_count', 0)->count()
+                ]);
+                return redirect()->route('warehouse.dashboard'); // Redirect to warehouse dashboard
+            } else if ($user->role->name === 'franchisee') {
                 // Set welcome message for franchisees
-                // In the AuthController webLogin method
-              session([
-                'welcome_back' => true,
-                'user_name' => $user->username,  // Store the name in session
-                // 'pending_orders' => $pendingOrdersCount,
-                // 'low_stock_items' => $lowStockItemsCount
-              ]);
+                session([
+                    'welcome_back' => true,
+                    'user_name' => $user->username  // Store the name in session
+                ]);
                 return redirect()->route('franchisee.dashboard');
             } else {
                 return redirect('/'); // Redirect other roles to home
