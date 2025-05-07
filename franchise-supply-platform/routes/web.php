@@ -125,6 +125,27 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::get('/cart/clear', [CartController::class, 'clearCart'])->name('franchisee.cart.clear');
   Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('franchisee.cart.checkout');
   Route::post('/cart/place-order', [CartController::class, 'placeOrder'])->name('franchisee.cart.place-order');
+  // Add this route for getting the franchisee address
+  Route::get('/franchisee/get-address', [App\Http\Controllers\Franchisee\AddressController::class, 'getAddress'])->name('franchisee.get-address');
+  
+  Route::get('/test-franchisee-detail', function() {
+    // Test creating a franchisee detail
+    try {
+        $detail = \App\Models\FranchiseeDetail::create([
+            'user_id' => 1, // Make sure this is a valid user ID
+            'company_name' => 'Test Company',
+            'address' => 'Test Address',
+            'city' => 'Test City',
+            'state' => 'Test State',
+            'postal_code' => '12345',
+            'contact_name' => 'Test Contact',
+        ]);
+        
+        return "Successfully created franchisee detail with ID: " . $detail->id;
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
   
   // Orders
   Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('franchisee.orders.pending');

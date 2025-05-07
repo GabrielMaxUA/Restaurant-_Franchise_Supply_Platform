@@ -62,6 +62,12 @@ class CatalogController extends Controller
                 case 'out_of_stock':
                     $query->where('inventory_count', 0);
                     break;
+                case 'variants_only':
+                    $query->where('inventory_count', 0)
+                          ->whereHas('variants', function($q) {
+                              $q->where('inventory_count', '>', 0);
+                          });
+                    break;
             }
         }
         
@@ -97,9 +103,25 @@ class CatalogController extends Controller
         
         // Format products for display
         foreach ($products as $product) {
+            // Check if any variants are in stock
+            $hasInStockVariants = false;
+            if ($product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count > 0) {
+                        $hasInStockVariants = true;
+                        break;
+                    }
+                }
+            }
+            $product->has_in_stock_variants = $hasInStockVariants;
+            
             // Convert inventory_count to stock_status for the views
             if ($product->inventory_count <= 0) {
-                $product->stock_status = 'out_of_stock';
+                if ($hasInStockVariants) {
+                    $product->stock_status = 'variants_only';
+                } else {
+                    $product->stock_status = 'out_of_stock';
+                }
             } elseif ($product->inventory_count <= 10) {
                 $product->stock_status = 'low_stock';
             } else {
@@ -138,10 +160,27 @@ class CatalogController extends Controller
     public function show($id)
     {
         $product = Product::with(['category', 'images', 'variants', 'variants.images'])
-            ->findOrFail($id); 
+            ->findOrFail($id);
+            
+        // Check if any variants are in stock
+        $hasInStockVariants = false;
+        if ($product->variants->isNotEmpty()) {
+            foreach ($product->variants as $variant) {
+                if ($variant->inventory_count > 0) {
+                    $hasInStockVariants = true;
+                    break;
+                }
+            }
+        }
+        $product->has_in_stock_variants = $hasInStockVariants;
+            
         // Convert inventory_count to stock_status
         if ($product->inventory_count <= 0) {
-            $product->stock_status = 'out_of_stock';
+            if ($hasInStockVariants) {
+                $product->stock_status = 'variants_only';
+            } else {
+                $product->stock_status = 'out_of_stock';
+            }
         } elseif ($product->inventory_count <= 10) {
             $product->stock_status = 'low_stock';
         } else {
@@ -181,57 +220,85 @@ class CatalogController extends Controller
     }
 
     public function catalog(Request $request)
-{
-    // Start with the base query
-    $query = Product::with(['category', 'images']);
-    
-    // Add this to check favorite status for the current user
-    $query->withCount(['favoritedBy as is_favorite' => function($query) {
-        $query->where('users.id', Auth::id());
-    }]);
-    
-    // Apply category filter if present
-    if ($request->has('category')) {
-        $query->where('category_id', $request->category);
-    }
-    
-    // For "show favorites only" filter
-    if ($request->has('favorites') && $request->favorites == 1) {
-        $query->whereHas('favoritedBy', function($query) {
-            $query->where('users.id', Auth::id());
-        });
-    }
-    
-    // Apply other filters as needed...
-    
-    // Get paginated results
-    $products = $query->paginate(15);
-    
-    // Load categories for the sidebar
-    $categories = Category::withCount('products')->get();
-    $total_products = Product::count();
-    
-    return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
-}
-
-public function toggleFavorite(Request $request)
-{
-    $productId = $request->input('product_id');
-    $userId = Auth::id();
-    
-    $favorite = ProductFavorite::where('user_id', $userId)
-        ->where('product_id', $productId)
-        ->first();
+    {
+        // Start with the base query
+        $query = Product::with(['category', 'images', 'variants', 'variants.images']);
         
-    if ($favorite) {
-        $favorite->delete();
-        return response()->json(['success' => true, 'is_favorite' => false]);
-    } else {
-        ProductFavorite::create([
-            'user_id' => $userId,
-            'product_id' => $productId
-        ]);
-        return response()->json(['success' => true, 'is_favorite' => true]);
+        // Add this to check favorite status for the current user
+        $query->withCount(['favoritedBy as is_favorite' => function($query) {
+            $query->where('users.id', Auth::id());
+        }]);
+        
+        // Apply category filter if present
+        if ($request->has('category')) {
+            $query->where('category_id', $request->category);
+        }
+        
+        // For "show favorites only" filter
+        if ($request->has('favorites') && $request->favorites == 1) {
+            $query->whereHas('favoritedBy', function($query) {
+                $query->where('users.id', Auth::id());
+            });
+        }
+        
+        // Apply other filters as needed...
+        
+        // Get paginated results
+        $products = $query->paginate(15);
+        
+        // Check each product for in-stock variants
+        foreach ($products as $product) {
+            // Check if any variants are in stock
+            $hasInStockVariants = false;
+            if ($product->variants && $product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count > 0) {
+                        $hasInStockVariants = true;
+                        break;
+                    }
+                }
+            }
+            $product->has_in_stock_variants = $hasInStockVariants;
+            
+            // Set stock status with variants-only check
+            if ($product->inventory_count <= 0) {
+                if ($hasInStockVariants) {
+                    $product->stock_status = 'variants_only';
+                } else {
+                    $product->stock_status = 'out_of_stock';
+                }
+            } elseif ($product->inventory_count <= 10) {
+                $product->stock_status = 'low_stock';
+            } else {
+                $product->stock_status = 'in_stock';
+            }
+        }
+        
+        // Load categories for the sidebar
+        $categories = Category::withCount('products')->get();
+        $total_products = Product::count();
+        
+        return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
     }
-}
+
+    public function toggleFavorite(Request $request)
+    {
+        $productId = $request->input('product_id');
+        $userId = Auth::id();
+        
+        $favorite = ProductFavorite::where('user_id', $userId)
+            ->where('product_id', $productId)
+            ->first();
+            
+        if ($favorite) {
+            $favorite->delete();
+            return response()->json(['success' => true, 'is_favorite' => false]);
+        } else {
+            ProductFavorite::create([
+                'user_id' => $userId,
+                'product_id' => $productId
+            ]);
+            return response()->json(['success' => true, 'is_favorite' => true]);
+        }
+    }
 }

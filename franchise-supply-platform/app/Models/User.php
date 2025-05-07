@@ -60,10 +60,71 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    /**
+     * Get franchisee details associated with this user.
+     */
+    public function franchiseeDetail()
+    {
+        return $this->hasOne(FranchiseeDetail::class);
+    }
+
+    /**
+     * Check if user is a franchisee.
+     */
+    public function isFranchisee()
+    {
+        return $this->role && $this->role->name === 'franchisee';
+    }
+
+    /**
+     * Get the franchisee address from the related table
+     */
+    public function getAddressAttribute()
+    {
+        if ($this->franchiseeDetail) {
+            return $this->franchiseeDetail->address;
+        }
+        return $this->attributes['address'] ?? null;
+    }
+
+    /**
+     * Get the franchisee city from the related table
+     */
+    public function getCityAttribute()
+    {
+        return $this->franchiseeDetail ? $this->franchiseeDetail->city : null;
+    }
+
+    /**
+     * Get the franchisee state from the related table
+     */
+    public function getStateAttribute()
+    {
+        return $this->franchiseeDetail ? $this->franchiseeDetail->state : null;
+    }
+
+    /**
+     * Get the franchisee postal_code from the related table
+     */
+    public function getPostalCodeAttribute()
+    {
+        return $this->franchiseeDetail ? $this->franchiseeDetail->postal_code : null;
+    }
+
+    /**
+     * Get the franchisee company name from the related table
+     */
+    public function getCompanyNameAttribute()
+    {
+        if ($this->franchiseeDetail) {
+            return $this->franchiseeDetail->company_name;
+        }
+        return $this->attributes['company_name'] ?? null;
+    }
+
     // In User.php
     public function favoriteProducts()
     {
         return $this->belongsToMany(Product::class, 'product_favorites', 'user_id', 'product_id');
     }
-    
 }

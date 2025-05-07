@@ -22,7 +22,7 @@ class InventoryService
         DB::beginTransaction();
         try {
             if ($variantId) {
-                // If variant exists, update both product and variant inventory
+                // If a variant is being purchased, only decrease that variant's inventory
                 $variant = ProductVariant::where('id', $variantId)
                     ->where('inventory_count', '>=', $quantity)
                     ->lockForUpdate()
@@ -34,21 +34,9 @@ class InventoryService
                 
                 $variant->inventory_count -= $quantity;
                 $variant->save();
-                
-                // Also decrease the main product inventory
-                $product = Product::where('id', $productId)
-                    ->where('inventory_count', '>=', $quantity)
-                    ->lockForUpdate()
-                    ->first();
-                
-                if (!$product) {
-                    throw new \Exception('Insufficient product inventory');
-                }
-                
-                $product->inventory_count -= $quantity;
-                $product->save();
             } else {
-                // Only update product inventory
+                // If the main product (not a variant) is being purchased, 
+                // decrease the main product's inventory
                 $product = Product::where('id', $productId)
                     ->where('inventory_count', '>=', $quantity)
                     ->lockForUpdate()
@@ -89,7 +77,7 @@ class InventoryService
         DB::beginTransaction();
         try {
             if ($variantId) {
-                // If variant exists, update both product and variant inventory
+                // If a variant inventory is being increased, only update that variant
                 $variant = ProductVariant::where('id', $variantId)
                     ->lockForUpdate()
                     ->first();
@@ -100,20 +88,8 @@ class InventoryService
                 
                 $variant->inventory_count += $quantity;
                 $variant->save();
-                
-                // Also increase the main product inventory
-                $product = Product::where('id', $productId)
-                    ->lockForUpdate()
-                    ->first();
-                
-                if (!$product) {
-                    throw new \Exception('Product not found');
-                }
-                
-                $product->inventory_count += $quantity;
-                $product->save();
             } else {
-                // Only update product inventory
+                // Only update main product inventory
                 $product = Product::where('id', $productId)
                     ->lockForUpdate()
                     ->first();

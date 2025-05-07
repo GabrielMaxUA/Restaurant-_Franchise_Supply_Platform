@@ -48,6 +48,7 @@
                         <option value="">All</option>
                         <option value="in_stock" {{ request('inventory') == 'in_stock' ? 'selected' : '' }}>In Stock</option>
                         <option value="low_stock" {{ request('inventory') == 'low_stock' ? 'selected' : '' }}>Low Stock (≤ 10)</option>
+                        <option value="variants_only" {{ request('inventory') == 'variants_only' ? 'selected' : '' }}>Variants Only</option>
                         <option value="out_of_stock" {{ request('inventory') == 'out_of_stock' ? 'selected' : '' }}>Out of Stock</option>
                     </select>
                 </div>
@@ -147,9 +148,15 @@
                             </td>
                             <td>${{ number_format($product->base_price, 2) }}</td>
                             <td>
-                                <span class="badge {{ $product->inventory_count > 10 ? 'bg-success' : ($product->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
-                                    {{ $product->inventory_count > 0 ? $product->inventory_count . ' in stock' : 'Out of stock' }}
-                                </span>
+                                @if(isset($product->stock_status) && $product->stock_status == 'variants_only')
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-circle me-1"></i> Variants Only
+                                    </span>
+                                @else
+                                    <span class="badge {{ $product->inventory_count > 10 ? 'bg-success' : ($product->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
+                                        {{ $product->inventory_count > 0 ? $product->inventory_count . ' in stock' : 'Out of stock' }}
+                                    </span>
+                                @endif
                             </td>
                             <td>{{ $product->variants->count() }}</td>
                             <td>
@@ -195,6 +202,16 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('styles')
+<style>
+/* Add this to your styles */
+.bg-warning.text-dark {
+    background-color: #fff3cd !important;
+    border: 1px solid #ffeeba;
+}
+</style>
 @endsection
 
 @section('scripts')

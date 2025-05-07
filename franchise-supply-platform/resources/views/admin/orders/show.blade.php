@@ -204,13 +204,7 @@
                 <p><strong>ZIP Code:</strong> {{ $order->shipping_zip }}</p>
             </div>
             <div class="col-md-6">
-                <p><strong>Delivery Date:</strong> 
-                    @if($order->delivery_date)
-                        {{ \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') }}
-                    @else
-                        Not specified
-                    @endif
-                </p>
+            <p><strong>Delivery Date:</strong> {{ $order->local_delivery_date ? $order->local_delivery_date->format('Y-m-d') : 'Not scheduled' }}</p>
                 <p><strong>Delivery Time:</strong> 
                     @if($order->delivery_time == 'morning')
                         Morning (8:00 AM - 12:00 PM)
@@ -231,7 +225,7 @@
                         {{ $order->delivery_preference ?? 'Standard' }}
                     @endif
                 </p>
-                <p><strong>Contact Phone:</strong> {{ $order->contact_phone ?? 'Not provided' }}</p>
+                <p><strong>Contact Phone:</strong> {{ $order->contact_phone ?? ($order->user->phone ?? 'Not provided') }}</p>
             </div>
         </div>
         

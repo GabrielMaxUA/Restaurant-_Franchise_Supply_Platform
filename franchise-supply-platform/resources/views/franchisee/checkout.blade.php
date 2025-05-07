@@ -78,7 +78,7 @@
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="use_franchise_address" name="use_franchise_address" checked>
+                                    <input class="form-check-input" type="checkbox" id="use_franchise_address" name="use_franchise_address">
                                     <label class="form-check-label" for="use_franchise_address">
                                         Use my franchise address for shipping
                                     </label>
@@ -91,7 +91,7 @@
                                 <label for="shipping_address" class="input-label">Shipping Address</label>
                                 <input type="text" class="form-control @error('shipping_address') is-invalid @enderror" 
                                        id="shipping_address" name="shipping_address" 
-                                       value="{{ old('shipping_address', $franchisee->address ?? '') }}" required>
+                                       value="{{ old('shipping_address', '') }}" required>
                                 @error('shipping_address')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -103,7 +103,7 @@
                                 <label for="shipping_city" class="input-label">City</label>
                                 <input type="text" class="form-control @error('shipping_city') is-invalid @enderror" 
                                        id="shipping_city" name="shipping_city" 
-                                       value="{{ old('shipping_city', $franchisee->city ?? '') }}" required>
+                                       value="{{ old('shipping_city', '') }}" required>
                                 @error('shipping_city')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -112,7 +112,7 @@
                                 <label for="shipping_state" class="input-label">State</label>
                                 <input type="text" class="form-control @error('shipping_state') is-invalid @enderror" 
                                        id="shipping_state" name="shipping_state" 
-                                       value="{{ old('shipping_state', $franchisee->state ?? '') }}" required>
+                                       value="{{ old('shipping_state', '') }}" required>
                                 @error('shipping_state')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -121,7 +121,7 @@
                                 <label for="shipping_zip" class="input-label">ZIP Code</label>
                                 <input type="text" class="form-control @error('shipping_zip') is-invalid @enderror" 
                                        id="shipping_zip" name="shipping_zip" 
-                                       value="{{ old('shipping_zip', $franchisee->postal_code ?? '') }}" required>
+                                       value="{{ old('shipping_zip', '') }}" required>
                                 @error('shipping_zip')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -179,7 +179,7 @@
             </div>
         </div>
         
-        <!-- Order Summary -->
+        <!-- Order Summary section remains unchanged -->
         <div class="col-lg-4">
             <div class="card checkout-card">
                 <div class="card-header">
@@ -239,7 +239,7 @@
                 </div>
             </div>
             
-            <!-- Delivery Information -->
+            <!-- Delivery Information card remains unchanged -->
             <div class="card checkout-card mt-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Delivery Information</h5>
@@ -258,17 +258,67 @@
 @section('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Toggle shipping address form based on checkbox
-        const useAddressCheckbox = document.getElementById('use_franchise_address');
-        const addressFields = document.querySelectorAll('#shipping_address, #shipping_city, #shipping_state, #shipping_zip');
+        console.log('Checkout page loaded');
         
+        // Get form elements
+        const useAddressCheckbox = document.getElementById('use_franchise_address');
+        const shippingAddressInput = document.getElementById('shipping_address');
+        const shippingCityInput = document.getElementById('shipping_city');
+        const shippingStateInput = document.getElementById('shipping_state');
+        const shippingZipInput = document.getElementById('shipping_zip');
+        
+        // Function to toggle address fields based on checkbox
         function toggleAddressFields() {
-            addressFields.forEach(field => {
-                field.readOnly = useAddressCheckbox.checked;
-            });
+            if (useAddressCheckbox.checked) {
+                console.log('Attempting to fetch franchisee address');
+                
+                // Use AJAX to get the franchisee address
+                fetch('{{ route("franchisee.get-address") }}')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Received address data:', data);
+                        
+                        if (data.success) {
+                            // Fill the form fields with the fetched data
+                            shippingAddressInput.value = data.address || '';
+                            shippingCityInput.value = data.city || '';
+                            shippingStateInput.value = data.state || '';
+                            shippingZipInput.value = data.postal_code || '';
+                            
+                            // Make fields read-only
+                            shippingAddressInput.readOnly = true;
+                            shippingCityInput.readOnly = true;
+                            shippingStateInput.readOnly = true;
+                            shippingZipInput.readOnly = true;
+                        } else {
+                            console.error('Error fetching address:', data.message);
+                            // Show an error message to the user
+                            alert('Could not retrieve your franchise address. Please enter it manually.');
+                            useAddressCheckbox.checked = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Show an error message to the user
+                        alert('Could not retrieve your franchise address. Please enter it manually.');
+                        useAddressCheckbox.checked = false;
+                    });
+            } else {
+                // Clear the fields and make them editable
+                shippingAddressInput.readOnly = false;
+                shippingCityInput.readOnly = false;
+                shippingStateInput.readOnly = false;
+                shippingZipInput.readOnly = false;
+                
+                // Clear the fields
+                shippingAddressInput.value = '';
+                shippingCityInput.value = '';
+                shippingStateInput.value = '';
+                shippingZipInput.value = '';
+            }
         }
         
-        toggleAddressFields();
+        // Add event listener to checkbox
         useAddressCheckbox.addEventListener('change', toggleAddressFields);
         
         // Show/hide delivery date picker based on delivery preference

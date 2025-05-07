@@ -523,7 +523,7 @@ class CartController extends Controller
             $order->shipping_cost = $shippingCost;
             $order->notes = $request->notes ?? '';
             $order->manager_name = $request->input('manager_name', 'Default Manager');
-            $order->contact_phone = $request->input('contact_phone', '1234567890');
+            $order->contact_phone = $request->input('contact_phone', Auth::user()->phone ?? 'No contact provided');
             
             // Save the order
             $order->save();

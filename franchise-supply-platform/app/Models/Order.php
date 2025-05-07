@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Order extends Model
 {
@@ -91,4 +92,43 @@ class Order extends Model
     {
         return $this->items->sum('quantity');
     }
+    
+    /**
+     * Get the delivery date in user's timezone
+     */
+    public function getLocalDeliveryDateAttribute()
+    {
+      if (!$this->delivery_date) {
+          return null;
+      }
+      
+      $timezone = $this->user->timezone ?? 'America/Toronto'; // Default to Toronto timezone
+      return Carbon::parse($this->delivery_date)->setTimezone($timezone);
+  }
+
+    /**
+     * Get the created_at date in user's timezone
+     */
+    public function getLocalCreatedAtAttribute()
+    {
+        $timezone = $this->user->timezone ?? 'America/Toronto'; // Default to Toronto timezone
+        return $this->created_at->setTimezone($timezone);
+    }
+    
+    /**
+     * Get formatted local created date
+     */
+    public function getFormattedLocalCreatedAtAttribute()
+    {
+        return $this->local_created_at->format('Y-m-d h:i A');
+    }
+    
+    /**
+     * Get formatted local delivery date
+     */
+    public function getFormattedLocalDeliveryDateAttribute()
+    {
+        return $this->local_delivery_date ? $this->local_delivery_date->format('Y-m-d') : 'Not scheduled';
+    }
+    
 }

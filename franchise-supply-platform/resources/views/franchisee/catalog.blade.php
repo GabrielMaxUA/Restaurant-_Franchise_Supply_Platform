@@ -52,6 +52,13 @@
 .status-out-of-stock {
     color: #dc3545;
 }
+
+.status-variants-only {
+    color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
 </style>
 @endsection
 
@@ -211,14 +218,16 @@
                                     <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
                                     <td><strong>${{ number_format($product->price, 2) }}</strong></td>
                                     <td>
-                                        @if($product->inventory_count > 10)
-                                            <span class="status-in-stock"><i class="fas fa-check-circle me-1"></i> In Stock</span>
-                                        @elseif($product->inventory_count > 0)
-                                            <span class="status-low-stock"><i class="fas fa-exclamation-circle me-1"></i> Low Stock</span>
-                                        @else
-                                            <span class="status-out-of-stock"><i class="fas fa-times-circle me-1"></i> Out of Stock</span>
-                                        @endif
-                                    </td>
+    @if($product->inventory_count > 10)
+        <span class="status-in-stock"><i class="fas fa-check-circle me-1"></i> In Stock</span>
+    @elseif($product->inventory_count > 0)
+        <span class="status-low-stock"><i class="fas fa-exclamation-circle me-1"></i> Low Stock</span>
+    @elseif($product->has_in_stock_variants)
+        <span class="status-variants-only"><i class="fas fa-exclamation-circle me-1"></i> Variants Only</span>
+    @else
+        <span class="status-out-of-stock"><i class="fas fa-times-circle me-1"></i> Out of Stock</span>
+    @endif
+</td>
                                     <td>
                                         <div class="d-flex gap-1 justify-content-between align-items-center">
                                         <button type="button" class="btn btn-sm btn-success rounded quick-add-to-cart" 
