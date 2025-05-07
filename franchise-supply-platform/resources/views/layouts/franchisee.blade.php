@@ -103,45 +103,7 @@
             display: none !important;
         }
         
-        /* Other existing styles... */
-        .alert-float {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            padding: 0.5rem 1rem;
-            max-width: 500px;
-            text-align: center;
-            border-radius: 4px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            animation: fadeInDown 0.5s;
-        }
-        
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translate3d(-50%, -20px, 0);
-            }
-            to {
-                opacity: 1;
-                transform: translate3d(-50%, 0, 0);
-            }
-        }
-        
-        @keyframes fadeOut {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-            }
-        }
-        
-        .fade-out {
-            animation: fadeOut 0.5s forwards;
-        }
-        
+        /* Card hover effects */
         .card {
             transition: transform .2s;
         }
@@ -150,6 +112,8 @@
             transform: translateY(-5px);
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
         }
+        
+        /* Navbar styling */
         .navbar{
           padding-left: 20px;
         }
@@ -157,7 +121,7 @@
         .navbar-light{
           margin-left: 12px !important;
           margin-right: 12px !important;
-          background-color:rgba(51, 89, 128, 0.49) !important;
+          background-color:rgba(192, 217, 243, 0.49) !important;
           border-radius: 5px !important;
           font-size: 3em !important;
         }
@@ -165,6 +129,7 @@
         .navbar-brand{
           font-size: 1.2em !important;
         }
+        
         .dropdown {
           position: relative;
           display: flex;
@@ -292,6 +257,9 @@
         </div>
     </div>
     
+    <!-- Include the alert component -->
+    @include('layouts.components.alert-component')
+    
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -368,57 +336,6 @@
                     }
                 }, 5000);
             });
-        });
-    </script>
-
-    <!-- Floating Alerts Container -->
-    <div id="floating-alerts-container"></div>
-
-    <script>
-        // Function to create and display floating alerts
-        function showFloatingAlert(message, type) {
-            const alertsContainer = document.getElementById('floating-alerts-container');
-            
-            // Create alert element
-            const alertElement = document.createElement('div');
-            alertElement.className = `alert alert-${type} fade show alert-float`;
-            alertElement.innerHTML = message;
-            
-            // Add to the container
-            alertsContainer.appendChild(alertElement);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-                alertElement.classList.add('fade-out');
-                setTimeout(() => {
-                    if (alertElement.parentNode) {
-                        alertElement.parentNode.removeChild(alertElement);
-                    }
-                }, 500);
-            }, 4500);
-        }
-        
-        // Check for session messages on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check for success message
-            @if(session('success'))
-                showFloatingAlert("{{ session('success') }}", "success");
-            @endif
-            
-            // Check for error message
-            @if(session('error'))
-                showFloatingAlert("{{ session('error') }}", "danger");
-            @endif
-            
-            // Check for warning message
-            @if(session('warning'))
-                showFloatingAlert("{{ session('warning') }}", "warning");
-            @endif
-            
-            // Check for info message
-            @if(session('info'))
-                showFloatingAlert("{{ session('info') }}", "info");
-            @endif
         });
     </script>
     

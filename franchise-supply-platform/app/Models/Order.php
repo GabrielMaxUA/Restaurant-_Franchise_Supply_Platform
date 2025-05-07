@@ -24,7 +24,6 @@ class Order extends Model
         'notes',
         'manager_name',
         'contact_phone',
-        'payment_method',
         'purchase_order',
         'qb_invoice_id'
     ];

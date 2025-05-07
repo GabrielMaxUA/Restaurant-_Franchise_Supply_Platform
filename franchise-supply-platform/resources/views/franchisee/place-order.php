@@ -210,7 +210,6 @@
                     <!-- Hidden default fields -->
                     <input type="hidden" name="manager_name" value="Default Manager">
                     <input type="hidden" name="contact_phone" value="1234567890">
-                    <input type="hidden" name="payment_method" value="account">
                     
                     <button type="submit" class="place-order-btn">
                         <i class="fas fa-check-circle me-2"></i> Place Order

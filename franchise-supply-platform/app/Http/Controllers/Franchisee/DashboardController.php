@@ -21,6 +21,40 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         
+        // Get the start and end dates for calculations
+        $now = Carbon::now();
+        $startOfWeek = $now->copy()->startOfWeek();
+        $endOfWeek = $now->copy()->endOfWeek();
+        $startOfMonth = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
+        $lastMonth = $now->copy()->subMonth();
+        $startOfLastMonth = $lastMonth->copy()->startOfMonth();
+        $endOfLastMonth = $lastMonth->copy()->endOfMonth();
+        
+        // Calculate weekly spending (This week)
+        $weeklySpending = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+            ->where('status', '!=', 'cancelled')
+            ->sum('total_amount');
+        
+        // Calculate monthly spending (Current month)
+        $monthlySpending = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+            ->where('status', '!=', 'cancelled')
+            ->sum('total_amount');
+            
+        // Calculate last month's spending for comparison
+        $lastMonthSpending = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
+            ->where('status', '!=', 'cancelled')
+            ->sum('total_amount');
+            
+        // Calculate spending change percentage
+        $spendingChange = 0;
+        if ($lastMonthSpending > 0) {
+            $spendingChange = round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100);
+        }
+        
         // Calculate key stats
         $stats = [
             // Count pending orders
@@ -29,10 +63,10 @@ class DashboardController extends Controller
                 ->count(),
                 
             // Calculate monthly spending
-            'monthly_spending' => Order::where('user_id', $user->id)
-                ->where('created_at', '>=', Carbon::now()->startOfMonth())
-                ->where('status', '!=', 'cancelled')
-                ->sum('total_amount'),
+            'monthly_spending' => $monthlySpending,
+            
+            // Calculate spending change
+            'spending_change' => $spendingChange,
                 
             // Placeholder for low stock items
             'low_stock_items' => 0,
@@ -41,6 +75,81 @@ class DashboardController extends Controller
             'incoming_deliveries' => Order::where('user_id', $user->id)
                 ->whereIn('status', ['shipped', 'out_for_delivery'])
                 ->count(),
+                
+            // Count last month pending orders for comparison
+            'last_month_pending_orders' => Order::where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery'])
+                ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
+                ->count(),
+        ];
+        
+        // Calculate pending orders change
+        $pendingOrdersChange = 0;
+        if ($stats['last_month_pending_orders'] > 0) {
+            $pendingOrdersChange = round((($stats['pending_orders'] - $stats['last_month_pending_orders']) / $stats['last_month_pending_orders']) * 100);
+        }
+        $stats['pending_orders_change'] = $pendingOrdersChange;
+        
+        // Generate chart data for weekly spending and orders
+        $weeklySpendingData = [];
+        $weeklyOrdersData = [];
+        
+        for ($i = 0; $i < 7; $i++) {
+            $day = $startOfWeek->copy()->addDays($i);
+            $dayStart = $day->copy()->startOfDay();
+            $dayEnd = $day->copy()->endOfDay();
+            
+            // Get orders for this day
+            $dayOrders = Order::where('user_id', $user->id)
+                ->where('status', '!=', 'cancelled')
+                ->whereBetween('created_at', [$dayStart, $dayEnd])
+                ->get();
+            
+            // Calculate total spending for this day
+            $daySpending = $dayOrders->sum('total_amount');
+            
+            // Add to data arrays
+            $weeklySpendingData[] = $daySpending;
+            $weeklyOrdersData[] = $dayOrders->count();
+        }
+        
+        // Generate chart data for monthly spending and orders
+        $monthlySpendingData = [];
+        $monthlyOrdersData = [];
+        
+        $currentYear = Carbon::now()->startOfYear();
+        
+        for ($i = 0; $i < 12; $i++) {
+            $month = $currentYear->copy()->addMonths($i);
+            $monthStart = $month->copy()->startOfMonth();
+            $monthEnd = $month->copy()->endOfMonth();
+            
+            // Get orders for this month
+            $monthOrders = Order::where('user_id', $user->id)
+                ->where('status', '!=', 'cancelled')
+                ->whereBetween('created_at', [$monthStart, $monthEnd])
+                ->get();
+            
+            // Calculate total spending for this month
+            $monthSpending = $monthOrders->sum('total_amount');
+            
+            // Add to data arrays
+            $monthlySpendingData[] = $monthSpending;
+            $monthlyOrdersData[] = $monthOrders->count();
+        }
+        
+        // Create charts array with actual data
+        $charts = [
+            'weekly_orders' => $weeklyOrdersData,
+            'weekly_spending' => $weeklySpendingData,
+            'monthly_orders' => $monthlyOrdersData,
+            'monthly_spending' => $monthlySpendingData,
+        ];
+        
+        // Add chart configuration values
+        $charts['step_sizes'] = [
+            'orders' => 50,   // Step size for orders axis
+            'spending' => 10000  // Step size for spending axis
         ];
         
         // Get recent orders
@@ -68,37 +177,29 @@ class DashboardController extends Controller
         // Add image and format price for each product
         foreach ($popular_products as $product) {
             // Get first image if available
-            if ($product->images->isNotEmpty()) {
+            if ($product->images && $product->images->isNotEmpty()) {
                 $product->image_url = $product->images->first()->image_url;
             } else {
                 $product->image_url = null;
             }
             
             // Normalize field names for the view
-            $product->price = $product->base_price;
-            $product->unit_size = ''; // Placeholder
-            $product->unit_type = ''; // Placeholder
+            $product->price = $product->base_price ?? $product->price;
+            $product->unit_size = $product->unit_size ?? '';
+            $product->unit_type = $product->unit_type ?? '';
         }
         
         // Create empty sets for sections we're not implementing
-        $inventory_alerts = [];
         $recent_activities = [];
-        
-        // Chart data (placeholders)
-        $charts = [
-            'weekly_orders' => [0, 0, 0, 0, 0, 0, 0],
-            'weekly_spending' => [0, 0, 0, 0, 0, 0, 0],
-            'monthly_orders' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            'monthly_spending' => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ];
-        
+        $products = $popular_products;
         return view('franchisee.dashboard', compact(
             'stats',
+            'weeklySpending',
             'recent_orders',
             'popular_products',
-            'inventory_alerts',
             'recent_activities',
-            'charts'
+            'charts',
+            'products'
         ));
     }
 }

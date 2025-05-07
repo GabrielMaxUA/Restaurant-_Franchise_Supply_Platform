@@ -247,9 +247,6 @@
                 <td class="text-center">
                     <span class="fw-medium">${{ number_format($order->total_amount, 2) }}</span>
                 </td>
-                <td class="text-center">
-                    <span>{{ ucfirst($order->payment_method ?? 'Account') }}</span>
-                </td>
                 <td>
                     <div class="d-flex justify-content-end">
                         <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm p-1 me-2" style="color: #0d6efd;" title="View Details">

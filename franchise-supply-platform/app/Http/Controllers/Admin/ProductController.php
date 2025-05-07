@@ -9,81 +9,95 @@ use App\Models\Category;
 use App\Models\ProductVariant;
 use App\Models\ProductImage;
 use App\Models\VariantImage;
+use App\Services\InventoryService;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    protected $inventoryService;
+
+    /**
+     * Create a new controller instance.
+     *
+     * @param InventoryService $inventoryService
+     * @return void
+     */
+    public function __construct(InventoryService $inventoryService)
+    {
+        $this->inventoryService = $inventoryService;
+    }
+
     /**
      * Display a listing of the products.
      */
    public function index(Request $request)
-{
-    $query = Product::with(['category', 'images', 'variants']);
-    
-    // Filter by name
-    if ($request->filled('name')) {
-        $query->where('name', 'like', '%' . $request->name . '%');
-    }
-    
-    // Filter by category
-    if ($request->filled('category')) {
-        $query->where('category_id', $request->category);
-    }
-    
-    // Filter by inventory status
-    if ($request->filled('inventory')) {
-        switch ($request->inventory) {
-            case 'in_stock':
-                $query->where('inventory_count', '>', 0);
-                break;
-            case 'low_stock':
-                $query->where('inventory_count', '>', 0)
-                      ->where('inventory_count', '<=', 10);
-                break;
-            case 'out_of_stock':
-                $query->where('inventory_count', 0);
-                break;
-        }
-    }
-    
-    // Apply sorting
-    if ($request->filled('sort')) {
-        switch ($request->sort) {
-            case 'name_asc':
-                $query->orderBy('name', 'asc');
-                break;
-            case 'name_desc':
-                $query->orderBy('name', 'desc');
-                break;
-            case 'price_asc':
-                $query->orderBy('base_price', 'asc');
-                break;
-            case 'price_desc':
-                $query->orderBy('base_price', 'desc');
-                break;
-            case 'inventory_asc':
-                $query->orderBy('inventory_count', 'asc');
-                break;
-            case 'inventory_desc':
-                $query->orderBy('inventory_count', 'desc');
-                break;
-            case 'oldest':
-                $query->orderBy('created_at', 'asc');
-                break;
-            default: // newest
-                $query->orderBy('created_at', 'desc');
-                break;
-        }
-    } else {
-        // Default sorting by newest
-        $query->orderBy('created_at', 'desc');
-    }
-    
-    $products = $query->paginate(15);
-    $categories = Category::all();
-    
-    return view('admin.products.index', compact('products', 'categories'));
-}
+   {
+       $query = Product::with(['category', 'images', 'variants']);
+       
+       // Filter by name
+       if ($request->filled('name')) {
+           $query->where('name', 'like', '%' . $request->name . '%');
+       }
+       
+       // Filter by category
+       if ($request->filled('category')) {
+           $query->where('category_id', $request->category);
+       }
+       
+       // Filter by inventory status
+       if ($request->filled('inventory')) {
+           switch ($request->inventory) {
+               case 'in_stock':
+                   $query->where('inventory_count', '>', 0);
+                   break;
+               case 'low_stock':
+                   $query->where('inventory_count', '>', 0)
+                         ->where('inventory_count', '<=', 10);
+                   break;
+               case 'out_of_stock':
+                   $query->where('inventory_count', 0);
+                   break;
+           }
+       }
+       
+       // Apply sorting
+       if ($request->filled('sort')) {
+           switch ($request->sort) {
+               case 'name_asc':
+                   $query->orderBy('name', 'asc');
+                   break;
+               case 'name_desc':
+                   $query->orderBy('name', 'desc');
+                   break;
+               case 'price_asc':
+                   $query->orderBy('base_price', 'asc');
+                   break;
+               case 'price_desc':
+                   $query->orderBy('base_price', 'desc');
+                   break;
+               case 'inventory_asc':
+                   $query->orderBy('inventory_count', 'asc');
+                   break;
+               case 'inventory_desc':
+                   $query->orderBy('inventory_count', 'desc');
+                   break;
+               case 'oldest':
+                   $query->orderBy('created_at', 'asc');
+                   break;
+               default: // newest
+                   $query->orderBy('created_at', 'desc');
+                   break;
+           }
+       } else {
+           // Default sorting by newest
+           $query->orderBy('created_at', 'desc');
+       }
+       
+       $products = $query->paginate(15);
+       $categories = Category::all();
+       
+       return view('admin.products.index', compact('products', 'categories'));
+   }
 
     /**
      * Show the form for creating a new product.
@@ -281,14 +295,34 @@ class ProductController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'inventory_count' => 'required|integer|min:0',
         ]);
-    
+        
+        // Get the original inventory count before updating
+        $originalProductInventory = $product->inventory_count;
+        
+        // Update the product
         $product->update($validated);
+        
+        // Calculate inventory change and update if necessary
+        $inventoryChange = $product->inventory_count - $originalProductInventory;
+        
+        if ($inventoryChange != 0) {
+            if ($inventoryChange > 0) {
+                // Inventory increased
+                $this->inventoryService->increaseInventory($product->id, $inventoryChange);
+            } else {
+                // Inventory decreased
+                $this->inventoryService->decreaseInventory($product->id, abs($inventoryChange));
+            }
+        }
     
         // Handle existing variants
         if ($request->has('existing_variants')) {
             foreach ($request->existing_variants as $id => $variantData) {
                 $variant = ProductVariant::find($id);
                 if ($variant) {
+                    // Store original variant inventory
+                    $originalVariantInventory = $variant->inventory_count;
+                    
                     if (isset($variantData['delete']) && $variantData['delete']) {
                         // Delete related variant images before deleting variant
                         foreach ($variant->images as $image) {
@@ -299,11 +333,25 @@ class ProductController extends Controller
                         }
                         $variant->delete();
                     } else {
+                        // Update the variant
                         $variant->update([
                             'name' => $variantData['name'],
                             'price_adjustment' => $variantData['price_adjustment'] ?? 0,
                             'inventory_count' => $variantData['inventory_count'] ?? 0,
                         ]);
+                        
+                        // Calculate variant inventory change
+                        $variantInventoryChange = $variant->inventory_count - $originalVariantInventory;
+                        
+                        if ($variantInventoryChange != 0) {
+                            if ($variantInventoryChange > 0) {
+                                // Variant inventory increased
+                                $this->inventoryService->increaseInventory($product->id, $variantInventoryChange, $variant->id);
+                            } else {
+                                // Variant inventory decreased
+                                $this->inventoryService->decreaseInventory($product->id, abs($variantInventoryChange), $variant->id);
+                            }
+                        }
                         
                         // Handle variant image update
                         $variantImageKey = "variant_image_existing_" . $id;
@@ -352,6 +400,11 @@ class ProductController extends Controller
                         'price_adjustment' => $variant['price_adjustment'] ?? 0,
                         'inventory_count' => $variant['inventory_count'] ?? 0,
                     ]);
+                    
+                    // If new variant has inventory, update it through the service
+                    if ($newVariant->inventory_count > 0) {
+                        $this->inventoryService->increaseInventory($product->id, $newVariant->inventory_count, $newVariant->id);
+                    }
                     
                     // Handle multiple variant images if provided
                     $variantImageKey = "variant_image_new_" . $index;

@@ -517,7 +517,7 @@
                                 <div class="cart-item-total" data-item-id="{{ $item['id'] }}">${{ number_format($item['subtotal'], 2) }}</div>
                                 
                                 <button type="button" class="btn-remove" data-item-id="{{ $item['id'] }}">
-                                    <i class="fas fa-trash"></i> Remove
+                                    <i class="fas fa-trash"></i> Remove All
                                 </button>
                             </div>
                         @endforeach
@@ -600,6 +600,7 @@
 @endsection
 
 @section('scripts')
+@include('layouts.components.alert-component')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Initial calculation of cart totals
@@ -625,12 +626,18 @@
         
         // Function to show loading overlay
         function showLoading() {
-            document.querySelector('.loading-overlay').classList.add('active');
+            const loadingOverlay = document.querySelector('.loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('active');
+            }
         }
         
         // Function to hide loading overlay
         function hideLoading() {
-            document.querySelector('.loading-overlay').classList.remove('active');
+            const loadingOverlay = document.querySelector('.loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('active');
+            }
         }
         
         // Function to calculate cart totals based on displayed items
@@ -686,17 +693,18 @@
         }
         
         // Function to update all cart badges across the interface
-        function updateAllCartBadges(count) {
+        function updateAllCartBadges(count, totalItems) {
             // Use the global function if available (defined in layout)
             if (window.updateAllCartCountBadges) {
-                window.updateAllCartCountBadges(count);
+                // Pass totalItems if available, otherwise just use count
+                window.updateAllCartCountBadges(totalItems || count);
             } else {
                 // Fallback if global function isn't available
                 // Update top navigation cart badge
                 const topNavBadge = document.querySelector('#top-cart-btn .badge');
                 if (topNavBadge) {
                     if (count > 0) {
-                        topNavBadge.textContent = count;
+                        topNavBadge.textContent = totalItems || count;
                         topNavBadge.style.display = '';
                     } else {
                         topNavBadge.style.display = 'none';
@@ -706,7 +714,7 @@
                     if (cartBtn) {
                         const newBadge = document.createElement('span');
                         newBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count';
-                        newBadge.textContent = count;
+                        newBadge.textContent = totalItems || count;
                         cartBtn.appendChild(newBadge);
                     }
                 }
@@ -715,7 +723,7 @@
                 const sidebarBadge = document.querySelector('#sidebar-cart-link .badge');
                 if (sidebarBadge) {
                     if (count > 0) {
-                        sidebarBadge.textContent = count;
+                        sidebarBadge.textContent = totalItems || count;
                         sidebarBadge.style.display = '';
                     } else {
                         sidebarBadge.style.display = 'none';
@@ -725,7 +733,7 @@
                     if (sidebarLink) {
                         const newBadge = document.createElement('span');
                         newBadge.className = 'badge bg-danger ms-2 cart-sidebar-count';
-                        newBadge.textContent = count;
+                        newBadge.textContent = totalItems || count;
                         sidebarLink.appendChild(newBadge);
                     }
                 }
@@ -733,14 +741,23 @@
             
             // Dispatch a custom event for other components to listen for
             document.dispatchEvent(new CustomEvent('cartUpdated', { 
-                detail: { count: count }
+                detail: { count: count, totalItems: totalItems || count }
             }));
         }
         
         // Function to update cart quantity via AJAX
-        const updateCartItemQuantity = debounce(function(itemId, quantity) {
+        const updateCartItemQuantity = debounce(function(itemId, quantity, previousQuantity) {
             // Show loading indicator
             showLoading();
+            
+            // Determine if this is a partial removal
+            const isPartialRemoval = previousQuantity && quantity < previousQuantity;
+            
+            // If quantity is zero, handle as a removal
+            if (quantity === 0) {
+                removeCartItem(itemId);
+                return;
+            }
             
             // Create form data
             const formData = new FormData();
@@ -765,23 +782,32 @@
             })
             .then(data => {
                 if (data.success) {
-                    // Show success toast
-                    showToast('success', 'Cart updated successfully');
+                    // Show success toast using the global function
+                    // Use correct parameter order: (message, type)
+                    if (typeof window.showFloatingAlert === 'function') {
+                        window.showFloatingAlert(isPartialRemoval ? 'Item quantity reduced' : 'Cart updated successfully', 'success');
+                    }
                     
                     // Update cart count everywhere
-                    updateAllCartBadges(data.cart_count);
+                    updateAllCartBadges(data.cart_count, data.total_items);
                 } else {
-                    // Show error toast
-                    showToast('error', data.message || 'Failed to update cart');
+                    // Show error toast using the global function
+                    // Use correct parameter order and 'danger' instead of 'error'
+                    if (typeof window.showFloatingAlert === 'function') {
+                        window.showFloatingAlert(data.message || 'Failed to update cart', 'danger');
+                    }
                     
                     // Revert to previous quantity
-                    revertQuantityChange(itemId);
+                    revertQuantityChange(itemId, previousQuantity);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showToast('error', 'An error occurred while updating the cart');
-                revertQuantityChange(itemId);
+                // Use global function with correct parameter order
+                if (typeof window.showFloatingAlert === 'function') {
+                    window.showFloatingAlert('An error occurred while updating the cart', 'danger');
+                }
+                revertQuantityChange(itemId, previousQuantity);
             })
             .finally(() => {
                 // Hide loading indicator
@@ -790,11 +816,11 @@
         }, 500); // 500ms debounce delay
         
         // Function to revert quantity change if API call fails
-        function revertQuantityChange(itemId) {
+        function revertQuantityChange(itemId, previousQuantity) {
             const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
             if (input) {
-                // Reset to initial quantity
-                input.value = input.dataset.initialQuantity || 1;
+                // Reset to initial quantity (or previous quantity if provided)
+                input.value = previousQuantity || input.dataset.initialQuantity || 1;
                 
                 // Recalculate subtotal
                 const itemElement = input.closest('.cart-item');
@@ -815,11 +841,14 @@
                 button.addEventListener('click', function() {
                     const itemId = this.dataset.itemId;
                     const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
-                    let value = parseInt(input.value);
+                    const currentValue = parseInt(input.value);
                     
-                    if (value > 1) {
+                    if (currentValue > 1) {
+                        // Store previous value before updating
+                        const previousValue = currentValue;
+                        
                         // Decrease value
-                        input.value = value - 1;
+                        input.value = currentValue - 1;
                         
                         // Update subtotal for this item
                         const itemElement = this.closest('.cart-item');
@@ -828,8 +857,13 @@
                         // Update cart totals
                         calculateCartTotals();
                         
-                        // Send update to server
-                        updateCartItemQuantity(itemId, value - 1);
+                        // Send update to server (with previous value for comparison)
+                        updateCartItemQuantity(itemId, currentValue - 1, previousValue);
+                    } else if (currentValue === 1) {
+                        // If quantity is already 1, ask if they want to remove the item
+                        if (confirm('Remove this item from your cart?')) {
+                            removeCartItem(itemId);
+                        }
                     }
                 });
             });
@@ -838,10 +872,13 @@
                 button.addEventListener('click', function() {
                     const itemId = this.dataset.itemId;
                     const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
-                    let value = parseInt(input.value);
+                    const currentValue = parseInt(input.value);
+                    
+                    // Store previous value before updating
+                    const previousValue = currentValue;
                     
                     // Increase value
-                    input.value = value + 1;
+                    input.value = currentValue + 1;
                     
                     // Update subtotal for this item
                     const itemElement = this.closest('.cart-item');
@@ -850,8 +887,8 @@
                     // Update cart totals
                     calculateCartTotals();
                     
-                    // Send update to server
-                    updateCartItemQuantity(itemId, value + 1);
+                    // Send update to server (with previous value for comparison)
+                    updateCartItemQuantity(itemId, currentValue + 1, previousValue);
                 });
             });
             
@@ -862,12 +899,26 @@
                 // Add change event listener
                 input.addEventListener('change', function() {
                     const itemId = this.dataset.itemId;
-                    let value = parseInt(this.value);
+                    const previousValue = parseInt(this.dataset.initialQuantity) || 1;
+                    let newValue = parseInt(this.value);
                     
                     // Ensure minimum value of 1
-                    if (value < 1) {
-                        value = 1;
-                        this.value = 1;
+                    if (newValue < 1) {
+                        // If they entered 0, ask if they want to remove the item
+                        if (newValue === 0) {
+                            if (confirm('Remove this item from your cart?')) {
+                                removeCartItem(itemId);
+                                return;
+                            } else {
+                                // If they cancel, revert to previous value
+                                newValue = previousValue;
+                                this.value = previousValue;
+                            }
+                        } else {
+                            // Invalid negative value, set to 1
+                            newValue = 1;
+                            this.value = 1;
+                        }
                     }
                     
                     // Update subtotal for this item
@@ -878,11 +929,114 @@
                     calculateCartTotals();
                     
                     // Update current value as initial value
-                    this.dataset.initialQuantity = value;
+                    this.dataset.initialQuantity = newValue;
                     
-                    // Send update to server
-                    updateCartItemQuantity(itemId, value);
+                    // Send update to server (with previous value for comparison)
+                    updateCartItemQuantity(itemId, newValue, previousValue);
                 });
+            });
+        }
+        
+        // Function to remove cart item
+        function removeCartItem(itemId, quantity = null) {
+            const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+            if (!cartItem) return;
+            
+            // Show loading indicator
+            showLoading();
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('item_id', itemId);
+            
+            // Add quantity if specified (for partial removal)
+            if (quantity !== null) {
+                formData.append('quantity', quantity);
+            }
+            
+            // Make AJAX request
+            fetch('{{ route("franchisee.cart.remove") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    if (quantity === null || !data.cart_count || quantity >= parseInt(cartItem.querySelector('.quantity-input').value)) {
+                        // Full removal - fade out the item
+                        cartItem.style.opacity = '0';
+                        cartItem.style.transition = 'opacity 0.3s ease';
+                        
+                        setTimeout(() => {
+                            // Remove the item from DOM
+                            cartItem.remove();
+                            
+                            // Show success toast using the global function
+                            if (typeof window.showFloatingAlert === 'function') {
+                                window.showFloatingAlert(data.message || 'Item removed from cart', 'success');
+                            }
+                            
+                            // Update cart count everywhere
+                            updateAllCartBadges(data.cart_count, data.total_items);
+                            
+                            // Recalculate cart totals
+                            calculateCartTotals();
+                            
+                            // If cart is now empty, reload the page
+                            if (data.cart_count === 0) {
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            }
+                        }, 300);
+                    } else {
+                        // Partial removal - update the quantity
+                        const quantityInput = cartItem.querySelector('.quantity-input');
+                        if (quantityInput) {
+                            // Get the new quantity from the server response if available
+                            const newQuantity = data.item_quantity || (parseInt(quantityInput.value) - quantity);
+                            quantityInput.value = newQuantity;
+                            quantityInput.dataset.initialQuantity = newQuantity;
+                            
+                            // Recalculate subtotal
+                            calculateItemSubtotal(cartItem);
+                            calculateCartTotals();
+                            
+                            // Show success toast
+                            if (typeof window.showFloatingAlert === 'function') {
+                                window.showFloatingAlert(data.message || 'Item quantity reduced', 'success');
+                            }
+                            
+                            // Update cart count
+                            updateAllCartBadges(data.cart_count, data.total_items);
+                        }
+                    }
+                } else {
+                    // Show error toast using the global function
+                    if (typeof window.showFloatingAlert === 'function') {
+                        window.showFloatingAlert(data.message || 'Failed to remove item', 'danger');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (typeof window.showFloatingAlert === 'function') {
+                    window.showFloatingAlert('An error occurred while removing the item', 'danger');
+                }
+            })
+            .finally(() => {
+                // Hide loading indicator
+                hideLoading();
             });
         }
         
@@ -895,70 +1049,7 @@
                     if (!confirm('Are you sure you want to remove this item?')) return;
                     
                     const itemId = this.dataset.itemId;
-                    const cartItem = this.closest('.cart-item');
-                    
-                    // Show loading indicator
-                    showLoading();
-                    
-                    // Create form data
-                    const formData = new FormData();
-                    formData.append('_token', '{{ csrf_token() }}');
-                    formData.append('item_id', itemId);
-                    
-                    // Make AJAX request
-                    fetch('{{ route("franchisee.cart.remove") }}', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.success) {
-                            // Fade out the item
-                            cartItem.style.opacity = '0';
-                            cartItem.style.transition = 'opacity 0.3s ease';
-                            
-                            setTimeout(() => {
-                                // Remove the item from DOM
-                                cartItem.remove();
-                                
-                                // Show success toast
-                                showToast('success', data.message || 'Item removed from cart');
-                                
-                                // Update cart count everywhere
-                                updateAllCartBadges(data.cart_count);
-                                
-                                // Recalculate cart totals
-                                calculateCartTotals();
-                                
-                                // If cart is now empty, reload the page
-                                if (data.cart_count === 0) {
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 1000);
-                                }
-                            }, 300);
-                        } else {
-                            // Show error toast
-                            showToast('error', data.message || 'Failed to remove item');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('error', 'An error occurred while removing the item');
-                    })
-                    .finally(() => {
-                        // Hide loading indicator
-                        hideLoading();
-                    });
+                    removeCartItem(itemId);
                 });
             });
         }
@@ -992,23 +1083,29 @@
                     .then(data => {
                         if (data.success) {
                             // Update all cart badges to zero before reload
-                            updateAllCartBadges(0);
+                            updateAllCartBadges(0, 0);
                             
-                            // Show success message
-                            showToast('success', 'Cart has been cleared');
+                            // Show success message using the global function
+                            if (typeof window.showFloatingAlert === 'function') {
+                                window.showFloatingAlert('Cart has been cleared', 'success');
+                            }
                             
                             // Reload the page after a short delay
                             setTimeout(() => {
                                 window.location.reload();
-                            }, 1000);
+                            }, 1500);
                         } else {
-                            // Show error toast
-                            showToast('error', data.message || 'Failed to clear cart');
+                            // Show error toast using the global function
+                            if (typeof window.showFloatingAlert === 'function') {
+                                window.showFloatingAlert(data.message || 'Failed to clear cart', 'danger');
+                            }
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        showToast('error', 'An error occurred while clearing the cart');
+                        if (typeof window.showFloatingAlert === 'function') {
+                            window.showFloatingAlert('An error occurred while clearing the cart', 'danger');
+                        }
                     })
                     .finally(() => {
                         // Hide loading indicator
@@ -1016,51 +1113,6 @@
                     });
                 });
             }
-        }
-        
-        // Function to show toast messages
-        function showToast(type, message) {
-            const toastContainer = document.querySelector('.toast-container');
-            
-            // Create toast element
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            
-            toast.innerHTML = `
-                <div class="toast-icon">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-                </div>
-                <div class="toast-content">${message}</div>
-                <button class="toast-close">×</button>
-            `;
-            
-            // Add to container
-            toastContainer.appendChild(toast);
-            
-            // Show the toast
-            setTimeout(() => {
-                toast.classList.add('show');
-            }, 10);
-            
-            // Setup close button
-            toast.querySelector('.toast-close').addEventListener('click', function() {
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    toast.remove();
-                }, 300);
-            });
-            
-            // Auto close after 3 seconds
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.classList.remove('show');
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.remove();
-                        }
-                    }, 300);
-                }
-            }, 3000);
         }
     });
 </script>

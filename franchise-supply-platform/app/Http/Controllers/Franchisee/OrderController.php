@@ -24,11 +24,18 @@ class OrderController extends Controller
     {
         $user = Auth::user();
         
-        // Validate request
+        // Validate request with all the fields from the checkout
         $request->validate([
             'shipping_address' => 'required|string',
-            'payment_method' => 'required|string|in:credit_card,paypal,bank_transfer',
-            'notes' => 'nullable|string'
+            'shipping_city' => 'required|string',
+            'shipping_state' => 'required|string',
+            'shipping_zip' => 'required|string',
+            'delivery_preference' => 'required|string|in:standard,express,scheduled',
+            'delivery_date' => 'required|date',
+            'delivery_time' => 'required|string|in:morning,afternoon,evening',
+            'notes' => 'nullable|string',
+            'manager_name' => 'nullable|string',
+            'contact_phone' => 'nullable|string'
         ]);
         
         // Get cart items from session
@@ -42,15 +49,49 @@ class OrderController extends Controller
         DB::beginTransaction();
         
         try {
-            // Create new order
-            $order = new Order();
-            $order->user_id = $user->id;
-            $order->order_number = 'ORD-' . strtoupper(uniqid());
-            $order->status = 'pending';
-            $order->shipping_address = $request->shipping_address;
-            $order->payment_method = $request->payment_method;
-            $order->notes = $request->notes;
-            $order->save();
+            // Combine all address information into a single string
+            $fullAddress = $request->shipping_address . ', ' . 
+                          $request->shipping_city . ', ' . 
+                          $request->shipping_state . ' ' . 
+                          $request->shipping_zip;
+            
+            // Store all the extra information in the notes field
+            $notesText = '';
+            if ($request->notes) {
+                $notesText .= "Notes: " . $request->notes . "\n\n";
+            }
+            
+            $notesText .= "Delivery Information:\n";
+            $notesText .= "Date: " . $request->delivery_date . "\n";
+            $notesText .= "Time: " . $request->delivery_time . "\n";
+            $notesText .= "Preference: " . $request->delivery_preference . "\n";
+            
+            if ($request->manager_name) {
+                $notesText .= "\nManager: " . $request->manager_name . "\n";
+            }
+            
+            if ($request->contact_phone) {
+                $notesText .= "Contact: " . $request->contact_phone . "\n";
+            }
+            
+            // Calculate shipping cost
+            $shippingCost = 0;
+            if ($request->delivery_preference === 'express') {
+                $shippingCost = 15.00;
+            }
+            
+            // Create a new order record directly with DB to avoid Eloquent's mass assignment
+            $orderId = DB::table('orders')->insertGetId([
+                'user_id' => $user->id,
+                'status' => 'pending',
+                'shipping_address' => $fullAddress,
+                'total_amount' => 0, // Will update this later
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Now get the order so we can work with it
+            $order = Order::find($orderId);
             
             $totalAmount = 0;
             $inventoryErrors = [];
@@ -114,9 +155,18 @@ class OrderController extends Controller
                     ->with('error', 'Some items in your cart have inventory issues:<br>' . implode('<br>', $inventoryErrors));
             }
             
-            // Update order total
-            $order->total_amount = $totalAmount;
-            $order->save();
+            // Add shipping cost to total amount if express delivery
+            if ($request->delivery_preference === 'express') {
+                $totalAmount += $shippingCost;
+            }
+            
+            // Update the order with the final details
+            DB::table('orders')
+                ->where('id', $order->id)
+                ->update([
+                    'total_amount' => $totalAmount,
+                    'notes' => $notesText
+                ]);
             
             // Clear cart session
             session(['cart' => []]);
@@ -124,7 +174,7 @@ class OrderController extends Controller
             DB::commit();
             
             return redirect()->route('franchisee.orders.details', $order->id)
-                ->with('success', 'Order placed successfully! Your order number is ' . $order->order_number);
+                ->with('success', 'Order placed successfully!');
                 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -133,7 +183,6 @@ class OrderController extends Controller
                 ->with('error', 'Failed to place order: ' . $e->getMessage());
         }
     }
-    
     /**
      * Display pending orders.
      *
