@@ -10,7 +10,7 @@
         <h6 class="m-0 font-weight-bold text-primary">User Details</h6>
     </div>
     <div class="card-body">
-        <form action="{{ route('admin.users.store') }}" method="POST">
+        <form action="{{ route('admin.users.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             
             <!-- Role selection moved to the top -->
@@ -93,7 +93,33 @@
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
-            </div>
+
+                <!-- Company Logo Upload -->
+                <div class="form-group mb-3">
+                      <label for="logo">Company Logo</label>
+                      <div class="row">
+                          <div class="col-md-9">
+                              <input type="file" class="form-control @error('logo') is-invalid @enderror" 
+                                  id="logo" name="logo" accept="image/*">
+                              <small class="form-text text-muted">Allowed formats: JPEG, PNG, JPG, GIF. Max size: 2MB.</small>
+                              @error('logo')
+                                  <div class="invalid-feedback">{{ $message }}</div>
+                              @enderror
+                          </div>
+                          <div class="col-md-3">
+                              <div class="text-center">
+                                  <div>
+                                      <img id="logo-preview" class="logoBox" src="#" alt="Logo Preview" style="display: none;">
+                                      <div id="no-logo-selected" class="text-muted">
+                                          <i class="fas fa-image fa-2x mb-2"></i>
+                                          <p>No image selected</p>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                </div>
             
             <!-- Common user fields -->
             <h6 class="mb-3 font-weight-bold">User Account Information</h6>
@@ -137,14 +163,20 @@
                 
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label for="phone">Phone Number</label>
-                        <input type="text" class="form-control @error('phone') is-invalid @enderror" 
-                            id="phone" name="phone" value="{{ old('phone') }}">
-                        @error('phone')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                        <label for="password_confirmation">Confirm Password *</label>
+                        <input type="password" class="form-control" 
+                            id="password_confirmation" name="password_confirmation" required>
                     </div>
                 </div>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label for="phone">Phone Number</label>
+                <input type="text" class="form-control @error('phone') is-invalid @enderror" 
+                    id="phone" name="phone" value="{{ old('phone') }}">
+                @error('phone')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
             
             <div class="d-flex justify-content-between">
@@ -157,7 +189,17 @@
 @endsection
 
 @section('scripts')
+<style>
+   .logoBox{
+    border-radius: 5px;
+    min-width: 70px;
+    max-width: 170px;
+    height: auto;
+  }
+  </style>
+
 <script>
+  
     document.addEventListener('DOMContentLoaded', function() {
         const roleSelect = document.getElementById('role_id');
         const franchiseeDetails = document.getElementById('franchisee-details');
@@ -201,5 +243,66 @@
         // Listen for changes to role select
         roleSelect.addEventListener('change', toggleFranchiseeDetails);
     });
+
+    const logoInput = document.getElementById('logo');
+    const logoPreview = document.getElementById('logo-preview');
+    const noLogoSelected = document.getElementById('no-logo-selected');
+    const removeLogoCheckbox = document.getElementById('remove_logo');
+    
+    // Function to handle image preview
+    function handleImagePreview(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            // Create a file reader
+            const reader = new FileReader();
+            
+            // Set up the reader to display the image
+            reader.onload = function(e) {
+                logoPreview.src = e.target.result;
+                logoPreview.style.display = 'block';
+                
+                // Hide the "no logo" message
+                if (noLogoSelected) {
+                    noLogoSelected.style.display = 'none';
+                }
+            }
+            
+            // Read the file as a data URL
+            reader.readAsDataURL(file);
+        } else {
+            // If no file is selected, show the "no logo" message
+            if (noLogoSelected) {
+                logoPreview.style.display = 'none';
+                noLogoSelected.style.display = 'block';
+            }
+        }
+    }
+    
+    // Add event listener to the file input
+    if (logoInput) {
+        logoInput.addEventListener('change', handleImagePreview);
+    }
+    
+    // Handle the "remove logo" checkbox (for edit page only)
+    if (removeLogoCheckbox) {
+        removeLogoCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // If checked, hide the logo preview and show the "no logo" message
+                logoPreview.style.display = 'none';
+                if (noLogoSelected) {
+                    noLogoSelected.style.display = 'block';
+                }
+            } else {
+                // If unchecked and there's a logo, show it again
+                if (logoPreview.getAttribute('src') !== '#') {
+                    logoPreview.style.display = 'block';
+                    if (noLogoSelected) {
+                        noLogoSelected.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
 </script>
 @endsection

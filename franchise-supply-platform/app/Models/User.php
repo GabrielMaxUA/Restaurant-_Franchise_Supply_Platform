@@ -11,8 +11,6 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $table = 'users'; // Explicitly set the table name
-
     /**
      * The attributes that are mass assignable.
      *
@@ -24,6 +22,7 @@ class User extends Authenticatable
         'password_hash',
         'phone',
         'role_id',
+        'updated_by',
     ];
 
     /**
@@ -37,7 +36,18 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the password for the user (mapping to password_hash field).
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    /**
+     * Get the password for the user.
+     *
+     * @return string
      */
     public function getAuthPassword()
     {
@@ -45,7 +55,9 @@ class User extends Authenticatable
     }
 
     /**
-     * Relationship with the Role model.
+     * Get the role that the user belongs to.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function role()
     {
@@ -53,7 +65,39 @@ class User extends Authenticatable
     }
 
     /**
-     * Relationship with the Order model.
+     * Get the franchisee profile associated with the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function franchiseeProfile()
+    {
+        return $this->hasOne(FranchiseeProfile::class);
+    }
+
+    /**
+     * Compatibility method for the controller - returns the franchisee profile
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function franchisee()
+    {
+        return $this->franchiseeProfile();
+    }
+
+    /**
+     * Get the cart associated with the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function cart()
+    {
+        return $this->hasOne(Cart::class);
+    }
+
+    /**
+     * Get all orders for the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function orders()
     {
@@ -61,15 +105,29 @@ class User extends Authenticatable
     }
 
     /**
-     * Get franchisee details associated with this user.
+     * Check if the user is an admin.
+     *
+     * @return bool
      */
-    public function franchiseeDetail()
+    public function isAdmin()
     {
-        return $this->hasOne(FranchiseeDetail::class);
+        return $this->role && $this->role->name === 'admin';
     }
 
     /**
-     * Check if user is a franchisee.
+     * Check if the user is a warehouse staff.
+     *
+     * @return bool
+     */
+    public function isWarehouse()
+    {
+        return $this->role && $this->role->name === 'warehouse';
+    }
+
+    /**
+     * Check if the user is a franchisee.
+     *
+     * @return bool
      */
     public function isFranchisee()
     {
@@ -77,62 +135,135 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the franchisee address from the related table
+     * Get or create a cart for this user.
+     *
+     * @return \App\Models\Cart
      */
-    public function getAddressAttribute()
+    public function getOrCreateCart()
     {
-        if ($this->franchiseeDetail) {
-            return $this->franchiseeDetail->address;
+        if (!$this->cart) {
+            return $this->cart()->create();
         }
-        return $this->attributes['address'] ?? null;
+        
+        return $this->cart;
     }
 
     /**
-     * Get the franchisee city from the related table
+     * Get the user who updated this user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function getCityAttribute()
+    public function updatedBy()
     {
-        return $this->franchiseeDetail ? $this->franchiseeDetail->city : null;
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     /**
-     * Get the franchisee state from the related table
+     * Get the user's full address as a string.
+     *
+     * @return string|null
      */
-    public function getStateAttribute()
+    public function getFullAddressAttribute()
     {
-        return $this->franchiseeDetail ? $this->franchiseeDetail->state : null;
+        if ($this->franchiseeProfile) {
+            $profile = $this->franchiseeProfile;
+            $addressParts = [
+                $profile->address,
+                $profile->city,
+                $profile->state,
+                $profile->postal_code
+            ];
+            
+            return implode(', ', array_filter($addressParts));
+        }
+        
+        return null;
     }
 
     /**
-     * Get the franchisee postal_code from the related table
-     */
-    public function getPostalCodeAttribute()
-    {
-        return $this->franchiseeDetail ? $this->franchiseeDetail->postal_code : null;
-    }
-
-    /**
-     * Get the franchisee company name from the related table
+     * Get the user's company name (if any).
+     * 
+     * @return string|null
      */
     public function getCompanyNameAttribute()
     {
-        if ($this->franchiseeDetail) {
-            return $this->franchiseeDetail->company_name;
-        }
-        return $this->attributes['company_name'] ?? null;
-    }
-
-    // In User.php
-    public function favoriteProducts()
-    {
-        return $this->belongsToMany(Product::class, 'product_favorites', 'user_id', 'product_id');
+        return $this->franchiseeProfile ? $this->franchiseeProfile->company_name : null;
     }
 
     /**
-     * Get the admin details associated with the user.
-    */
-    public function adminDetail()
+     * Get the user's role name.
+     *
+     * @return string
+     */
+    public function getRoleNameAttribute()
     {
-        return $this->hasOne(AdminDetail::class);
+        return $this->role ? ucfirst($this->role->name) : 'Unknown';
+    }
+
+    /**
+     * Get the badge class for the user's role.
+     *
+     * @return string
+     */
+    public function getRoleBadgeClassAttribute()
+    {
+        if (!$this->role) {
+            return 'bg-secondary';
+        }
+        
+        switch ($this->role->name) {
+            case 'admin':
+                return 'bg-danger';
+            case 'warehouse':
+                return 'bg-primary';
+            case 'franchisee':
+                return 'bg-success';
+            default:
+                return 'bg-secondary';
+        }
+    }
+
+    /**
+     * Scope a query to only include users of a given role.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $role
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWithRole($query, $role)
+    {
+        return $query->whereHas('role', function ($q) use ($role) {
+            $q->where('name', $role);
+        });
+    }
+
+    /**
+     * Search users by keyword in username, email, or phone.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $keyword
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearch($query, $keyword)
+    {
+        return $query->where(function ($q) use ($keyword) {
+            $q->where('username', 'like', "%{$keyword}%")
+              ->orWhere('email', 'like', "%{$keyword}%")
+              ->orWhere('phone', 'like', "%{$keyword}%");
+        });
+    }
+
+    /**
+     * Search users by company name.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $company
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearchByCompany($query, $company)
+    {
+        return $query->whereHas('franchiseeProfile', function ($q) use ($company) {
+            $q->where('company_name', 'like', "%{$company}%");
+        });
     }
 }

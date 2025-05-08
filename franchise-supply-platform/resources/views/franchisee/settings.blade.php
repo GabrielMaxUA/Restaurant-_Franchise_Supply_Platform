@@ -18,43 +18,27 @@
         border: none;
     }
     
-    .welcome-alert {
-        background-color: #e8f4f8;
-        border-left: 4px solid #2c7be5;
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        border-radius: 4px;
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
     }
     
-    .welcome-icon {
-        color: #2c7be5;
-        margin-right: 0.5rem;
-    }
-    
-    .nav-tabs {
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .nav-tabs .nav-link {
-        border: none;
-        color: #495057;
-        padding: 0.75rem 1.25rem;
-        font-weight: 500;
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: #2c7be5;
-        background-color: transparent;
-        border-bottom: 2px solid #2c7be5;
-    }
-    
-    .nav-link-icon {
-        margin-right: 0.5rem;
+    .back-link {
+        display: inline-flex;
+        align-items: center;
         color: #6c757d;
+        text-decoration: none;
+        transition: color 0.2s;
     }
     
-    .nav-link.active .nav-link-icon {
-        color: #2c7be5;
+    .back-link:hover {
+        color: #343a40;
+    }
+    
+    .back-link i {
+        margin-right: 0.5rem;
     }
     
     .form-label {
@@ -98,29 +82,6 @@
         border: none;
         color: #6c757d;
         cursor: pointer;
-    }
-
-    .action-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-    
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        color: #6c757d;
-        text-decoration: none;
-        transition: color 0.2s;
-    }
-    
-    .back-link:hover {
-        color: #343a40;
-    }
-    
-    .back-link i {
-        margin-right: 0.5rem;
     }
     
     /* Center the password form */
@@ -216,88 +177,12 @@
     </div>
     @endif
     
-    <ul class="nav nav-tabs" id="settings-tab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {{ request()->get('tab') != 'password' ? 'active' : '' }}" id="company-tab" data-bs-toggle="tab" href="#company-tab-pane" role="tab" aria-controls="company-tab-pane" aria-selected="{{ request()->get('tab') != 'password' ? 'true' : 'false' }}">
-                <i class="fas fa-building nav-link-icon"></i> Company Information
-            </a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {{ request()->get('tab') == 'password' ? 'active' : '' }}" id="password-tab" data-bs-toggle="tab" href="#password-tab-pane" role="tab" aria-controls="password-tab-pane" aria-selected="{{ request()->get('tab') == 'password' ? 'true' : 'false' }}">
-                <i class="fas fa-key nav-link-icon"></i> Change Password
-            </a>
-        </li>
-    </ul>
-    
-    <div class="tab-content p-3 border border-top-0 rounded-bottom" id="settings-tab-content">
-        <!-- Company Information Tab -->
-        <div class="tab-pane fade {{ request()->get('tab') != 'password' ? 'show active' : '' }}" id="company-tab-pane" role="tabpanel" aria-labelledby="company-tab">
-            <div class="mb-4">
-                <h5 class="mb-3">Company Information</h5>
-                <p class="text-muted small">Update your company's details</p>
-            </div>
-            
-            <form action="{{ route('franchisee.profile.update-company') }}" method="POST">
-                @csrf
-                
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="company_name" class="form-label">Company Name</label>
-                        <input type="text" class="form-control @error('company_name') is-invalid @enderror" id="company_name" name="company_name" value="{{ old('company_name', $profile->company_name ?? '') }}">
-                        @error('company_name')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <label for="address" class="form-label">Address</label>
-                        <input type="text" class="form-control @error('address') is-invalid @enderror" id="address" name="address" value="{{ old('address', $profile->address ?? '') }}">
-                        @error('address')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-                
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="city" class="form-label">City</label>
-                        <input type="text" class="form-control @error('city') is-invalid @enderror" id="city" name="city" value="{{ old('city', $profile->city ?? '') }}">
-                        @error('city')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    
-                    <div class="col-md-4">
-                        <label for="state" class="form-label">State/Province</label>
-                        <input type="text" class="form-control @error('state') is-invalid @enderror" id="state" name="state" value="{{ old('state', $profile->state ?? '') }}">
-                        @error('state')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    
-                    <div class="col-md-4">
-                        <label for="postal_code" class="form-label">Postal Code</label>
-                        <input type="text" class="form-control @error('postal_code') is-invalid @enderror" id="postal_code" name="postal_code" value="{{ old('postal_code', $profile->postal_code ?? '') }}">
-                        @error('postal_code')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-end mt-4">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i> Save Changes
-                    </button>
-                </div>
-            </form>
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-key me-2"></i> Change Password</h5>
         </div>
-        
-        <!-- Password Settings Tab -->
-        <div class="tab-pane fade {{ request()->get('tab') == 'password' ? 'show active' : '' }}" id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab">
+        <div class="card-body">
             <div class="text-center mb-4">
-                <h5 class="mb-1">Change Password</h5>
                 <p class="text-muted small">Update your password to keep your account secure</p>
             </div>
             
@@ -511,14 +396,6 @@
             if (confirmPassword) {
                 confirmPassword.addEventListener('input', checkPasswordMatch);
             }
-        }
-        
-        // Set active tab from URL hash if present
-        const urlParams = new URLSearchParams(window.location.search);
-        const tabParam = urlParams.get('tab');
-        
-        if (tabParam === 'password') {
-            document.getElementById('password-tab').click();
         }
     });
 </script>

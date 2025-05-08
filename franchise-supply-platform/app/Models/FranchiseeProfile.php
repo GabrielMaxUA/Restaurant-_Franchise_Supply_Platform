@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class FranchiseeProfile extends Model
 {
+    use HasFactory;
+    
     /**
      * The table associated with the model.
+     * Keep using the existing franchisee_details table.
      *
      * @var string
      */
-    protected $table = 'franchisee_profiles';
-    
+    protected $table = 'franchisee_details';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -26,11 +30,13 @@ class FranchiseeProfile extends Model
         'state',
         'postal_code',
         'contact_name',
-        'updated_by'
+        'logo_path',
+        'updated_by',
+        
     ];
-    
+
     /**
-     * Get the user that owns the profile.
+     * Get the user that owns the franchisee profile.
      */
     public function user()
     {
@@ -38,10 +44,32 @@ class FranchiseeProfile extends Model
     }
     
     /**
-     * Get the user that last updated the profile.
+     * Get the user profile information as an array for API responses
+     * 
+     * @return array
      */
-    public function updatedBy()
+    public function getAddressArray()
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        return [
+            'company_name' => $this->company_name,
+            'address' => $this->address,
+            'city' => $this->city,
+            'state' => $this->state,
+            'postal_code' => $this->postal_code,
+            'contact_name' => $this->contact_name
+        ];
+    }
+    
+    /**
+     * Check if the profile has a complete address
+     * 
+     * @return bool
+     */
+    public function hasCompleteAddress()
+    {
+        return !empty($this->address) && 
+               !empty($this->city) && 
+               !empty($this->state) && 
+               !empty($this->postal_code);
     }
 }

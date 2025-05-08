@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,10 +21,39 @@ class OrderController extends Controller
         $this->inventoryService = $inventoryService;
     }
     
-    public function index()
+    /**
+     * Display a listing of the orders with optional user filtering.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\View\View
+     */
+    public function index(Request $request)
     {
-        $orders = Order::with('user')->orderBy('created_at', 'desc')->get();
-        return view('admin.orders.index', compact('orders'));
+        $query = Order::with('user')->orderBy('created_at', 'desc');
+        
+        // Filter by user_id if provided
+        if ($request->has('user_id')) {
+            $userId = $request->user_id;
+            $query->where('user_id', $userId);
+            
+            // Get the user for the page title
+            $user = User::find($userId);
+            $username = $user ? $user->username : 'User';
+            
+            // Set custom page title to indicate we're viewing a specific user's orders
+            $pageTitle = "Orders for $username";
+        } else {
+            $pageTitle = "Order Management";
+            $username = null;
+        }
+        
+        $orders = $query->paginate(15);
+        
+        return view('admin.orders.index', [
+            'orders' => $orders,
+            'pageTitle' => $pageTitle,
+            'username' => $username,
+        ]);
     }
     
     public function checkNewOrders()

@@ -10,7 +10,7 @@
         <h6 class="m-0 font-weight-bold text-primary">Edit User: {{ $user->username }}</h6>
     </div>
     <div class="card-body">
-        <form action="{{ route('admin.users.update', $user) }}" method="POST">
+        <form action="{{ route('admin.users.update', $user) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             
@@ -40,7 +40,7 @@
                     <label for="company_name">Company Name *</label>
                     <input type="text" class="form-control @error('company_name') is-invalid @enderror" 
                         id="company_name" name="company_name" 
-                        value="{{ old('company_name', $user->franchiseeDetail->company_name ?? '') }}">
+                        value="{{ old('company_name', $user->franchiseeProfile->company_name ?? '') }}">
                     @error('company_name')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -50,7 +50,7 @@
                     <label for="address">Street Address *</label>
                     <input type="text" class="form-control @error('address') is-invalid @enderror" 
                         id="address" name="address" 
-                        value="{{ old('address', $user->franchiseeDetail->address ?? '') }}">
+                        value="{{ old('address', $user->franchiseeProfile->address ?? '') }}">
                     @error('address')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -62,7 +62,7 @@
                             <label for="city">City *</label>
                             <input type="text" class="form-control @error('city') is-invalid @enderror" 
                                 id="city" name="city" 
-                                value="{{ old('city', $user->franchiseeDetail->city ?? '') }}">
+                                value="{{ old('city', $user->franchiseeProfile->city ?? '') }}">
                             @error('city')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -73,7 +73,7 @@
                             <label for="state">State/Province *</label>
                             <input type="text" class="form-control @error('state') is-invalid @enderror" 
                                 id="state" name="state" 
-                                value="{{ old('state', $user->franchiseeDetail->state ?? '') }}">
+                                value="{{ old('state', $user->franchiseeProfile->state ?? '') }}">
                             @error('state')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -84,7 +84,7 @@
                             <label for="postal_code">Postal Code *</label>
                             <input type="text" class="form-control @error('postal_code') is-invalid @enderror" 
                                 id="postal_code" name="postal_code" 
-                                value="{{ old('postal_code', $user->franchiseeDetail->postal_code ?? '') }}">
+                                value="{{ old('postal_code', $user->franchiseeProfile->postal_code ?? '') }}">
                             @error('postal_code')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -96,11 +96,59 @@
                     <label for="contact_name">Contact Person</label>
                     <input type="text" class="form-control @error('contact_name') is-invalid @enderror" 
                         id="contact_name" name="contact_name" 
-                        value="{{ old('contact_name', $user->franchiseeDetail->contact_name ?? '') }}">
+                        value="{{ old('contact_name', $user->franchiseeProfile->contact_name ?? '') }}">
                     @error('contact_name')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <!-- Company Logo Upload -->
+                <!-- For the Edit User form (paste-2.txt) -->
+
+<!-- Replace the existing logo upload section with this -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="form-group">
+            <label for="logo">Company Logo</label>
+            <input type="file" class="form-control @error('logo') is-invalid @enderror" 
+                id="logo" name="logo" accept="image/*">
+            <small class="form-text text-muted">Allowed formats: JPEG, PNG, JPG, GIF. Max size: 2MB.</small>
+            @error('logo')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="text-center">
+            <div class="mb-2">Logo Preview:</div>
+            <div class="logoBox">
+                @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
+                    <!-- Show existing logo and preview for new uploads -->
+                    <img id="logo-preview" src="{{ asset('storage/' . $user->franchiseeProfile->logo_path) }}" 
+                        alt="Company Logo" class="img-thumbnail" style="max-height: 100px;">
+                @else
+                    <!-- Just show preview for new uploads -->
+                    <img id="logo-preview" src="#" alt="Logo Preview" 
+                        class="img-thumbnail" style="max-height: 100px; display: none;">
+                    <div id="no-logo-selected" class="text-muted">
+                        <i class="fas fa-image fa-2x mb-2"></i>
+                        <p>No logo uploaded</p>
+                    </div>
+                @endif
+            </div>
+            @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
+                <div class="mt-2 deleteLogo">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remove_logo" name="remove_logo">
+                        <label class="form-check-label" for="remove_logo">
+                            Remove current logo
+                        </label>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
             </div>
             
             <!-- Common user fields -->
@@ -145,14 +193,20 @@
                 
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label for="phone">Phone Number</label>
-                        <input type="text" class="form-control @error('phone') is-invalid @enderror" 
-                            id="phone" name="phone" value="{{ old('phone', $user->phone) }}">
-                        @error('phone')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                        <label for="password_confirmation">Confirm Password</label>
+                        <input type="password" class="form-control" 
+                            id="password_confirmation" name="password_confirmation">
                     </div>
                 </div>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label for="phone">Phone Number</label>
+                <input type="text" class="form-control @error('phone') is-invalid @enderror" 
+                    id="phone" name="phone" value="{{ old('phone', $user->phone) }}">
+                @error('phone')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
             
             <div class="d-flex justify-content-between">
@@ -165,6 +219,19 @@
 @endsection
 
 @section('scripts')
+<style>
+  .logoBox{
+    width: auto;
+    height: auto;
+  }
+
+  .deleteLogo{
+    width: 50%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+  }
+</style>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const roleSelect = document.getElementById('role_id');
@@ -205,5 +272,66 @@
         // Listen for changes to role select
         roleSelect.addEventListener('change', toggleFranchiseeDetails);
     });
+
+    const logoInput = document.getElementById('logo');
+    const logoPreview = document.getElementById('logo-preview');
+    const noLogoSelected = document.getElementById('no-logo-selected');
+    const removeLogoCheckbox = document.getElementById('remove_logo');
+    
+    // Function to handle image preview
+    function handleImagePreview(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            // Create a file reader
+            const reader = new FileReader();
+            
+            // Set up the reader to display the image
+            reader.onload = function(e) {
+                logoPreview.src = e.target.result;
+                logoPreview.style.display = 'block';
+                
+                // Hide the "no logo" message
+                if (noLogoSelected) {
+                    noLogoSelected.style.display = 'none';
+                }
+            }
+            
+            // Read the file as a data URL
+            reader.readAsDataURL(file);
+        } else {
+            // If no file is selected, show the "no logo" message
+            if (noLogoSelected) {
+                logoPreview.style.display = 'none';
+                noLogoSelected.style.display = 'block';
+            }
+        }
+    }
+    
+    // Add event listener to the file input
+    if (logoInput) {
+        logoInput.addEventListener('change', handleImagePreview);
+    }
+    
+    // Handle the "remove logo" checkbox (for edit page only)
+    if (removeLogoCheckbox) {
+        removeLogoCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // If checked, hide the logo preview and show the "no logo" message
+                logoPreview.style.display = 'none';
+                if (noLogoSelected) {
+                    noLogoSelected.style.display = 'block';
+                }
+            } else {
+                // If unchecked and there's a logo, show it again
+                if (logoPreview.getAttribute('src') !== '#') {
+                    logoPreview.style.display = 'block';
+                    if (noLogoSelected) {
+                        noLogoSelected.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
 </script>
 @endsection

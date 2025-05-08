@@ -49,7 +49,8 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/users/{user}/edit', [App\Http\Controllers\Admin\UserController::class, 'edit'])->name('admin.users.edit');
     Route::put('/users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('admin.users.update');
     Route::delete('/users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
-    
+   // To use the fully qualified namespace:
+Route::get('users/{id}/info', [App\Http\Controllers\Admin\UserController::class, 'getUserInfo'])->name('admin.users.info');
     // Product routes
     Route::get('/products', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('admin.products.index');
     Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('admin.products.create');
@@ -73,10 +74,11 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/orders/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('admin.orders.show');
     Route::patch('/orders/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('admin.orders.update-status');
     Route::post('/orders/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('admin.orders.sync-quickbooks');
-});
+
+  });
 
 // Warehouse Routes - Protected by auth and role middleware
-Route::prefix('warehouse')->middleware(['auth', 'role:warehouse'])->group(function () {
+  Route::prefix('warehouse')->middleware(['auth', 'role:warehouse'])->group(function () {
   // Dashboard
   Route::get('/dashboard', [App\Http\Controllers\Warehouse\DashboardController::class, 'index'])->name('warehouse.dashboard');
   
@@ -140,7 +142,7 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::post('/cart/place-order', [CartController::class, 'placeOrder'])->name('franchisee.cart.place-order');
 
   // Route for getting the franchisee address
-  Route::get('/franchisee/get-address', [App\Http\Controllers\Franchisee\AddressController::class, 'getAddress'])->name('franchisee.get-address');
+  Route::get('/franchisee/get-address', [App\Http\Controllers\Franchisee\ProfileController::class, 'getAddress'])->name('franchisee.get-address');
   
   // Orders
   Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('franchisee.orders.pending');
@@ -159,18 +161,20 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::get('/inventory/export', [InventoryController::class, 'export'])->name('franchisee.inventory.export');
   Route::post('/inventory/update', [InventoryController::class, 'updateInventory'])->name('franchisee.inventory.update');
   
-  //Profile Settings 
-  Route::get('/profile', [App\Http\Controllers\Franchisee\ProfileController::class, 'index'])->name('franchisee.profile');
-  Route::post('/profile/update-basic', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateBasicInfo'])->name('franchisee.profile.update-basic');
-  Route::post('/profile/update-company', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateCompanyInfo'])->name('franchisee.profile.update-company');
-  Route::post('/profile/update-password', [App\Http\Controllers\Franchisee\ProfileController::class, 'updatePassword'])->name('franchisee.profile.update-password');
-  Route::get('/settings', [App\Http\Controllers\Franchisee\ProfileController::class, 'settings'])->name('franchisee.settings');
-  // Add this to your routes in the franchisee group
-  Route::post('/settings/update', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateSettings'])->name('franchisee.settings.update');
+   // Profile routes
+  Route::get('/profile', [ProfileController::class, 'index'])->name('franchisee.profile');
+  Route::put('/profile/update', [ProfileController::class, 'update'])->name('franchisee.profile.update');
+  // Add this to your routes/web.php file in the franchisee group
 
-});
-
-// Catch-all redirect to login for unauthenticated users
-Route::fallback(function () {
-    return redirect()->route('login');
+  Route::delete('/profile/delete-logo', [App\Http\Controllers\Franchisee\ProfileController::class, 'deleteLogo'])->name('franchisee.profile.delete-logo');
+  // Settings routes
+  Route::get('/settings', [ProfileController::class, 'settings'])->name('franchisee.settings');
+  Route::post('/profile/update-password', [ProfileController::class, 'updatePassword'])->name('franchisee.profile.update-password');
+  
+  // Address API route
+  Route::get('/address', [ProfileController::class, 'getAddress'])->name('franchisee.address');});
+  
+  // Catch-all redirect to login for unauthenticated users
+  Route::fallback(function () {
+      return redirect()->route('login');
 });

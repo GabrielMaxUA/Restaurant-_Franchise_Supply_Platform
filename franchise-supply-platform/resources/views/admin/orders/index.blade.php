@@ -1,12 +1,18 @@
 @extends('layouts.admin')
 
-@section('title', 'Orders - Restaurant Franchise Supply Platform')
+@section('title', isset($username) ? "Orders for {$username} - Restaurant Franchise Supply Platform" : 'Orders - Restaurant Franchise Supply Platform')
 
-@section('page-title', 'Order Management')
+@section('page-title', $pageTitle ?? 'Order Management')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3">Manage Orders</h1>
+    <h1 class="h3">{{ $pageTitle ?? 'Manage Orders' }}</h1>
+    
+    @if(isset($username))
+        <a href="{{ route('admin.orders.index') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> View All Orders
+        </a>
+    @endif
 </div>
 
 @if(session('success'))
@@ -17,6 +23,12 @@
 
 <div class="card shadow">
     <div class="card-body">
+        @if(isset($username))
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-filter me-2"></i> Showing orders for: <strong>{{ $username }}</strong>
+            </div>
+        @endif
+        
         <div class="table-responsive">
             <table class="table table-bordered table-hover">
                 <thead class="table-light">
@@ -76,6 +88,10 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+        
+        <div class="mt-4">
+            {{ $orders->appends(request()->query())->links() }}
         </div>
     </div>
 </div>

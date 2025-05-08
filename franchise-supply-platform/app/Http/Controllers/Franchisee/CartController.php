@@ -8,9 +8,10 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Session;
 
 class CartController extends Controller
 {
@@ -28,43 +29,53 @@ class CartController extends Controller
     }
     
     /**
+     * Get or create the current user's cart
+     */
+    private function getOrCreateCart()
+    {
+        $userId = Auth::id();
+        $cart = Cart::firstOrCreate(['user_id' => $userId]);
+        return $cart;
+    }
+    
+    /**
      * Display the cart contents.
      */
     public function index()
     {
-        $cart = Session::get('cart', []);
+        $cart = $this->getOrCreateCart();
         $cartItems = [];
         $total = 0;
         
-        foreach ($cart as $itemId => $item) {
-            // Handle both products and variants
-            if (isset($item['variant_id'])) {
-                $variant = ProductVariant::with('product')->find($item['variant_id']);
-                if ($variant) {
-                    $product = $variant->product;
-                    $price = $product->base_price + $variant->price_adjustment;
-                    $cartItems[] = [
-                        'id' => $itemId,
-                        'product' => $product,
-                        'variant' => $variant,
-                        'quantity' => $item['quantity'],
-                        'price' => $price,
-                        'subtotal' => $price * $item['quantity']
-                    ];
-                    $total += $price * $item['quantity'];
-                }
+        // Eager load related models for performance
+        $items = $cart->items()->with(['product', 'variant.product'])->get();
+        
+        foreach ($items as $item) {
+            if ($item->variant_id) {
+                $variant = $item->variant;
+                $product = $variant->product;
+                $price = $product->base_price + $variant->price_adjustment;
+                $cartItems[] = [
+                    'id' => $item->id,
+                    'product' => $product,
+                    'variant' => $variant,
+                    'quantity' => $item->quantity,
+                    'price' => $price,
+                    'subtotal' => $price * $item->quantity
+                ];
+                $total += $price * $item->quantity;
             } else {
-                $product = Product::find($item['product_id']);
+                $product = $item->product;
                 if ($product) {
                     $cartItems[] = [
-                        'id' => $itemId,
+                        'id' => $item->id,
                         'product' => $product,
                         'variant' => null,
-                        'quantity' => $item['quantity'],
+                        'quantity' => $item->quantity,
                         'price' => $product->base_price,
-                        'subtotal' => $product->base_price * $item['quantity']
+                        'subtotal' => $product->base_price * $item->quantity
                     ];
-                    $total += $product->base_price * $item['quantity'];
+                    $total += $product->base_price * $item->quantity;
                 }
             }
         }
@@ -162,34 +173,26 @@ class CartController extends Controller
             }
         }
         
-        // Get cart from session
-        $cart = Session::get('cart', []);
-        
-        // Create a unique identifier for the product/variant combination
-        $productKey = $variantId ? $productId . '_' . $variantId : $productId . '_0';
+        // Get user's cart
+        $cart = $this->getOrCreateCart();
         
         // Check if this product/variant is already in the cart
-        $existingItem = null;
-        $existingItemId = null;
-        
-        foreach ($cart as $itemId => $item) {
-            $itemProductId = $item['product_id'];
-            $itemVariantId = isset($item['variant_id']) ? $item['variant_id'] : 0;
-            $itemKey = $itemProductId . '_' . $itemVariantId;
+        $query = CartItem::where('cart_id', $cart->id)
+            ->where('product_id', $productId);
             
-            // If we found a match
-            if ($itemKey === $productKey) {
-                $existingItem = $item;
-                $existingItemId = $itemId;
-                break;
-            }
+        if ($variantId) {
+            $query->where('variant_id', $variantId);
+        } else {
+            $query->whereNull('variant_id');
         }
+        
+        $existingItem = $query->first();
+        $currentCartQuantity = 0;
         
         // If the product is already in the cart, update the quantity
         if ($existingItem) {
-            // Calculate the new total quantity
-            $newQuantity = $existingItem['quantity'] + $quantity;
-            $currentCartQuantity = $existingItem['quantity'];
+            $currentCartQuantity = $existingItem->quantity;
+            $newQuantity = $currentCartQuantity + $quantity;
             
             // Check if the new quantity exceeds available stock
             if ($variantId) {
@@ -226,31 +229,20 @@ class CartController extends Controller
             }
             
             // Update the quantity
-            $cart[$existingItemId]['quantity'] = $newQuantity;
+            $existingItem->quantity = $newQuantity;
+            $existingItem->save();
         } else {
-            // Generate a unique cart item ID
-            $itemId = uniqid();
-            
             // Add to cart as a new item
-            if ($variantId) {
-                $cart[$itemId] = [
-                    'product_id' => $productId,
-                    'variant_id' => $variantId,
-                    'quantity' => $quantity
-                ];
-            } else {
-                $cart[$itemId] = [
-                    'product_id' => $productId,
-                    'quantity' => $quantity
-                ];
-            }
+            CartItem::create([
+                'cart_id' => $cart->id,
+                'product_id' => $productId,
+                'variant_id' => $variantId,
+                'quantity' => $quantity
+            ]);
         }
         
-        // Save cart back to session
-        Session::put('cart', $cart);
-        
         // Get current cart quantity for this product
-        $currentCartQuantity = $existingItem ? $newQuantity : $quantity;
+        $finalCartQuantity = $existingItem ? $existingItem->quantity + $quantity : $quantity;
         
         // Calculate remaining inventory after adding to cart
         $totalInventory = $variantId 
@@ -258,16 +250,19 @@ class CartController extends Controller
             : ($product ? $product->inventory_count : 0);
         
         // Calculate actual remaining inventory (total - what's in cart)
-        $remainingInventory = $totalInventory - $currentCartQuantity;
+        $remainingInventory = $totalInventory - $finalCartQuantity;
+        
+        // Get cart count
+        $cartCount = $cart->items()->count();
         
         // Return success response for AJAX requests
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Product added to cart successfully.',
-                'cart_count' => count($cart),
+                'cart_count' => $cartCount,
                 'remaining_inventory' => $remainingInventory,
-                'product_cart_quantity' => $existingItem ? $newQuantity : $quantity
+                'product_cart_quantity' => $finalCartQuantity
             ]);
         }
         
@@ -281,59 +276,62 @@ class CartController extends Controller
     {
         $request->validate([
             'items' => 'required|array',
-            'items.*.id' => 'required|string',
+            'items.*.id' => 'required|integer|exists:cart_items,id',
             'items.*.quantity' => 'required|integer|min:1'
         ]);
         
-        $cart = Session::get('cart', []);
+        $cart = $this->getOrCreateCart();
+        $success = true;
+        $message = 'Cart updated successfully.';
         
         foreach ($request->items as $item) {
             $itemId = $item['id'];
             $quantity = $item['quantity'];
             
-            if (isset($cart[$itemId])) {
+            // Get the cart item and check if it belongs to the user's cart
+            $cartItem = CartItem::where('id', $itemId)
+                ->where('cart_id', $cart->id)
+                ->first();
+            
+            if ($cartItem) {
                 // Check inventory before updating
-                if (isset($cart[$itemId]['variant_id'])) {
-                    $variant = ProductVariant::find($cart[$itemId]['variant_id']);
+                if ($cartItem->variant_id) {
+                    $variant = ProductVariant::find($cartItem->variant_id);
                     if ($variant && $variant->inventory_count >= $quantity) {
-                        $cart[$itemId]['quantity'] = $quantity;
+                        $cartItem->quantity = $quantity;
+                        $cartItem->save();
                     } else {
-                        if ($request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Insufficient inventory for ' . ($variant ? $variant->name : 'selected variant')
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'Insufficient inventory for ' . ($variant ? $variant->name : 'selected variant'));
+                        $success = false;
+                        $message = 'Insufficient inventory for ' . ($variant ? $variant->name : 'selected variant');
+                        break;
                     }
                 } else {
-                    $product = Product::find($cart[$itemId]['product_id']);
+                    $product = Product::find($cartItem->product_id);
                     if ($product && $product->inventory_count >= $quantity) {
-                        $cart[$itemId]['quantity'] = $quantity;
+                        $cartItem->quantity = $quantity;
+                        $cartItem->save();
                     } else {
-                        if ($request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Insufficient inventory for ' . ($product ? $product->name : 'selected product')
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'Insufficient inventory for ' . ($product ? $product->name : 'selected product'));
+                        $success = false;
+                        $message = 'Insufficient inventory for ' . ($product ? $product->name : 'selected product');
+                        break;
                     }
                 }
             }
         }
         
-        Session::put('cart', $cart);
-        
         if ($request->ajax()) {
             return response()->json([
-                'success' => true,
-                'message' => 'Cart updated successfully.',
-                'cart_count' => count($cart)
-            ]);
+                'success' => $success,
+                'message' => $message,
+                'cart_count' => $cart->items()->count()
+            ], $success ? 200 : 400);
         }
         
-        return redirect()->back()->with('success', 'Cart updated successfully.');
+        if ($success) {
+            return redirect()->back()->with('success', $message);
+        } else {
+            return redirect()->back()->with('error', $message);
+        }
     }
     
     /**
@@ -343,32 +341,33 @@ class CartController extends Controller
     {
         $itemId = $request->input('item_id');
         $quantity = $request->input('quantity', null);
-        $cart = Session::get('cart', []);
         
-        if (isset($cart[$itemId])) {
+        $cart = $this->getOrCreateCart();
+        $cartItem = CartItem::where('id', $itemId)
+            ->where('cart_id', $cart->id)
+            ->first();
+        
+        if ($cartItem) {
             // If quantity is specified and less than current quantity, reduce quantity
-            if ($quantity !== null && $quantity > 0 && $quantity < $cart[$itemId]['quantity']) {
-                $cart[$itemId]['quantity'] -= $quantity;
+            if ($quantity !== null && $quantity > 0 && $quantity < $cartItem->quantity) {
+                $cartItem->quantity -= $quantity;
+                $cartItem->save();
                 $message = 'Item quantity reduced.';
             } else {
                 // Otherwise, remove the item completely
-                unset($cart[$itemId]);
+                $cartItem->delete();
                 $message = 'Item removed from cart.';
             }
             
-            Session::put('cart', $cart);
-            
             // Calculate total items count for badge display
-            $totalItems = 0;
-            foreach ($cart as $item) {
-                $totalItems += $item['quantity'];
-            }
+            $totalItems = $cart->items()->sum('quantity');
+            $cartCount = $cart->items()->count();
             
             if ($request->ajax()) {
                 return response()->json([
                     'success' => true,
                     'message' => $message,
-                    'cart_count' => count($cart),
+                    'cart_count' => $cartCount,
                     'total_items' => $totalItems
                 ]);
             }
@@ -391,7 +390,8 @@ class CartController extends Controller
      */
     public function clearCart()
     {
-        Session::forget('cart');
+        $cart = $this->getOrCreateCart();
+        $cart->items()->delete();
         
         if (request()->ajax()) {
             return response()->json([
@@ -409,10 +409,11 @@ class CartController extends Controller
      */
     public function getCartCount()
     {
-        $cart = Session::get('cart', []);
+        $cart = $this->getOrCreateCart();
+        $count = $cart->items()->count();
         
         return response()->json([
-            'count' => count($cart)
+            'count' => $count
         ]);
     }
     
@@ -421,9 +422,10 @@ class CartController extends Controller
      */
     public function checkout()
     {
-        $cart = Session::get('cart', []);
+        $cart = $this->getOrCreateCart();
+        $items = $cart->items()->with(['product', 'variant.product'])->get();
         
-        if (empty($cart)) {
+        if ($items->isEmpty()) {
             return redirect()->route('franchisee.cart')
                 ->with('error', 'Your cart is empty. Please add some products before checkout.');
         }
@@ -431,36 +433,33 @@ class CartController extends Controller
         $cartItems = [];
         $total = 0;
         
-        // Process cart items similar to index method
-        foreach ($cart as $itemId => $item) {
-            // Handle both products and variants
-            if (isset($item['variant_id'])) {
-                $variant = ProductVariant::with('product')->find($item['variant_id']);
-                if ($variant) {
-                    $product = $variant->product;
-                    $price = $product->base_price + $variant->price_adjustment;
-                    $cartItems[] = [
-                        'id' => $itemId,
-                        'product' => $product,
-                        'variant' => $variant,
-                        'quantity' => $item['quantity'],
-                        'price' => $price,
-                        'subtotal' => $price * $item['quantity']
-                    ];
-                    $total += $price * $item['quantity'];
-                }
+        // Process cart items
+        foreach ($items as $item) {
+            if ($item->variant_id) {
+                $variant = $item->variant;
+                $product = $variant->product;
+                $price = $product->base_price + $variant->price_adjustment;
+                $cartItems[] = [
+                    'id' => $item->id,
+                    'product' => $product,
+                    'variant' => $variant,
+                    'quantity' => $item->quantity,
+                    'price' => $price,
+                    'subtotal' => $price * $item->quantity
+                ];
+                $total += $price * $item->quantity;
             } else {
-                $product = Product::find($item['product_id']);
+                $product = $item->product;
                 if ($product) {
                     $cartItems[] = [
-                        'id' => $itemId,
+                        'id' => $item->id,
                         'product' => $product,
                         'variant' => null,
-                        'quantity' => $item['quantity'],
+                        'quantity' => $item->quantity,
                         'price' => $product->base_price,
-                        'subtotal' => $product->base_price * $item['quantity']
+                        'subtotal' => $product->base_price * $item->quantity
                     ];
-                    $total += $product->base_price * $item['quantity'];
+                    $total += $product->base_price * $item->quantity;
                 }
             }
         }
@@ -486,43 +485,42 @@ class CartController extends Controller
         ]);
 
         // Get cart items
-        $cart = Session::get('cart', []);
+        $cart = $this->getOrCreateCart();
+        $items = $cart->items()->with(['product', 'variant.product'])->get();
         
-        if (empty($cart)) {
+        if ($items->isEmpty()) {
             return redirect()->route('franchisee.cart')
                 ->with('error', 'Your cart is empty. Please add some products before checkout.');
         }
         
         // Calculate total
         $total = 0;
-        $items = [];
+        $orderItems = [];
         
-        foreach ($cart as $itemId => $item) {
-            if (isset($item['variant_id'])) {
-                $variant = ProductVariant::with('product')->find($item['variant_id']);
-                if ($variant) {
-                    $product = $variant->product;
-                    $price = $product->base_price + $variant->price_adjustment;
-                    $subtotal = $price * $item['quantity'];
-                    $total += $subtotal;
-                    
-                    $items[] = [
-                        'product_id' => $product->id,
-                        'variant_id' => $variant->id,
-                        'quantity' => $item['quantity'],
-                        'price' => $price
-                    ];
-                }
+        foreach ($items as $item) {
+            if ($item->variant_id) {
+                $variant = $item->variant;
+                $product = $variant->product;
+                $price = $product->base_price + $variant->price_adjustment;
+                $subtotal = $price * $item->quantity;
+                $total += $subtotal;
+                
+                $orderItems[] = [
+                    'product_id' => $product->id,
+                    'variant_id' => $variant->id,
+                    'quantity' => $item->quantity,
+                    'price' => $price
+                ];
             } else {
-                $product = Product::find($item['product_id']);
+                $product = $item->product;
                 if ($product) {
-                    $subtotal = $product->base_price * $item['quantity'];
+                    $subtotal = $product->base_price * $item->quantity;
                     $total += $subtotal;
                     
-                    $items[] = [
+                    $orderItems[] = [
                         'product_id' => $product->id,
                         'variant_id' => null,
-                        'quantity' => $item['quantity'],
+                        'quantity' => $item->quantity,
                         'price' => $product->base_price
                     ];
                 }
@@ -568,7 +566,7 @@ class CartController extends Controller
             $order->save();
             
             // Create order items and update inventory
-            foreach ($items as $item) {
+            foreach ($orderItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
@@ -589,11 +587,11 @@ class CartController extends Controller
                 }
             }
             
+            // Clear the cart after successfully placing the order
+            $cart->items()->delete();
+            
             // Commit the transaction
             DB::commit();
-            
-            // IMPORTANT: Clear the cart after successfully completing the transaction
-            Session::forget('cart');
             
             // Redirect to order details page
             return redirect()->route('franchisee.orders.details', $order->id)

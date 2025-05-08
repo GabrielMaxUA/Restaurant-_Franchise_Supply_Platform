@@ -78,7 +78,7 @@ public function update(Request $request)
         $user->username = $request->username;
         $user->email = $request->email;
         $user->phone = $request->phone;
-        $user->updated_by = $user->id;
+        $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now();
         $user->save();
         
