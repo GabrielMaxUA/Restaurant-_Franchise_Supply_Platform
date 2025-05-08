@@ -106,7 +106,7 @@ class UserController extends Controller
             'password_hash' => Hash::make($request->password),
             'phone' => $request->phone,
             'role_id' => $request->role_id,
-            'updated_by' => Auth::id(),
+            'updated_by' => Auth::user()->username,
         ]);
 
         // If role is franchisee and company details provided, create franchisee profile
@@ -119,7 +119,7 @@ class UserController extends Controller
                 'state' => $request->state,
                 'postal_code' => $request->postal_code,
                 'contact_name' => $request->contact_name,
-                'updated_by' => Auth::id(),
+                'updated_by' => Auth::user()->username,
             ];
             
             // Handle logo upload if provided
@@ -183,7 +183,7 @@ class UserController extends Controller
         $user->email = $request->email;
         $user->phone = $request->phone;
         $user->role_id = $request->role_id;
-        $user->updated_by = Auth::id();
+        $user->updated_by = Auth::user()->username;
         
         if ($request->filled('password')) {
             $user->password_hash = Hash::make($request->password);
@@ -201,7 +201,7 @@ class UserController extends Controller
                 'state' => $request->state,
                 'postal_code' => $request->postal_code,
                 'contact_name' => $request->contact_name,
-                'updated_by' => Auth::id(),
+                'updated_by' => Auth::user()->username,
             ];
             
             // Get existing profile if it exists

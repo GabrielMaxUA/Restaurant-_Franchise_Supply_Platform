@@ -88,7 +88,7 @@ public function update(Request $request)
         if (!$adminDetail) {
             $adminDetail = new AdminDetail();
             $adminDetail->user_id = $user->id;
-            $adminDetail->created_by = $user->id;
+            $adminDetail->created_by = $user->Auth::user()->username;
         }
         
         $adminDetail->company_name = $request->company_name;
@@ -99,7 +99,7 @@ public function update(Request $request)
         $adminDetail->email = $request->email;
         $adminDetail->phone = $request->phone;
         $adminDetail->website = $request->website;
-        $adminDetail->updated_by = $user->id;
+        $adminDetail->updated_by = Auth::user()->username;
         
         // Handle logo upload
         if ($request->hasFile('logo')) {
@@ -160,7 +160,7 @@ public function update(Request $request)
         }
         
         $user->password_hash = Hash::make($request->new_password);
-        $user->updated_by = $user->id;
+        $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now();
         $user->save();
         

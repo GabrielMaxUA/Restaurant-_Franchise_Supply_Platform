@@ -62,7 +62,7 @@ class WarehouseProfileController extends Controller
         $user->username = $request->username;
         $user->email = $request->email;
         $user->phone = $request->phone;
-        $user->updated_by = $user->id;
+        $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now(); // Explicitly update the timestamp
         $user->save();
         
@@ -101,7 +101,7 @@ class WarehouseProfileController extends Controller
         }
         
         $user->password_hash = Hash::make($request->new_password);
-        $user->updated_by = $user->id;
+        $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now(); // Explicitly update the timestamp
         $user->save();
         
