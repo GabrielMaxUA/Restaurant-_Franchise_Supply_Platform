@@ -35,21 +35,8 @@
     color: #5a5c69;
 }
 
-.user-avatar {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    overflow: hidden;
-    margin: 0 auto 1rem;
-    border: 4px solid #fff;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #4e73df;
-    color: white;
-    font-size: 3rem;
-    font-weight: 300;
+.user-badge {
+    margin-left: 10px;
 }
 
 .user-info-section {
@@ -110,43 +97,42 @@
                 </div>
                 
                 <div id="userInfoContent" class="d-none">
-                    <!-- User Profile Header -->
-                    <div class="row mb-4">
-                        <div class="col-md-4 text-center">
-                            <div class="user-avatar" id="userInitials">
-                                <!-- User initials will be placed here -->
+                    <!-- User Profile Header - Now Full Width -->
+                    <div class="mb-4">
+                        <!-- Basic Info Card -->
+                        <div class="card user-info-card">
+                            <div class="card-header py-3 d-flex align-items-center">
+                                <h6 class="m-0 font-weight-bold">Account Information</h6>
+                                <span id="userRole" class="ms-auto"><span class="badge bg-primary">Role</span></span>
                             </div>
-                            <h5 id="userName" class="mb-0">User Name</h5>
-                            <p id="userRole" class="mb-2"><span class="badge bg-primary">Role</span></p>
-                            <p id="userEmail" class="mb-0"><i class="fas fa-envelope me-1"></i> user@example.com</p>
-                        </div>
-                        <div class="col-md-8">
-                            <!-- Basic Info Card -->
-                            <div class="card user-info-card h-100">
-                                <div class="card-header py-3">
-                                    <h6 class="m-0 font-weight-bold">Account Information</h6>
+                            <div class="card-body">
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">User ID</div>
+                                    <div class="col-md-9" id="userId">-</div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="row detail-row">
-                                        <div class="col-md-4 user-info-label">User ID</div>
-                                        <div class="col-md-8" id="userId">-</div>
-                                    </div>
-                                    <div class="row detail-row">
-                                        <div class="col-md-4 user-info-label">Username</div>
-                                        <div class="col-md-8" id="userUsername">-</div>
-                                    </div>
-                                    <div class="row detail-row">
-                                        <div class="col-md-4 user-info-label">Phone</div>
-                                        <div class="col-md-8" id="userPhone">-</div>
-                                    </div>
-                                    <div class="row detail-row">
-                                        <div class="col-md-4 user-info-label">Created At</div>
-                                        <div class="col-md-8" id="userCreatedAt">-</div>
-                                    </div>
-                                    <div class="row detail-row">
-                                        <div class="col-md-4 user-info-label">Last Updated</div>
-                                        <div class="col-md-8" id="userUpdatedAt">-</div>
-                                    </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Username</div>
+                                    <div class="col-md-9" id="userUsername">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Email</div>
+                                    <div class="col-md-9" id="userEmail">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Phone</div>
+                                    <div class="col-md-9" id="userPhone">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Created At</div>
+                                    <div class="col-md-9" id="userCreatedAt">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Last Updated</div>
+                                    <div class="col-md-9" id="userUpdatedAt">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Updated By</div>
+                                    <div class="col-md-9" id="userUpdatedBy">-</div>
                                 </div>
                             </div>
                         </div>
@@ -387,29 +373,23 @@ function retryLoadUser(userId) {
 function populateUserModal(data) {
     try {
         // Basic user information - Add null checks for all DOM elements
-        const userNameElement = document.getElementById('userName');
         const userEmailElement = document.getElementById('userEmail');
         const userIdElement = document.getElementById('userId');
         const userUsernameElement = document.getElementById('userUsername');
         const userPhoneElement = document.getElementById('userPhone');
         const userCreatedAtElement = document.getElementById('userCreatedAt');
         const userUpdatedAtElement = document.getElementById('userUpdatedAt');
-        const userInitialsElement = document.getElementById('userInitials');
+        const userUpdatedByElement = document.getElementById('userUpdatedBy');
         const userRoleElement = document.getElementById('userRole');
         
         // Safe updates with null checks
-        if (userNameElement) userNameElement.textContent = data.user.username || 'N/A';
-        if (userEmailElement) userEmailElement.innerHTML = `<i class="fas fa-envelope me-1"></i> ${data.user.email || 'N/A'}`;
+        if (userEmailElement) userEmailElement.textContent = data.user.email || 'N/A';
         if (userIdElement) userIdElement.textContent = data.user.id || 'N/A';
         if (userUsernameElement) userUsernameElement.textContent = data.user.username || 'N/A';
         if (userPhoneElement) userPhoneElement.textContent = data.user.phone || 'Not provided';
         if (userCreatedAtElement) userCreatedAtElement.textContent = formatDate(data.user.created_at);
         if (userUpdatedAtElement) userUpdatedAtElement.textContent = formatDate(data.user.updated_at);
-        
-        // Set user initials
-        if (userInitialsElement) {
-            userInitialsElement.textContent = getInitials(data.user.username);
-        }
+        if (userUpdatedByElement) userUpdatedByElement.textContent = data.user.updated_by || 'N/A';
         
         // Set role badge
         if (userRoleElement) {
@@ -486,23 +466,6 @@ function updateProfileSection(data) {
     } catch (error) {
         console.error('Error updating profile section:', error);
         // Continue execution - don't throw error to prevent stopping other updates
-    }
-}
-
-// Helper function to get user initials for avatar - with better error handling
-function getInitials(name) {
-    try {
-        if (!name) return '?';
-        
-        const names = String(name).split(' ');
-        if (names.length === 1) {
-            return names[0].charAt(0).toUpperCase() || '?';
-        }
-        
-        return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase() || '?';
-    } catch (error) {
-        console.error('Error getting initials:', error);
-        return '?';
     }
 }
 
