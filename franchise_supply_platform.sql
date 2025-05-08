@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 08, 2025 at 05:25 AM
+-- Generation Time: May 08, 2025 at 06:15 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -45,6 +45,56 @@ CREATE TABLE `admin_details` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `admin_details`
+--
+
+INSERT INTO `admin_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `phone`, `email`, `website`, `logo_path`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+(2, 1, 'Restaurant Franchise Supply toronto', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '4168560684', 'admin@example.com', 'www.restaurantfranchisesupply.com', 'company-logos/l0xSFESYc1n211AxhrifIJzu21QFriWBAfDCZDXn.jpg', 1, 1, '2025-05-08 13:03:09', '2025-05-08 13:18:07');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `carts`
+--
+
+CREATE TABLE `carts` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `user_id` int(10) UNSIGNED NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `carts`
+--
+
+INSERT INTO `carts` (`id`, `user_id`, `created_at`, `updated_at`) VALUES
+(1, 14, '2025-05-08 15:56:33', '2025-05-08 15:56:33');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cart_items`
+--
+
+CREATE TABLE `cart_items` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `cart_id` int(10) UNSIGNED NOT NULL,
+  `product_id` int(10) UNSIGNED NOT NULL,
+  `variant_id` int(10) UNSIGNED DEFAULT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `cart_items`
+--
+
+INSERT INTO `cart_items` (`id`, `cart_id`, `product_id`, `variant_id`, `quantity`, `created_at`, `updated_at`) VALUES
+(4, 1, 67, NULL, 3, '2025-05-08 18:23:56', '2025-05-08 18:23:56');
+
 -- --------------------------------------------------------
 
 --
@@ -84,17 +134,19 @@ CREATE TABLE `franchisee_details` (
   `state` varchar(100) DEFAULT NULL,
   `postal_code` varchar(20) DEFAULT NULL,
   `contact_name` varchar(100) DEFAULT NULL,
+  `logo_path` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `updated_by` int(10) UNSIGNED DEFAULT NULL
+  `updated_by` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `franchisee_details`
 --
 
-INSERT INTO `franchisee_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `contact_name`, `created_at`, `updated_at`, `updated_by`) VALUES
-(1, 14, 'Max and Company', '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriellla', '2025-05-07 18:21:40', '2025-05-08 02:36:10', 14);
+INSERT INTO `franchisee_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `contact_name`, `logo_path`, `created_at`, `updated_at`, `updated_by`) VALUES
+(2, 14, 'MaxiCompany', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_14_1746728437.JPG', '2025-05-08 15:14:15', '2025-05-08 18:20:37', '1'),
+(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_16_1746728426.JPG', '2025-05-08 15:28:59', '2025-05-08 18:20:26', '1');
 
 -- --------------------------------------------------------
 
@@ -141,18 +193,7 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`id`, `user_id`, `status`, `total_amount`, `shipping_address`, `shipping_city`, `shipping_state`, `shipping_zip`, `delivery_date`, `delivery_time`, `delivery_preference`, `shipping_cost`, `notes`, `manager_name`, `contact_phone`, `purchase_order`, `created_at`, `updated_at`, `qb_invoice_id`) VALUES
-(7, 14, 'rejected', 90.60, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'express', 15.00, 'leave it on the porch', 'Default Manager', '1234567890', NULL, '2025-05-07 18:59:34', '2025-05-07 15:21:55', NULL),
-(8, 14, 'rejected', 794.88, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, 'bleh bleh bleh', 'Default Manager', '1234567890', NULL, '2025-05-07 19:00:53', '2025-05-07 15:21:49', NULL),
-(9, 14, 'rejected', 136.08, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 19:07:38', '2025-05-07 15:21:42', NULL),
-(10, 14, 'rejected', 108.00, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 19:18:44', '2025-05-07 15:21:37', NULL),
-(11, 14, 'rejected', 1105.92, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 15:23:55', '2025-05-07 15:24:23', NULL),
-(16, 14, 'rejected', 653.40, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 22:05:42', '2025-05-07 22:35:06', NULL),
-(17, 14, 'rejected', 466.56, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 22:09:29', '2025-05-07 22:36:21', NULL),
-(18, 14, 'rejected', 1080.00, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-07 22:15:19', '2025-05-07 22:36:14', NULL),
-(19, 14, 'rejected', 278.64, '478 Mortimer Avenue', 'Toronto', 'AB', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-07 22:42:06', '2025-05-07 22:43:12', NULL),
-(20, 14, 'rejected', 151.20, '478 Mortimer Avenue', 'Toronto', 'AB', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-07 22:47:51', '2025-05-07 22:48:21', NULL),
-(21, 14, 'rejected', 407.04, '478 Mortimer Avenue', 'Toronto', 'AB', 'M4J 2G5', '2025-05-10', 'morning', 'express', 15.00, 'lets see', 'Default Manager', '416 8560684', NULL, '2025-05-07 23:22:30', '2025-05-07 23:24:37', NULL),
-(22, 14, 'pending', 392.04, '478 Mortimer Avenue', 'Toronto', 'AB', 'M4J 2G5', '2025-05-10', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-07 23:41:29', '2025-05-07 23:41:29', NULL);
+(20, 14, 'rejected', 172.80, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-11', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-08 16:54:04', '2025-05-08 16:59:50', NULL);
 
 -- --------------------------------------------------------
 
@@ -176,19 +217,7 @@ CREATE TABLE `order_items` (
 --
 
 INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `quantity`, `price`, `created_at`, `updated_at`) VALUES
-(6, 7, 66, NULL, 5, 14.00, '2025-05-07 18:59:34', '2025-05-07 18:59:34'),
-(7, 8, 67, NULL, 23, 32.00, '2025-05-07 19:00:53', '2025-05-07 19:00:53'),
-(8, 9, 66, NULL, 9, 14.00, '2025-05-07 19:07:38', '2025-05-07 19:07:38'),
-(9, 10, 65, NULL, 10, 10.00, '2025-05-07 19:18:44', '2025-05-07 19:18:44'),
-(10, 11, 67, NULL, 32, 32.00, '2025-05-07 15:23:55', '2025-05-07 15:23:55'),
-(19, 16, 67, 20, 5, 121.00, '2025-05-07 22:05:42', '2025-05-07 22:05:42'),
-(20, 17, 66, 18, 12, 36.00, '2025-05-07 22:09:29', '2025-05-07 22:09:29'),
-(21, 18, 65, 17, 10, 100.00, '2025-05-07 22:15:19', '2025-05-07 22:15:19'),
-(22, 19, 66, 19, 2, 59.00, '2025-05-07 22:42:06', '2025-05-07 22:42:06'),
-(23, 19, 66, NULL, 10, 14.00, '2025-05-07 22:42:06', '2025-05-07 22:42:06'),
-(24, 20, 66, NULL, 10, 14.00, '2025-05-07 22:47:51', '2025-05-07 22:47:51'),
-(25, 21, 67, 20, 3, 121.00, '2025-05-07 23:22:30', '2025-05-07 23:22:30'),
-(26, 22, 67, 20, 3, 121.00, '2025-05-07 23:41:29', '2025-05-07 23:41:29');
+(23, 20, 67, NULL, 5, 32.00, '2025-05-08 16:54:04', '2025-05-08 16:54:04');
 
 -- --------------------------------------------------------
 
@@ -243,8 +272,8 @@ CREATE TABLE `products` (
 
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`, `updated_at`) VALUES
 (65, 'checken', 'organic, free run', 10.00, 6, 248, '2025-05-07 16:28:21', '2025-05-07 15:22:53'),
-(66, 'ground beef', 'canadian farm direct supplier (pack of 1kg)', 14.00, 7, 450, '2025-05-07 16:30:25', '2025-05-07 22:48:21'),
-(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 123, '2025-05-07 16:32:13', '2025-05-08 00:15:21');
+(66, 'ground beef', 'canadian farm direct supplier (pack of 1kg)', 14.00, 7, 450, '2025-05-07 16:30:25', '2025-05-07 22:09:29'),
+(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 123, '2025-05-07 16:32:13', '2025-05-08 16:59:50');
 
 -- --------------------------------------------------------
 
@@ -275,9 +304,13 @@ CREATE TABLE `product_images` (
 --
 
 INSERT INTO `product_images` (`id`, `product_id`, `image_url`) VALUES
+(63, 65, 'product-images/681b51e530662_1746620901.png'),
+(64, 66, 'product-images/681b526136824_1746621025.png'),
+(65, 67, 'product-images/681b52cd1eb0f_1746621133.png'),
 (66, 67, 'product-images/681be0e0e0f29_1746657504.png'),
 (67, 66, 'product-images/OYygNJL8g41h97MWY5aquBgdHehGliijoVhtVghq.svg'),
-(68, 65, 'product-images/DxO7pnvhujNyJtOj5SUsm0AyXMe5mPwQVV75xr9m.svg');
+(68, 65, 'product-images/DxO7pnvhujNyJtOj5SUsm0AyXMe5mPwQVV75xr9m.svg'),
+(69, 67, 'product-images/681cd7117aef4_1746720529.JPG');
 
 -- --------------------------------------------------------
 
@@ -300,10 +333,10 @@ CREATE TABLE `product_variants` (
 --
 
 INSERT INTO `product_variants` (`id`, `product_id`, `name`, `price_adjustment`, `inventory_count`, `created_at`, `updated_at`) VALUES
-(17, 65, 'pack of 10', 90.00, 0, '2025-05-07 16:28:21', '2025-05-07 22:15:19'),
-(18, 66, '2kg', 22.00, 0, '2025-05-07 16:30:25', '2025-05-07 22:09:29'),
-(19, 66, '5kg', 45.00, 12, '2025-05-07 16:30:25', '2025-05-07 22:43:12'),
-(20, 67, 'pack of 800gr', 89.00, 15, '2025-05-07 16:32:13', '2025-05-07 23:41:29');
+(17, 65, 'pack of 10', 90.00, 10, '2025-05-07 16:28:21', '2025-05-08 16:08:07'),
+(18, 66, '2kg', 22.00, 12, '2025-05-07 16:30:25', '2025-05-08 16:08:15'),
+(19, 66, '5kg', 45.00, 12, '2025-05-07 16:30:25', '2025-05-07 16:30:25'),
+(20, 67, 'pack of 800gr', 89.00, 23, '2025-05-07 16:32:13', '2025-05-08 16:08:25');
 
 -- --------------------------------------------------------
 
@@ -346,8 +379,8 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('pUUnQMVNhFiEwRPQKRcboTjgMrauyPS9Lr2ssZQl', 14, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoiME9mMzNpRnVIUEo3cEY0aEZZVFgxb2hnV1ZsbzcyWTF1M2gxNjlDcyI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6NDI6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9mcmFuY2hpc2VlL2Rhc2hib2FyZCI7fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjE0O3M6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjQ6InVzZXIiO30=', 1746656123),
-('XXVarY3FVDzWMWhRuejSas48gTtDlGnuBJUWDGZu', NULL, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiRDRjYmZXQVhWVXExRldhNnAxYW1Ra0dKVWJlMzZoNUtrSzdrVFhuRyI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6Mjc6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9sb2dpbiI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjU6ImFkbWluIjt9', 1746631474);
+('BHB9eCa4zJo5BAvbCAxA4qcfnopeEdSIPifm6MVe', NULL, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo3OntzOjY6Il90b2tlbiI7czo0MDoiVmNEajc3UVNVOHJhcnBIRFlFQm5uTW1mNEM1WVpBd1VmSE9yWTBYeSI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6Mjc6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9sb2dpbiI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjQ6InVzZXIiO3M6MTU6Imxvd19zdG9ja19pdGVtcyI7aTowO3M6MTg6Im91dF9vZl9zdG9ja19pdGVtcyI7aToxO30=', 1746728552),
+('zXKOlWdQyN05DmIphD4D88McQDm5IuxFVazE7Tfb', 14, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoidlZ4NGRyanJCUmF0SnA1STVLbXZGeGdEUzB1dlFHZVczbGd1OEtIZiI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6NDA6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9mcmFuY2hpc2VlL2NhdGFsb2ciO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToxNDtzOjEyOiJ3ZWxjb21lX2JhY2siO2I6MTtzOjk6InVzZXJfbmFtZSI7czo0OiJ1c2VyIjt9', 1746728636);
 
 -- --------------------------------------------------------
 
@@ -364,7 +397,7 @@ CREATE TABLE `users` (
   `role_id` int(10) UNSIGNED NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
-  `updated_by` int(10) UNSIGNED DEFAULT NULL
+  `updated_by` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -372,9 +405,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`, `created_at`, `updated_at`, `updated_by`) VALUES
-(1, 'adminMax', '$2y$12$xzm9Y2BrU19wF2JwlnitaObjm78dGQbtcrJgDT050wq6VE06dtywO', 'admin@example.com', '416-856-0684', 1, '2025-05-02 22:22:44', '2025-05-08 03:10:17', 1),
-(4, 'maximUS', '$2y$12$PGoAZYIGCEBHw0Dny.FqxOoeWRrcyBu0D/e2izbbdbgHxFZMgPD..', 'maxim.don.mg@gmail.com', '(416) 856-0684', 2, '2025-05-04 23:09:20', '2025-05-08 03:06:44', 4),
-(14, 'user1', '$2y$12$cv8j0HnNLjaBo7FKZPJGReVPoDOvUzRuYF4Jt1GLLUOMow5WgwCVa', 'user@franche.com', '416 8560684', 3, '2025-05-07 18:21:40', '2025-05-08 02:35:54', 14);
+(1, 'adminMax', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '4168560684', 1, '2025-05-02 22:22:44', '2025-05-08 13:18:07', 'adminMax'),
+(4, 'maximUS', '$2y$12$hd15.smpVHhhq0.yRNu3YeW9kSOBVomoDVJ5/VmzeGBkrJJvu3gyi', 'maxim.don.mg@gmail.com', '4168560684', 2, '2025-05-04 23:09:20', '2025-05-08 14:10:58', NULL),
+(14, 'user', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '4168560684', 3, '2025-05-07 18:21:40', '2025-05-08 17:56:04', '1'),
+(16, 'gabriel', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-08 17:51:24', '1');
 
 -- --------------------------------------------------------
 
@@ -393,6 +427,9 @@ CREATE TABLE `variant_images` (
 --
 
 INSERT INTO `variant_images` (`id`, `variant_id`, `image_url`) VALUES
+(41, 17, 'variant-images/681b51e52ff4a_1746620901.png'),
+(42, 18, 'variant-images/681b5261359ed_1746621025.png'),
+(43, 20, 'variant-images/681b52cd193e7_1746621133.png'),
 (46, 18, 'variant-images/681be13bdc36f_1746657595.jpg'),
 (47, 19, 'variant-images/681be13be5223_1746657595.png'),
 (48, 17, 'variant-images/681be1572337d_1746657623.png'),
@@ -410,6 +447,22 @@ ALTER TABLE `admin_details`
   ADD UNIQUE KEY `admin_details_user_id_unique` (`user_id`);
 
 --
+-- Indexes for table `carts`
+--
+ALTER TABLE `carts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `cart_items`
+--
+ALTER TABLE `cart_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `cart_id` (`cart_id`),
+  ADD KEY `product_id` (`product_id`),
+  ADD KEY `variant_id` (`variant_id`);
+
+--
 -- Indexes for table `categories`
 --
 ALTER TABLE `categories`
@@ -420,8 +473,7 @@ ALTER TABLE `categories`
 --
 ALTER TABLE `franchisee_details`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `franchisee_details_user_id_unique` (`user_id`),
-  ADD KEY `fk_franchisee_details_updated_by` (`updated_by`);
+  ADD UNIQUE KEY `franchisee_details_user_id_unique` (`user_id`);
 
 --
 -- Indexes for table `migrations`
@@ -505,8 +557,7 @@ ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `idx_user_role` (`role_id`),
-  ADD KEY `fk_users_updated_by` (`updated_by`);
+  ADD KEY `idx_user_role` (`role_id`);
 
 --
 -- Indexes for table `variant_images`
@@ -523,7 +574,19 @@ ALTER TABLE `variant_images`
 -- AUTO_INCREMENT for table `admin_details`
 --
 ALTER TABLE `admin_details`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `carts`
+--
+ALTER TABLE `carts`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `cart_items`
+--
+ALTER TABLE `cart_items`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -535,7 +598,7 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `franchisee_details`
 --
 ALTER TABLE `franchisee_details`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `migrations`
@@ -547,13 +610,13 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -577,7 +640,7 @@ ALTER TABLE `product_favorites`
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 
 --
 -- AUTO_INCREMENT for table `product_variants`
@@ -595,7 +658,7 @@ ALTER TABLE `roles`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `variant_images`
@@ -608,16 +671,23 @@ ALTER TABLE `variant_images`
 --
 
 --
--- Constraints for table `admin_details`
+-- Constraints for table `carts`
 --
-ALTER TABLE `admin_details`
-  ADD CONSTRAINT `admin_details_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+ALTER TABLE `carts`
+  ADD CONSTRAINT `carts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `cart_items`
+--
+ALTER TABLE `cart_items`
+  ADD CONSTRAINT `cart_items_ibfk_1` FOREIGN KEY (`cart_id`) REFERENCES `carts` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `cart_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `cart_items_ibfk_3` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `franchisee_details`
 --
 ALTER TABLE `franchisee_details`
-  ADD CONSTRAINT `fk_franchisee_details_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `franchisee_details_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
@@ -663,7 +733,6 @@ ALTER TABLE `product_variants`
 -- Constraints for table `users`
 --
 ALTER TABLE `users`
-  ADD CONSTRAINT `fk_users_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`);
 
 --
