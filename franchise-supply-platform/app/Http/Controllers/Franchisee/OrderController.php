@@ -222,8 +222,7 @@ class OrderController extends Controller
         $user = Auth::user();
         
         // Build query
-        $query = Order::where('user_id', $user->id)
-            ->whereIn('status', ['delivered', 'cancelled']);
+        $query = Order::where('user_id', $user->id);
             
         // Apply filters
         if ($request->filled('date_from')) {
@@ -262,21 +261,19 @@ class OrderController extends Controller
         }
         
         // Eager load relationships
-        $query->with(['items.product']);
+        $query->with(['items.product', 'items.variant']);
         
         // Get orders
         $orders = $query->paginate(15);
         
         // Calculate stats
         $stats = [
-            'total_orders' => Order::where('user_id', $user->id)
-                ->whereIn('status', ['delivered', 'cancelled'])
-                ->count(),
-                
+            'total_orders' => Order::where('user_id', $user->id)->count(),
+                    
             'total_spent' => Order::where('user_id', $user->id)
                 ->where('status', 'delivered')
                 ->sum('total_amount'),
-                
+                    
             'total_items' => OrderItem::whereHas('order', function($query) use ($user) {
                     $query->where('user_id', $user->id)
                         ->where('status', 'delivered');
@@ -288,7 +285,7 @@ class OrderController extends Controller
         $deliveredOrdersCount = Order::where('user_id', $user->id)
             ->where('status', 'delivered')
             ->count();
-            
+                
         if ($deliveredOrdersCount > 0) {
             $stats['avg_order_value'] = $stats['total_spent'] / $deliveredOrdersCount;
         } else {
@@ -368,46 +365,6 @@ class OrderController extends Controller
     }
     
     /**
-     * Cancel an order.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function cancelOrder($id)
-    {
-        $user = Auth::user();
-        
-        // Find the order and ensure it belongs to the user
-        $order = Order::where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->findOrFail($id);
-            
-        // Transaction for consistency
-        DB::beginTransaction();
-        
-        try {
-            // Restore inventory for all items
-            $this->restoreInventory($order);
-            
-            // Update order status
-            $order->status = 'cancelled';
-            $order->cancelled_at = Carbon::now(); // Add timestamp for cancellation
-            $order->save();
-            
-            DB::commit();
-            
-            return redirect()->route('franchisee.orders.pending')
-                ->with('success', 'Order has been cancelled successfully.');
-                
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return redirect()->route('franchisee.orders.pending')
-                ->with('error', 'Failed to cancel order: ' . $e->getMessage());
-        }
-    }
-    
-    /**
      * Restore inventory for all items in an order.
      *
      * @param  \App\Models\Order  $order
@@ -435,165 +392,6 @@ class OrderController extends Controller
                     $product->save();
                 }
             }
-        }
-    }
-    
-    /**
-     * View form to modify an order.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function modifyOrder($id)
-    {
-        $user = Auth::user();
-        
-        // Find the order and ensure it belongs to the user
-        $order = Order::where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->with(['items.product', 'items.variant'])
-            ->findOrFail($id);
-            
-        return view('franchisee.modify_order', compact('order'));
-    }
-    
-    /**
-     * Update an order.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function updateOrder(Request $request, $id)
-    {
-        $user = Auth::user();
-        
-        // Find the order and ensure it belongs to the user
-        $order = Order::where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->findOrFail($id);
-            
-        $request->validate([
-            'quantity' => 'required|array',
-            'quantity.*' => 'required|integer|min:0',
-            'notes' => 'nullable|string'
-        ]);
-        
-        DB::beginTransaction();
-        
-        try {
-            // Update notes
-            $order->notes = $request->notes;
-            
-            // Get quantities from request
-            $quantities = $request->input('quantity', []);
-            
-            // Get current items
-            $items = OrderItem::where('order_id', $order->id)->get();
-            
-            // First restore all inventory
-            $this->restoreInventory($order);
-            
-            // Update quantities and recalculate totals
-            $totalAmount = 0;
-            $invalidInventory = false;
-            $inventoryErrors = [];
-            
-            foreach ($items as $item) {
-                $newQuantity = isset($quantities[$item->id]) ? intval($quantities[$item->id]) : 0;
-                
-                if ($newQuantity <= 0) {
-                    // Delete item if quantity is 0
-                    $item->delete();
-                    continue;
-                }
-                
-                // Check inventory availability before updating
-                $availableInventory = 0;
-                
-                if ($item->variant_id) {
-                    $variant = ProductVariant::find($item->variant_id);
-                    if ($variant) {
-                        $availableInventory = $variant->inventory_count;
-                        
-                        // Check if we have enough inventory
-                        if ($newQuantity > $availableInventory) {
-                            $invalidInventory = true;
-                            $inventoryErrors[] = "Only {$availableInventory} units of {$item->product->name} ({$variant->name}) are available.";
-                            continue;
-                        }
-                        
-                        // Update quantity
-                        $item->quantity = $newQuantity;
-                        $item->save();
-                        
-                        // Decrease inventory
-                        $variant->inventory_count -= $newQuantity;
-                        $variant->save();
-                    }
-                } else {
-                    $product = Product::find($item->product_id);
-                    if ($product) {
-                        $availableInventory = $product->inventory_count;
-                        
-                        // Check if we have enough inventory
-                        if ($newQuantity > $availableInventory) {
-                            $invalidInventory = true;
-                            $inventoryErrors[] = "Only {$availableInventory} units of {$item->product->name} are available.";
-                            continue;
-                        }
-                        
-                        // Update quantity
-                        $item->quantity = $newQuantity;
-                        $item->save();
-                        
-                        // Decrease inventory
-                        $product->inventory_count -= $newQuantity;
-                        $product->save();
-                    }
-                }
-                
-                $totalAmount += ($item->price * $newQuantity);
-            }
-            
-            // If we have inventory issues, roll back and return with errors
-            if ($invalidInventory) {
-                DB::rollBack();
-                
-                return redirect()->route('franchisee.orders.modify', $order->id)
-                    ->with('error', implode('<br>', $inventoryErrors))
-                    ->withInput();
-            }
-            
-            // Check if we still have items
-            $remainingItems = OrderItem::where('order_id', $order->id)->count();
-            
-            if ($remainingItems == 0) {
-                // No items left, cancel the order
-                $order->status = 'cancelled';
-                $order->cancelled_at = Carbon::now(); // Add timestamp for cancellation
-                $order->save();
-                
-                DB::commit();
-                
-                return redirect()->route('franchisee.orders.pending')
-                    ->with('info', 'Order has been cancelled as all items were removed.');
-            }
-            
-            // Update order total
-            $order->total_amount = $totalAmount;
-            $order->save();
-            
-            DB::commit();
-            
-            return redirect()->route('franchisee.orders.details', $order->id)
-                ->with('success', 'Order updated successfully.');
-                
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return redirect()->route('franchisee.orders.modify', $order->id)
-                ->with('error', 'Failed to update order: ' . $e->getMessage());
         }
     }
     

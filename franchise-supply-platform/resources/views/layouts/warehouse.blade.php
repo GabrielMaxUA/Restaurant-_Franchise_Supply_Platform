@@ -215,9 +215,11 @@
                                     <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? 'Warehouse Manager' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    <li><a class="dropdown-item" href="{{ url('/warehouse/profile') }}">Profile</a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/warehouse/profile') }}">
+                                    <i class="fas fa-cog me-2"></i>Settings</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">Logout</a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                                 </ul>
                             </div>
                         </div>

@@ -127,4 +127,12 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Product::class, 'product_favorites', 'user_id', 'product_id');
     }
+
+    /**
+     * Get the admin details associated with the user.
+    */
+    public function adminDetail()
+    {
+        return $this->hasOne(AdminDetail::class);
+    }
 }

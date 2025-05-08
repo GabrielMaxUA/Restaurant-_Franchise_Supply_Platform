@@ -6,6 +6,36 @@
 
 @section('styles')
 <style>
+  /* Order Summary styles */
+.order-summary-section {
+    margin-bottom: 2rem;
+}
+
+.summary-item {
+    min-width: 150px;
+}
+
+.summary-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.summary-value {
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+}
+
+@media (max-width: 767px) {
+    .col-md-6.border-end {
+        border-right: none !important;
+        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+}
     /* Order card styling */
     .order-card {
         transition: all 0.3s ease;
@@ -320,57 +350,108 @@
                         </div>
                     </div>
                     
-                    <!-- Order Summary -->
-                    <div class="row align-items-center mt-4">
-                        <div class="col-md-6">
-                            <div class="d-flex">
-                                <div class="me-4">
-                                    <p class="mb-1 text-muted">Total Items</p>
-                                    <h5>{{ $order->items->sum('quantity') }}</h5>
-                                </div>
-                                <div class="me-4">
-                                    <p class="mb-1 text-muted">Total Amount</p>
-                                    <h5>${{ number_format($order->total_amount, 2) }}</h5>
-                                </div>
-                                @if($order->tracking_number)
-                                <div>
-                                    <p class="mb-1 text-muted">Tracking</p>
-                                    <h5>
-                                        <a href="{{ route('franchisee.track', $order->tracking_number) }}" class="link-primary">
-                                            {{ $order->tracking_number }}
-                                        </a>
-                                    </h5>
-                                </div>
+                  <!-- Order Summary -->
+<div class="order-summary-section mt-4 mb-4">
+    <h6 class="fw-bold mb-3">Order Summary</h6>
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="row">
+                <!-- Left column - Order stats -->
+                <div class="col-md-6 border-end">
+                    <div class="d-flex flex-wrap">
+                        <div class="summary-item me-4 mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-box-open text-primary me-2"></i>
+                                <span class="text-muted">Total Items</span>
+                            </div>
+                            <div class="summary-value">{{ $order->items->sum('quantity') }}</div>
+                        </div>
+                        
+                        <div class="summary-item me-4 mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-money-bill-wave text-success me-2"></i>
+                                <span class="text-muted">Total Amount</span>
+                            </div>
+                            <div class="summary-value">${{ number_format($order->total_amount, 2) }}</div>
+                        </div>
+                        
+                        @if($order->payment_method)
+                        <div class="summary-item mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-credit-card text-info me-2"></i>
+                                <span class="text-muted">Payment Method</span>
+                            </div>
+                            <div class="summary-value">{{ ucfirst($order->payment_method) }}</div>
+                        </div>
+                        @endif
+                        
+                        @if($order->tracking_number)
+                        <div class="summary-item mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-truck text-warning me-2"></i>
+                                <span class="text-muted">Tracking Number</span>
+                            </div>
+                            <div class="summary-value">
+                                <a href="{{ route('franchisee.track', $order->tracking_number) }}" class="link-primary">
+                                    {{ $order->tracking_number }}
+                                </a>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+                
+                <!-- Right column - Shipping info -->
+                <div class="col-md-6">
+                    <div class="d-flex flex-column">
+                        <div class="summary-item mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-calendar-alt text-danger me-2"></i>
+                                <span class="text-muted">Estimated Delivery</span>
+                            </div>
+                            <div class="summary-value">
+                                {{ $order->estimated_delivery ? $order->estimated_delivery->format('M d, Y') : 'Not available' }}
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item mb-3">
+                            <div class="summary-label">
+                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                                <span class="text-muted">Shipping Address</span>
+                            </div>
+                            <div class="summary-value">
+                                {{ $order->shipping_address ?? '478 Mortimer Ave' }}
+                                @if($order->shipping_city && $order->shipping_state)
+                                    <div class="text-muted small">{{ $order->shipping_city }}, {{ $order->shipping_state }} {{ $order->shipping_zip }}</div>
                                 @endif
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <p class="mb-1 text-muted">Estimated Delivery</p>
-                                    <h5>{{ $order->estimated_delivery ? $order->estimated_delivery->format('M d, Y') : 'Not available' }}</h5>
-                                </div>
-                                <div>
-                                    <p class="mb-1 text-muted">Shipping Address</p>
-                                    <h5>{{ $order->shipping_address ?? '478 Mortimer Ave' }}</h5>
-                                </div>
+                        
+                        @if($order->delivery_preference)
+                        <div class="summary-item">
+                            <div class="summary-label">
+                                <i class="fas fa-shipping-fast text-success me-2"></i>
+                                <span class="text-muted">Delivery Method</span>
                             </div>
-                            
-                            @if($order->status == 'pending')
-                            <div class="d-flex mt-3 justify-content-end">
-                                <form action="{{ route('franchisee.orders.cancel', $order->id) }}" method="POST" class="me-2" onsubmit="return confirm('Are you sure you want to cancel this order?');">
-                                    @csrf
-                                    <button type="submit" class="btn btn-outline-danger action-btn">
-                                        <i class="fas fa-times me-1"></i> Cancel Order
-                                    </button>
-                                </form>
-                                <a href="{{ route('franchisee.orders.modify', $order->id) }}" class="btn btn-outline-primary action-btn">
-                                    <i class="fas fa-edit me-1"></i> Modify Order
-                                </a>
+                            <div class="summary-value">
+                                @if($order->delivery_preference == 'standard')
+                                    Standard Delivery (3-5 business days)
+                                @elseif($order->delivery_preference == 'express')
+                                    Express Delivery (1-2 business days)
+                                @elseif($order->delivery_preference == 'scheduled')
+                                    Scheduled Delivery
+                                @else
+                                    {{ ucfirst($order->delivery_preference) }}
+                                @endif
                             </div>
-                            @endif
                         </div>
+                        @endif
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                     
                     <!-- Order Items Table -->
                     <div class="mt-4">

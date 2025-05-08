@@ -221,9 +221,7 @@
                                     <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? 'Franchisee' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    <!-- <li><a class="dropdown-item" href="{{ url('/franchisee/profile') }}">
-                                        <i class="fas fa-user me-2"></i> Profile
-                                    </a></li> -->
+                                   
                                     <li><a class="dropdown-item" href="{{ url('/franchisee/settings') }}">
                                         <i class="fas fa-cog me-2"></i> Settings
                                     </a></li>

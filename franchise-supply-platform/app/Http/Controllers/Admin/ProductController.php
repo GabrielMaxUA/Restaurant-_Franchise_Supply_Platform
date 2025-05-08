@@ -321,99 +321,50 @@ class ProductController extends Controller
     /**
      * Update the specified product in storage.
      */
-    public function update(Request $request, Product $product)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'base_price' => 'required|numeric|min:0',
-            'category_id' => 'nullable|exists:categories,id',
-            'inventory_count' => 'required|integer|min:0',
-        ]);
-        
-        // Get the original inventory count before updating
-        $originalProductInventory = $product->inventory_count;
-        
-        // Update the product
-        $product->update($validated);
-        
-        // Calculate inventory change and update if necessary
-        $inventoryChange = $product->inventory_count - $originalProductInventory;
-        
-        if ($inventoryChange != 0) {
-            if ($inventoryChange > 0) {
-                // Inventory increased
-                $this->inventoryService->increaseInventory($product->id, $inventoryChange);
-            } else {
-                // Inventory decreased
-                $this->inventoryService->decreaseInventory($product->id, abs($inventoryChange));
-            }
-        }
-    
-        // Handle existing variants
-        if ($request->has('existing_variants')) {
-            foreach ($request->existing_variants as $id => $variantData) {
-                $variant = ProductVariant::find($id);
-                if ($variant) {
-                    // Store original variant inventory
-                    $originalVariantInventory = $variant->inventory_count;
+    /**
+ * Update the specified product in storage.
+ */
+public function update(Request $request, Product $product)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+        'base_price' => 'required|numeric|min:0',
+        'category_id' => 'nullable|exists:categories,id',
+        'inventory_count' => 'required|integer|min:0',
+    ]);
+
+    $product->update($validated);
+
+    // Handle existing variants
+    if ($request->has('existing_variants')) {
+        foreach ($request->existing_variants as $id => $variantData) {
+            $variant = ProductVariant::find($id);
+            if ($variant) {
+                if (isset($variantData['delete']) && $variantData['delete']) {
+                    // Delete related variant images before deleting variant
+                    foreach ($variant->images as $image) {
+                        if (Storage::disk('public')->exists($image->image_url)) {
+                            Storage::disk('public')->delete($image->image_url);
+                        }
+                        $image->delete();
+                    }
+                    $variant->delete();
+                } else {
+                    $variant->update([
+                        'name' => $variantData['name'],
+                        'price_adjustment' => $variantData['price_adjustment'] ?? 0,
+                        'inventory_count' => $variantData['inventory_count'] ?? 0,
+                    ]);
                     
-                    if (isset($variantData['delete']) && $variantData['delete']) {
-                        // Delete related variant images before deleting variant
+                    // Handle variant image update
+                    $variantImageKey = "variant_image_existing_" . $id;
+                    
+                    // Handle individual variant image deletion
+                    if ($request->has('delete_variant_images')) {
                         foreach ($variant->images as $image) {
-                            if (Storage::disk('public')->exists($image->image_url)) {
-                                Storage::disk('public')->delete($image->image_url);
-                            }
-                            $image->delete();
-                        }
-                        $variant->delete();
-                    } else {
-                        // Update the variant
-                        $variant->update([
-                            'name' => $variantData['name'],
-                            'price_adjustment' => $variantData['price_adjustment'] ?? 0,
-                            'inventory_count' => $variantData['inventory_count'] ?? 0,
-                        ]);
-                        
-                        // Calculate variant inventory change
-                        $variantInventoryChange = $variant->inventory_count - $originalVariantInventory;
-                        
-                        if ($variantInventoryChange != 0) {
-                            if ($variantInventoryChange > 0) {
-                                // Variant inventory increased
-                                $this->inventoryService->increaseInventory($product->id, $variantInventoryChange, $variant->id);
-                            } else {
-                                // Variant inventory decreased
-                                $this->inventoryService->decreaseInventory($product->id, abs($variantInventoryChange), $variant->id);
-                            }
-                        }
-                        
-                        // Handle variant image update
-                        $variantImageKey = "variant_image_existing_" . $id;
-                        if ($request->hasFile($variantImageKey)) {
-                            // Delete old images if deleting is requested
-                            if (isset($request->delete_variant_images[$id])) {
-                                foreach ($variant->images as $image) {
-                                    if (Storage::disk('public')->exists($image->image_url)) {
-                                        Storage::disk('public')->delete($image->image_url);
-                                    }
-                                    $image->delete();
-                                }
-                            }
-                            
-                            // Add new images
-                            foreach ($request->file($variantImageKey) as $image) {
-                                // Compress and store the image
-                                $path = $this->compressAndStoreImage($image, 'variant-images');
-                                
-                                VariantImage::create([
-                                    'variant_id' => $variant->id,
-                                    'image_url' => $path,
-                                ]);
-                            }
-                        } else if (isset($request->delete_variant_images[$id])) {
-                            // Just delete images without adding new ones
-                            foreach ($variant->images as $image) {
+                            // Check if this specific image ID is in the deletion array
+                            if (isset($request->delete_variant_images[$image->id])) {
                                 if (Storage::disk('public')->exists($image->image_url)) {
                                     Storage::disk('public')->delete($image->image_url);
                                 }
@@ -421,35 +372,15 @@ class ProductController extends Controller
                             }
                         }
                     }
-                }
-            }
-        }
-    
-        // Handle new variants
-        if ($request->has('new_variants')) {
-            foreach ($request->new_variants as $index => $variant) {
-                if (!empty($variant['name'])) {
-                    $newVariant = ProductVariant::create([
-                        'product_id' => $product->id,
-                        'name' => $variant['name'],
-                        'price_adjustment' => $variant['price_adjustment'] ?? 0,
-                        'inventory_count' => $variant['inventory_count'] ?? 0,
-                    ]);
                     
-                    // If new variant has inventory, update it through the service
-                    if ($newVariant->inventory_count > 0) {
-                        $this->inventoryService->increaseInventory($product->id, $newVariant->inventory_count, $newVariant->id);
-                    }
-                    
-                    // Handle multiple variant images if provided
-                    $variantImageKey = "variant_image_new_" . $index;
+                    // Add new images if provided
                     if ($request->hasFile($variantImageKey)) {
                         foreach ($request->file($variantImageKey) as $image) {
                             // Compress and store the image
-                                $path = $this->compressAndStoreImage($image, 'variant-images');
+                            $path = $this->compressAndStoreImage($image, 'variant-images');
                             
                             VariantImage::create([
-                                'variant_id' => $newVariant->id,
+                                'variant_id' => $variant->id,
                                 'image_url' => $path,
                             ]);
                         }
@@ -457,38 +388,74 @@ class ProductController extends Controller
                 }
             }
         }
-    
-        // Handle product images
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                // Compress and store the image
-                $path = $this->compressAndStoreImage($image, 'product-images');
-                
-                ProductImage::create([
+    }
+
+    // Handle new variants
+    if ($request->has('new_variants')) {
+        foreach ($request->new_variants as $index => $variant) {
+            if (!empty($variant['name'])) {
+                $newVariant = ProductVariant::create([
                     'product_id' => $product->id,
-                    'image_url' => $path,
+                    'name' => $variant['name'],
+                    'price_adjustment' => $variant['price_adjustment'] ?? 0,
+                    'inventory_count' => $variant['inventory_count'] ?? 0,
                 ]);
-            }
-        }
-    
-        // Handle image deletions
-        if ($request->has('delete_images')) {
-            foreach ($request->delete_images as $imageId) {
-                $image = ProductImage::find($imageId);
-                if ($image) {
-                    // Delete the file from storage
-                    if (Storage::disk('public')->exists($image->image_url)) {
-                        Storage::disk('public')->delete($image->image_url);
+                
+                // Handle multiple variant images if provided
+                $variantImageKey = "variant_image_new_" . $index;
+                if ($request->hasFile($variantImageKey)) {
+                    foreach ($request->file($variantImageKey) as $image) {
+                        // Compress and store the image
+                        $path = $this->compressAndStoreImage($image, 'variant-images');
+                        
+                        VariantImage::create([
+                            'variant_id' => $newVariant->id,
+                            'image_url' => $path,
+                        ]);
                     }
-                    // Delete the database record
-                    $image->delete();
                 }
             }
         }
-    
-        return redirect()->route('admin.products.index')
+    }
+
+    // Handle product images
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $image) {
+            // Compress and store the image
+            $path = $this->compressAndStoreImage($image, 'product-images');
+            
+            ProductImage::create([
+                'product_id' => $product->id,
+                'image_url' => $path,
+            ]);
+        }
+    }
+
+    // Handle image deletions
+    if ($request->has('delete_images')) {
+        foreach ($request->delete_images as $imageId) {
+            $image = ProductImage::find($imageId);
+            if ($image) {
+                // Delete the file from storage
+                if (Storage::disk('public')->exists($image->image_url)) {
+                    Storage::disk('public')->delete($image->image_url);
+                }
+                // Delete the database record
+                $image->delete();
+            }
+        }
+    }
+
+    // Check if this is a warehouse route
+    $routeName = $request->route()->getName();
+    if (strpos($routeName, 'warehouse.') === 0) {
+        return redirect()->route('warehouse.products.index')
             ->with('success', 'Product updated successfully.');
     }
+    
+    return redirect()->route('admin.products.index')
+        ->with('success', 'Product updated successfully.');
+}
 
     /**
      * Remove the specified product from storage.

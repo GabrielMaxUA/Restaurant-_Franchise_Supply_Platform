@@ -441,6 +441,7 @@
     top: 3px !important;
     right: 3px !important;
     padding: 3px 6px;
+    width: fit-content;
 }
 </style>
 @endsection

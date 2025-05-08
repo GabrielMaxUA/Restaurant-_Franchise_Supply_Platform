@@ -9,6 +9,7 @@ use App\Http\Controllers\Franchisee\CartController;
 use App\Http\Controllers\Franchisee\OrderController;
 use App\Http\Controllers\Franchisee\InventoryController;
 use App\Http\Controllers\Franchisee\ProfileController;
+use App\Http\Controllers\Warehouse\WarehouseProfileController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -34,6 +35,12 @@ Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', function() {
         return redirect('/admin/dashboard');
     });
+
+    // Admin Profile Routes
+    Route::get('/profile', [App\Http\Controllers\Admin\AdminProfileController::class, 'index'])->name('admin.profile.index');
+    Route::get('/profile/settings', [App\Http\Controllers\Admin\AdminProfileController::class, 'settings'])->name('admin.profile.settings');
+    Route::put('/profile/update', [App\Http\Controllers\Admin\AdminProfileController::class, 'update'])->name('admin.profile.update');
+    Route::post('/profile/change-password', [App\Http\Controllers\Admin\AdminProfileController::class, 'changePassword'])->name('admin.profile.change-password'); 
     
     // User management routes
     Route::get('/users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users.index');
@@ -78,6 +85,12 @@ Route::prefix('warehouse')->middleware(['auth', 'role:warehouse'])->group(functi
       return redirect('/warehouse/dashboard');
   });
   
+  // Warehouse Profile
+  Route::get('/profile', [WarehouseProfileController::class, 'index'])->name('warehouse.profile');
+  Route::post('/profile/update', [WarehouseProfileController::class, 'update'])->name('warehouse.profile.update'); // Changed from updateBasicInfo to update
+  Route::get('/settings', [WarehouseProfileController::class, 'settings'])->name('warehouse.settings');
+  Route::post('/profile/change-password', [WarehouseProfileController::class, 'changePassword'])->name('warehouse.profile.change-password'); // Changed from updatePassword to changePassword
+    
   // Product routes - using dedicated Warehouse controllers
   Route::get('/products', [App\Http\Controllers\Warehouse\ProductController::class, 'index'])->name('warehouse.products.index');
   Route::get('/products/create', [App\Http\Controllers\Warehouse\ProductController::class, 'create'])->name('warehouse.products.create');
@@ -125,33 +138,14 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::get('/cart/clear', [CartController::class, 'clearCart'])->name('franchisee.cart.clear');
   Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('franchisee.cart.checkout');
   Route::post('/cart/place-order', [CartController::class, 'placeOrder'])->name('franchisee.cart.place-order');
-  // Add this route for getting the franchisee address
+
+  // Route for getting the franchisee address
   Route::get('/franchisee/get-address', [App\Http\Controllers\Franchisee\AddressController::class, 'getAddress'])->name('franchisee.get-address');
-  
-  Route::get('/test-franchisee-detail', function() {
-    // Test creating a franchisee detail
-    try {
-        $detail = \App\Models\FranchiseeDetail::create([
-            'user_id' => 1, // Make sure this is a valid user ID
-            'company_name' => 'Test Company',
-            'address' => 'Test Address',
-            'city' => 'Test City',
-            'state' => 'Test State',
-            'postal_code' => '12345',
-            'contact_name' => 'Test Contact',
-        ]);
-        
-        return "Successfully created franchisee detail with ID: " . $detail->id;
-    } catch (\Exception $e) {
-        return "Error: " . $e->getMessage();
-    }
-});
   
   // Orders
   Route::get('/orders/pending', [OrderController::class, 'pendingOrders'])->name('franchisee.orders.pending');
   Route::get('/orders/history', [OrderController::class, 'orderHistory'])->name('franchisee.orders.history');
   Route::get('/orders/{order}/details', [OrderController::class, 'orderDetails'])->name('franchisee.orders.details');
-  Route::post('/orders/{order}/cancel', [OrderController::class, 'cancelOrder'])->name('franchisee.orders.cancel');
   Route::get('/orders/{order}/modify', [OrderController::class, 'modifyOrder'])->name('franchisee.orders.modify');
   Route::post('/orders/{order}/update', [OrderController::class, 'updateOrder'])->name('franchisee.orders.update');
   Route::get('/orders/{order}/invoice', [OrderController::class, 'generateInvoice'])->name('franchisee.orders.invoice');
@@ -165,11 +159,15 @@ Route::prefix('franchisee')->middleware(['auth', 'role:franchisee'])->group(func
   Route::get('/inventory/export', [InventoryController::class, 'export'])->name('franchisee.inventory.export');
   Route::post('/inventory/update', [InventoryController::class, 'updateInventory'])->name('franchisee.inventory.update');
   
-  // Profile & Settings
-  Route::get('/profile', [ProfileController::class, 'index'])->name('franchisee.profile');
-  Route::post('/profile/update', [ProfileController::class, 'update'])->name('franchisee.profile.update');
-  Route::get('/settings', [ProfileController::class, 'settings'])->name('franchisee.settings');
-  Route::post('/settings/update', [ProfileController::class, 'updateSettings'])->name('franchisee.settings.update');
+  //Profile Settings 
+  Route::get('/profile', [App\Http\Controllers\Franchisee\ProfileController::class, 'index'])->name('franchisee.profile');
+  Route::post('/profile/update-basic', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateBasicInfo'])->name('franchisee.profile.update-basic');
+  Route::post('/profile/update-company', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateCompanyInfo'])->name('franchisee.profile.update-company');
+  Route::post('/profile/update-password', [App\Http\Controllers\Franchisee\ProfileController::class, 'updatePassword'])->name('franchisee.profile.update-password');
+  Route::get('/settings', [App\Http\Controllers\Franchisee\ProfileController::class, 'settings'])->name('franchisee.settings');
+  // Add this to your routes in the franchisee group
+  Route::post('/settings/update', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateSettings'])->name('franchisee.settings.update');
+
 });
 
 // Catch-all redirect to login for unauthenticated users

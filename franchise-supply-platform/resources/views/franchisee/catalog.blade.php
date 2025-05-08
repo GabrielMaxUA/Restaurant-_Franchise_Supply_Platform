@@ -218,30 +218,31 @@
                                     <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
                                     <td><strong>${{ number_format($product->price, 2) }}</strong></td>
                                     <td>
-    @if($product->inventory_count > 10)
-        <span class="status-in-stock"><i class="fas fa-check-circle me-1"></i> In Stock</span>
-    @elseif($product->inventory_count > 0)
-        <span class="status-low-stock"><i class="fas fa-exclamation-circle me-1"></i> Low Stock</span>
-    @elseif($product->has_in_stock_variants)
-        <span class="status-variants-only"><i class="fas fa-exclamation-circle me-1"></i> Variants Only</span>
-    @else
-        <span class="status-out-of-stock"><i class="fas fa-times-circle me-1"></i> Out of Stock</span>
-    @endif
-</td>
+                                        @if($product->inventory_count > 10)
+                                            <span class="status-in-stock"><i class="fas fa-check-circle me-1"></i> In Stock</span>
+                                        @elseif($product->inventory_count > 0)
+                                            <span class="status-low-stock"><i class="fas fa-exclamation-circle me-1"></i> Low Stock</span>
+                                        @elseif($product->has_in_stock_variants)
+                                            <span class="status-variants-only"><i class="fas fa-exclamation-circle me-1"></i> Variants Only</span>
+                                        @else
+                                            <span class="status-out-of-stock"><i class="fas fa-times-circle me-1"></i> Out of Stock</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <div class="d-flex gap-1 justify-content-between align-items-center">
-                                        <button type="button" class="btn btn-sm btn-success rounded quick-add-to-cart" 
-                                          data-product-id="{{ $product->id }}"
-                                          {{ $product->inventory_count <= 0 ? 'disabled' : '' }} 
-                                          title="Add to Cart">
-                                          <i class="fas fa-cart-plus"></i>
-                                       </button>
+                                            <!-- Key change: Always enable the button if either main product or variants have inventory -->
+                                            <button type="button" class="btn btn-sm btn-success rounded quick-add-to-cart" 
+                                                data-product-id="{{ $product->id }}"
+                                                {{ (!$product->inventory_count && !$product->has_in_stock_variants) ? 'disabled' : '' }} 
+                                                title="{{ ($product->inventory_count > 0 || $product->has_in_stock_variants) ? 'Add to Cart' : 'Out of Stock' }}">
+                                                <i class="fas fa-cart-plus"></i>
+                                            </button>
                                             
                                             <div class="d-flex gap-1">
                                                 <button type="button" class="btn btn-sm btn-outline-secondary rounded product-favorite" data-product-id="{{ $product->id }}" title="{{ $product->is_favorite > 0 ? 'Remove from Favorites' : 'Add to Favorites' }}">
                                                     <i class="fas fa-heart {{ $product->is_favorite > 0 ? 'text-danger' : '' }}"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-info rounded view-product-btn quick-add-to-cart" 
+                                                <button type="button" class="btn btn-sm btn-info rounded view-product-btn" 
                                                     data-product-id="{{ $product->id }}" 
                                                     title="View Details">
                                                     <i class="fas fa-eye"></i>
@@ -280,6 +281,78 @@ document.getElementById('toggleFilters').addEventListener('click', function() {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize product quick view buttons
+    document.querySelectorAll('.view-product-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const productId = this.dataset.productId;
+            if (!productId) return;
+            
+            // Find the corresponding product modal
+            const modal = document.getElementById('productModal' + productId);
+            if (!modal) return;
+            
+            // Open the modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        });
+    });
+    
+    // Initialize quick add to cart buttons
+    document.querySelectorAll('.quick-add-to-cart').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const productId = this.dataset.productId;
+            if (!productId) return;
+            
+            // Find the corresponding product modal
+            const modal = document.getElementById('productModal' + productId);
+            if (!modal) return;
+            
+            // Open the modal
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+            
+            // After modal is shown, scroll to the add to cart section
+            modal.addEventListener('shown.bs.modal', function scrollToAddToCart() {
+                // Find the add to cart section
+                const addToCartSection = modal.querySelector('.add-to-cart-section');
+                if (addToCartSection) {
+                    // Scroll into view with smooth behavior
+                    addToCartSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                
+                // If this product has "Variants Only" status, highlight the variants section
+                const statusBadge = modal.querySelector('.main-display-stock .badge');
+                if (statusBadge && statusBadge.textContent.includes('Variants Only')) {
+                    const variantsSection = modal.querySelector('.variants-section');
+                    if (variantsSection) {
+                        // Scroll to variants section
+                        setTimeout(() => {
+                            variantsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            
+                            // Add a highlight effect
+                            variantsSection.classList.add('highlight-variants');
+                            setTimeout(() => {
+                                variantsSection.classList.remove('highlight-variants');
+                            }, 2000);
+                            
+                            // Show message
+                            if (typeof showFloatingAlert === 'function') {
+                                showFloatingAlert('Please select a variant below to add to cart', 'info');
+                            }
+                        }, 500); // Delay to allow main section to be shown first
+                    }
+                }
+                
+                // Remove this event listener to prevent it from firing again
+                modal.removeEventListener('shown.bs.modal', scrollToAddToCart);
+            });
+        });
+    });
+
     // Handle favorite toggling
     const favoriteButtons = document.querySelectorAll('.product-favorite');
     
@@ -347,4 +420,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<style>
+/* Add this style for the highlight effect */
+.highlight-variants {
+    border: 2px solid #ffc107;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: rgba(255, 193, 7, 0.1);
+    animation: pulse 1.5s;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+}
+</style>
 @endsection

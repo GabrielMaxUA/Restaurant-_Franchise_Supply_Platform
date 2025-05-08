@@ -387,17 +387,6 @@
                 <div class="card-body">
                     <div class="section-title">Order Actions</div>
                     <div class="d-flex">
-                        <form action="{{ route('franchisee.orders.cancel', $order->id) }}" method="POST" class="me-2">
-                            @csrf
-                            <button type="submit" class="btn btn-outline-danger action-btn" onclick="return confirm('Are you sure you want to cancel this order?');">
-                                <i class="fas fa-times-circle me-2"></i> Cancel Order
-                            </button>
-                        </form>
-                        
-                        <a href="{{ route('franchisee.orders.modify', $order->id) }}" class="btn btn-outline-primary action-btn me-2">
-                            <i class="fas fa-edit me-2"></i> Modify Order
-                        </a>
-                        
                         <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-outline-secondary action-btn" target="_blank">
                             <i class="fas fa-file-pdf me-2"></i> Download Invoice
                         </a>

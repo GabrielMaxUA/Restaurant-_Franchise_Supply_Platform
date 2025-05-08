@@ -10,6 +10,7 @@ use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\Auth;
 use App\Models\ProductFavorite;
+
 class CatalogController extends Controller
 {
     /**
@@ -53,14 +54,30 @@ class CatalogController extends Controller
         if ($request->filled('inventory')) {
             switch ($request->inventory) {
                 case 'in_stock':
-                    $query->where('inventory_count', '>', 0);
+                    // Include products with stock OR products with in-stock variants
+                    $query->where(function($q) {
+                        $q->where('inventory_count', '>', 0)
+                          ->orWhereHas('variants', function($sq) {
+                              $sq->where('inventory_count', '>', 0);
+                          });
+                    });
                     break;
                 case 'low_stock':
-                    $query->where('inventory_count', '>', 0)
-                          ->where('inventory_count', '<=', 10);
+                    $query->where(function($q) {
+                        $q->where('inventory_count', '>', 0)
+                          ->where('inventory_count', '<=', 10)
+                          ->orWhereHas('variants', function($sq) {
+                              $sq->where('inventory_count', '>', 0)
+                                ->where('inventory_count', '<=', 10);
+                          });
+                    });
                     break;
                 case 'out_of_stock':
-                    $query->where('inventory_count', 0);
+                    // Only truly out of stock items (no variants with stock either)
+                    $query->where('inventory_count', 0)
+                          ->whereDoesntHave('variants', function($q) {
+                              $q->where('inventory_count', '>', 0);
+                          });
                     break;
                 case 'variants_only':
                     $query->where('inventory_count', 0)
@@ -105,15 +122,22 @@ class CatalogController extends Controller
         foreach ($products as $product) {
             // Check if any variants are in stock
             $hasInStockVariants = false;
+            $totalVariantInventory = 0;
+            
             if ($product->variants->isNotEmpty()) {
                 foreach ($product->variants as $variant) {
                     if ($variant->inventory_count > 0) {
                         $hasInStockVariants = true;
-                        break;
+                        $totalVariantInventory += $variant->inventory_count;
                     }
                 }
             }
+            
             $product->has_in_stock_variants = $hasInStockVariants;
+            $product->total_variant_inventory = $totalVariantInventory;
+            
+            // Determine if product is available to purchase (either main product or variants have stock)
+            $product->is_purchasable = ($product->inventory_count > 0 || $hasInStockVariants);
             
             // Convert inventory_count to stock_status for the views
             if ($product->inventory_count <= 0) {
@@ -164,15 +188,22 @@ class CatalogController extends Controller
             
         // Check if any variants are in stock
         $hasInStockVariants = false;
+        $totalVariantInventory = 0;
+        
         if ($product->variants->isNotEmpty()) {
             foreach ($product->variants as $variant) {
                 if ($variant->inventory_count > 0) {
                     $hasInStockVariants = true;
-                    break;
+                    $totalVariantInventory += $variant->inventory_count;
                 }
             }
         }
+        
         $product->has_in_stock_variants = $hasInStockVariants;
+        $product->total_variant_inventory = $totalVariantInventory;
+        
+        // Determine if product is available to purchase (either main product or variants have stock)
+        $product->is_purchasable = ($product->inventory_count > 0 || $hasInStockVariants);
             
         // Convert inventory_count to stock_status
         if ($product->inventory_count <= 0) {
@@ -250,15 +281,22 @@ class CatalogController extends Controller
         foreach ($products as $product) {
             // Check if any variants are in stock
             $hasInStockVariants = false;
+            $totalVariantInventory = 0;
+            
             if ($product->variants && $product->variants->isNotEmpty()) {
                 foreach ($product->variants as $variant) {
                     if ($variant->inventory_count > 0) {
                         $hasInStockVariants = true;
-                        break;
+                        $totalVariantInventory += $variant->inventory_count;
                     }
                 }
             }
+            
             $product->has_in_stock_variants = $hasInStockVariants;
+            $product->total_variant_inventory = $totalVariantInventory;
+            
+            // Determine if product is available to purchase (either main product or variants have stock)
+            $product->is_purchasable = ($product->inventory_count > 0 || $hasInStockVariants);
             
             // Set stock status with variants-only check
             if ($product->inventory_count <= 0) {

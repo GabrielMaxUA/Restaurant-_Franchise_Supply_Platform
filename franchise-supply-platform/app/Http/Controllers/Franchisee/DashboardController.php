@@ -31,22 +31,25 @@ class DashboardController extends Controller
         $startOfLastMonth = $lastMonth->copy()->startOfMonth();
         $endOfLastMonth = $lastMonth->copy()->endOfMonth();
         
+        // Define excluded statuses
+        $excludedStatuses = ['cancelled', 'rejected'];
+        
         // Calculate weekly spending (This week)
         $weeklySpending = Order::where('user_id', $user->id)
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', $excludedStatuses)
             ->sum('total_amount');
         
         // Calculate monthly spending (Current month)
         $monthlySpending = Order::where('user_id', $user->id)
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', $excludedStatuses)
             ->sum('total_amount');
             
         // Calculate last month's spending for comparison
         $lastMonthSpending = Order::where('user_id', $user->id)
             ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', $excludedStatuses)
             ->sum('total_amount');
             
         // Calculate spending change percentage
@@ -55,11 +58,14 @@ class DashboardController extends Controller
             $spendingChange = round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100);
         }
         
+        // Define active order statuses
+        $activeStatuses = ['pending', 'processing', 'shipped', 'out_for_delivery'];
+        
         // Calculate key stats
         $stats = [
             // Count pending orders
             'pending_orders' => Order::where('user_id', $user->id)
-                ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery'])
+                ->whereIn('status', $activeStatuses)
                 ->count(),
                 
             // Calculate monthly spending
@@ -78,7 +84,7 @@ class DashboardController extends Controller
                 
             // Count last month pending orders for comparison
             'last_month_pending_orders' => Order::where('user_id', $user->id)
-                ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery'])
+                ->whereIn('status', $activeStatuses)
                 ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
                 ->count(),
         ];
@@ -101,7 +107,7 @@ class DashboardController extends Controller
             
             // Get orders for this day
             $dayOrders = Order::where('user_id', $user->id)
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', $excludedStatuses)
                 ->whereBetween('created_at', [$dayStart, $dayEnd])
                 ->get();
             
@@ -126,7 +132,7 @@ class DashboardController extends Controller
             
             // Get orders for this month
             $monthOrders = Order::where('user_id', $user->id)
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', $excludedStatuses)
                 ->whereBetween('created_at', [$monthStart, $monthEnd])
                 ->get();
             
@@ -152,7 +158,7 @@ class DashboardController extends Controller
             'spending' => 10000  // Step size for spending axis
         ];
         
-        // Get recent orders
+        // Get recent orders (include all statuses for display)
         $recent_orders = Order::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->take(5)
@@ -165,9 +171,10 @@ class DashboardController extends Controller
         }
         
         // Get popular products (based on order frequency)
-        $popular_products = Product::withCount(['orderItems' => function($query) use ($user) {
-                $query->whereHas('order', function($q) use ($user) {
-                    $q->where('user_id', $user->id);
+        $popular_products = Product::withCount(['orderItems' => function($query) use ($user, $excludedStatuses) {
+                $query->whereHas('order', function($q) use ($user, $excludedStatuses) {
+                    $q->where('user_id', $user->id)
+                      ->whereNotIn('status', $excludedStatuses);
                 });
             }])
             ->orderBy('order_items_count', 'desc')
@@ -187,6 +194,11 @@ class DashboardController extends Controller
             $product->price = $product->base_price ?? $product->price;
             $product->unit_size = $product->unit_size ?? '';
             $product->unit_type = $product->unit_type ?? '';
+            
+            // Check if product has in-stock variants
+            $product->has_in_stock_variants = $product->variants()
+                ->where('inventory_count', '>', 0)
+                ->exists();
         }
         
         // Create empty sets for sections we're not implementing

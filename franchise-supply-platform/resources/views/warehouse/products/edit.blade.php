@@ -162,33 +162,34 @@
                         </div>
                         
                         <div class="col-md-6">
-                            @if($variant->images && $variant->images->count() > 0)
-                                <div class="variant-image-container">
-                                    <label class="form-label">Current Images ({{ $variant->images->count() }})</label>
-                                    <div class="row">
-                                        @foreach($variant->images as $variantImage)
-                                            <div class="col-md-6 mb-2">
-                                                <div class="card">
-                                                    <img src="{{ asset('storage/' . $variantImage->image_url) }}" 
-                                                         class="card-img-top" style="height: 100px; object-fit: contain;" alt="Variant Image">
-                                                    <div class="card-body p-2">
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" 
-                                                                   name="delete_variant_images[{{ $variantImage->id }}]" 
-                                                                   id="delete-variant-image-{{ $variantImage->id }}" value="1">
-                                                            <label class="form-check-label" for="delete-variant-image-{{ $variantImage->id }}">
-                                                                Delete
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @else
-                                <p class="text-muted">No images for this variant</p>
-                            @endif
+                        @if($variant->images && $variant->images->count() > 0)
+    <div class="variant-image-container">
+        <label class="form-label">Current Images ({{ $variant->images->count() }})</label>
+        <div class="row">
+            @foreach($variant->images as $variantImage)
+                <div class="col-md-6 mb-2">
+                    <div class="card">
+                        <img src="{{ asset('storage/' . $variantImage->image_url) }}" 
+                             class="card-img-top" style="height: 100px; object-fit: contain;" alt="Variant Image">
+                        <div class="card-body p-2">
+                            <div class="form-check">
+                                <!-- Updated to use the variant image ID directly -->
+                                <input class="form-check-input" type="checkbox" 
+                                       name="delete_variant_images[{{ $variantImage->id }}]" 
+                                       id="delete-variant-image-{{ $variantImage->id }}" value="1">
+                                <label class="form-check-label" for="delete-variant-image-{{ $variantImage->id }}">
+                                    Delete
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@else
+    <p class="text-muted">No images for this variant</p>
+@endif
                         </div>
                     </div>
                 </div>

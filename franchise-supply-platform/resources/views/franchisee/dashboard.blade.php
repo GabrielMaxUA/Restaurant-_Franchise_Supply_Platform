@@ -90,6 +90,15 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
+    /* Added styles for order status badges */
+    .badge.bg-rejected {
+        background-color: #dc3545 !important; /* Red for rejected status */
+    }
+    
+    .badge.bg-cancelled {
+        background-color: #6c757d !important; /* Gray for cancelled status */
+    }
+
     @media (max-width: 991px) {
         .dashboard-row {
             flex-direction: column;
@@ -291,7 +300,11 @@
                                     @elseif($order->status == 'delivered')
                                         <span class="badge bg-success">Delivered</span>
                                     @elseif($order->status == 'cancelled')
-                                        <span class="badge bg-danger">Cancelled</span>
+                                        <span class="badge bg-secondary">Cancelled</span>
+                                    @elseif($order->status == 'rejected')
+                                        <span class="badge bg-rejected">Rejected</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -340,9 +353,10 @@
                                 </p>
                             </div>
                             <div>
+                                <!-- Add the disabled attribute for variants only products -->
                                 <button type="button" class="btn btn-sm btn-outline-success quick-add-to-cart" 
                                         data-product-id="{{ $product->id }}"
-                                        {{ $product->inventory_count <= 0 ? 'disabled' : '' }}>
+                                        {{ (!$product->inventory_count && !$product->has_in_stock_variants) ? 'disabled' : '' }}>
                                     <i class="fas fa-cart-plus"></i>
                                 </button>
                             </div>
@@ -433,6 +447,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Order Spending Chart
     const ctx = document.getElementById('orderSpendingChart').getContext('2d');
+    
+    // These chart data arrays should now exclude cancelled and rejected orders (handled in the controller)
     const orderData = {
         weekly: {
             labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],

@@ -6,15 +6,26 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Services\InventoryService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
+    protected $inventoryService;
+    
+    public function __construct(InventoryService $inventoryService)
+    {
+        $this->inventoryService = $inventoryService;
+    }
+    
     public function index()
     {
         $orders = Order::with('user')->orderBy('created_at', 'desc')->get();
         return view('admin.orders.index', compact('orders'));
     }
-
+    
     public function checkNewOrders()
     {
         $pendingOrdersCount = Order::where('status', 'pending')->count();
@@ -33,19 +44,94 @@ class OrderController extends Controller
         
         return view('admin.orders.show', compact('order'));
     }
-
+    
+    /**
+     * Update the order status
+     * This method handles both PATCH and POST requests to /admin/orders/{order}/status
+     */
     public function updateStatus(Request $request, Order $order)
     {
+        // Validate the request
         $request->validate([
             'status' => 'required|in:pending,approved,rejected,packed,shipped,delivered,cancelled'
         ]);
         
-        $order->status = $request->status;
-        $order->save();
+        $oldStatus = $order->status;
+        $newStatus = $request->status;
         
-        return redirect()->back()->with('success', "Order status updated to {$request->status}");
+        // Debug logging
+        Log::info('Order status update request', [
+            'order_id' => $order->id,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'request_method' => $request->method(),
+            'request_path' => $request->path()
+        ]);
+        
+        // Start a database transaction
+        DB::beginTransaction();
+        
+        try {
+            // If status is changing to rejected or cancelled, restore inventory
+            if (($newStatus === 'rejected' || $newStatus === 'cancelled') && 
+                ($oldStatus !== 'rejected' && $oldStatus !== 'cancelled')) {
+                
+                Log::info('Restoring inventory for order', [
+                    'order_id' => $order->id,
+                    'new_status' => $newStatus
+                ]);
+                
+                // Load order items if not already loaded
+                if (!$order->relationLoaded('items')) {
+                    $order->load('items');
+                }
+                
+                // Restore inventory for each item
+                foreach ($order->items as $item) {
+                    $success = $this->inventoryService->increaseInventory(
+                        $item->product_id, 
+                        $item->quantity, 
+                        $item->variant_id
+                    );
+                    
+                    if (!$success) {
+                        throw new \Exception("Failed to restore inventory for product ID: {$item->product_id}");
+                    }
+                    
+                    Log::info('Inventory restored for item', [
+                        'order_id' => $order->id,
+                        'product_id' => $item->product_id,
+                        'variant_id' => $item->variant_id,
+                        'quantity' => $item->quantity
+                    ]);
+                }
+            }
+            
+            // Update the order status
+            $order->status = $newStatus;
+            $order->save();
+            
+            // Commit the transaction
+            DB::commit();
+            
+            return redirect()->back()->with('success', "Order status updated to {$newStatus}");
+            
+        } catch (\Exception $e) {
+            // Rollback the transaction on error
+            DB::rollBack();
+            
+            Log::error('Error updating order status', [
+                'order_id' => $order->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()->with('error', "Failed to update order status: {$e->getMessage()}");
+        }
     }
-
+    
     // This method will be implemented with the QuickBooks integration
     public function syncToQuickBooks(Order $order)
     {

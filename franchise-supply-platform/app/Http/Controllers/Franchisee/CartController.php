@@ -87,24 +87,19 @@ class CartController extends Controller
         $variantId = $request->variant_id;
         $quantity = $request->quantity;
         
-        // Check if product is in stock
-        $product = Product::find($productId);
-        $availableInventory = $product ? $product->inventory_count : 0;
-        
-        if (!$product || $availableInventory < $quantity) {
+        // Load product with variants
+        $product = Product::with(['variants'])->find($productId);
+        if (!$product) {
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product is out of stock or has insufficient inventory.',
-                    'remaining_inventory' => $availableInventory,
-                    'requested_quantity' => $quantity,
-                    'product_cart_quantity' => 0
-                ], 400);
+                    'message' => 'Product not found.',
+                ], 404);
             }
-            return redirect()->back()->with('error', 'Product is out of stock or has insufficient inventory.');
+            return redirect()->back()->with('error', 'Product not found.');
         }
         
-        // Check variant stock if applicable
+        // If a variant is specified, check variant inventory
         if ($variantId) {
             $variant = ProductVariant::find($variantId);
             $availableInventory = $variant ? $variant->inventory_count : 0;
@@ -120,6 +115,50 @@ class CartController extends Controller
                     ], 400);
                 }
                 return redirect()->back()->with('error', 'Selected variant is out of stock or has insufficient inventory.');
+            }
+        } else {
+            // For main product, check if it has inventory
+            $availableInventory = $product->inventory_count;
+            
+            if ($availableInventory < $quantity) {
+                // Check if any variants have inventory
+                $hasInStockVariants = false;
+                $availableVariants = [];
+                
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count > 0) {
+                        $hasInStockVariants = true;
+                        $availableVariants[] = [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'inventory' => $variant->inventory_count
+                        ];
+                    }
+                }
+                
+                if ($hasInStockVariants) {
+                    if ($request->ajax()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'This product is out of stock. Please select an available variant.',
+                            'variants_available' => true,
+                            'available_variants' => $availableVariants,
+                            'product_id' => $productId
+                        ], 400);
+                    }
+                    return redirect()->back()->with('error', 'This product is out of stock. Please select a variant.');
+                } else {
+                    if ($request->ajax()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Product is out of stock.',
+                            'remaining_inventory' => $availableInventory,
+                            'requested_quantity' => $quantity,
+                            'product_cart_quantity' => 0
+                        ], 400);
+                    }
+                    return redirect()->back()->with('error', 'Product is out of stock.');
+                }
             }
         }
         
@@ -172,7 +211,7 @@ class CartController extends Controller
             } else {
                 $availableInventory = $product ? $product->inventory_count : 0;
                 
-                                if (!$product || $availableInventory < $newQuantity) {
+                if (!$product || $availableInventory < $newQuantity) {
                     if ($request->ajax()) {
                         return response()->json([
                             'success' => false,

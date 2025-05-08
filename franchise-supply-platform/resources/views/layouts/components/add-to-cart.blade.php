@@ -548,90 +548,108 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            if (data.success) {
-                // Get current quantity and product ID for reference
-                const quantityInput = this.querySelector('input[name="quantity"]');
-                const productId = this.querySelector('input[name="product_id"]').value;
-                const currentQuantity = parseInt(quantityInput.value) || 1;
-                
-                // Get modal if we're in one
-                const modal = submitBtn.closest('.modal');
-                
-                // Show success message
-                submitBtn.innerHTML = '<i class="fas fa-check"></i> Added!';
-                
-                // Get remaining inventory and current cart quantity for this product
-                const remainingInventory = data.remaining_inventory || 
-                    (modal && parseInt(modal.querySelector('.inventory-count').textContent) - currentQuantity);
-                const currentCartQuantity = data.product_cart_quantity || 0;
-                
-                // Create a detailed success message showing what's in cart and what's remaining
-                let successMessage = `${currentQuantity} item(s) added to cart`;
-                
-                // Add cart quantity info if this product is already in cart
-                if (currentCartQuantity > currentQuantity) {
-                    successMessage += ` (${currentCartQuantity} total of this item in cart)`;
+          // Replace only the success handling part in the add-to-cart form submission handler
+// Find this block in the existing code and replace it:
+
+if (data.success) {
+    // Get current quantity and product ID for reference
+    const quantityInput = this.querySelector('input[name="quantity"]');
+    const productId = this.querySelector('input[name="product_id"]').value;
+    const currentQuantity = parseInt(quantityInput.value) || 1;
+    
+    // Get modal if we're in one
+    const modal = submitBtn.closest('.modal');
+    
+    // Show success message
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> Added!';
+    
+    // Get remaining inventory and current cart quantity for this product
+    const remainingInventory = data.remaining_inventory || 
+        (modal && parseInt(modal.querySelector('.inventory-count').textContent) - currentQuantity);
+    const currentCartQuantity = data.product_cart_quantity || 0;
+    
+    // Create a detailed success message showing what's in cart and what's remaining
+    let successMessage = `${currentQuantity} item(s) added to cart`;
+    
+    // Add cart quantity info if this product is already in cart
+    if (currentCartQuantity > currentQuantity) {
+        successMessage += ` (${currentCartQuantity} total of this item in cart)`;
+    }
+    
+    // Add inventory info if available
+    if (remainingInventory !== undefined) {
+        successMessage += ` (${remainingInventory} remaining in stock)`;
+    }
+    
+    // Show the informative notification
+    if (typeof showFloatingAlert === 'function') {
+        showFloatingAlert(successMessage, 'success');
+    }
+    
+    // Update the displayed inventory count immediately
+    if (modal) {
+        const inventoryCountElem = modal.querySelector('.inventory-count');
+        if (inventoryCountElem && remainingInventory !== undefined) {
+            inventoryCountElem.textContent = `${remainingInventory} left`;
+        }
+    }
+    
+    // Update all product inventory displays on the page with the same product ID
+    document.querySelectorAll(`.product-inventory[data-product-id="${productId}"]`).forEach(elem => {
+        if (remainingInventory !== undefined) {
+            elem.textContent = `${remainingInventory} left`;
+        }
+    });
+    
+    // Update cart counts throughout the site
+    if (data.cart_count) {
+        // First try using the global function if it exists
+        if (typeof window.updateAllCartCountBadges === 'function') {
+            window.updateAllCartCountBadges(data.cart_count);
+        } else {
+            // Fall back to dispatching the cartUpdated event
+            document.dispatchEvent(new CustomEvent('cartUpdated', {
+                detail: {
+                    count: data.cart_count
                 }
+            }));
+        }
+        
+        // Also update legacy cart count element if it exists
+        if (document.getElementById('cart-count')) {
+            document.getElementById('cart-count').textContent = data.cart_count;
+        }
+    }
+    
+    // Close modal after success - IMPROVED HANDLING
+    setTimeout(() => {
+        if (modal) {
+            const modalElement = modal; // Keep a reference to the DOM element
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            if (bsModal) {
+                // Properly hide the modal
+                bsModal.hide();
                 
-                // Add inventory info if available
-                if (remainingInventory !== undefined) {
-                    successMessage += ` (${remainingInventory} remaining in stock)`;
-                }
-                
-                // Show the informative notification
-                if (typeof showFloatingAlert === 'function') {
-                    showFloatingAlert(successMessage, 'success');
-                }
-                
-                // Update the displayed inventory count immediately
-                if (modal) {
-                    const inventoryCountElem = modal.querySelector('.inventory-count');
-                    if (inventoryCountElem && remainingInventory !== undefined) {
-                        inventoryCountElem.textContent = `${remainingInventory} left`;
-                    }
-                }
-                
-                // Update all product inventory displays on the page with the same product ID
-                document.querySelectorAll(`.product-inventory[data-product-id="${productId}"]`).forEach(elem => {
-                    if (remainingInventory !== undefined) {
-                        elem.textContent = `${remainingInventory} left`;
-                    }
-                });
-                
-                // Update cart counts throughout the site
-                if (data.cart_count) {
-                    // First try using the global function if it exists
-                    if (typeof window.updateAllCartCountBadges === 'function') {
-                        window.updateAllCartCountBadges(data.cart_count);
-                    } else {
-                        // Fall back to dispatching the cartUpdated event
-                        document.dispatchEvent(new CustomEvent('cartUpdated', {
-                            detail: {
-                                count: data.cart_count
-                            }
-                        }));
-                    }
+                // Remove backdrop manually after animation completes
+                modal.addEventListener('hidden.bs.modal', function() {
+                    // Find and remove any orphaned backdrops
+                    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                        backdrop.remove();
+                    });
                     
-                    // Also update legacy cart count element if it exists
-                    if (document.getElementById('cart-count')) {
-                        document.getElementById('cart-count').textContent = data.cart_count;
-                    }
-                }
-                
-                // Close modal after success (optional)
-                setTimeout(() => {
-                    if (modal) {
-                        const bsModal = bootstrap.Modal.getInstance(modal);
-                        if (bsModal) {
-                            bsModal.hide();
-                        }
-                    }
-                    
-                    // Reset button state
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnText;
-                }, 1500);
-            } else {
+                    // Reset body styles
+                    document.body.classList.remove('modal-open');
+                    document.body.style.paddingRight = '';
+                    document.body.style.overflow = '';
+                }, { once: true }); // Important: only run this once
+            }
+        }
+        
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    }, 1500);
+} else {
                 // Show error
                 let errorMessage = data.message || 'Failed to add to cart';
                 

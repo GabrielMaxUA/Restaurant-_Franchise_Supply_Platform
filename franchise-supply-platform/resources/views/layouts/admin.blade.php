@@ -147,6 +147,7 @@
           display: flex;
           align-items: center;
         }
+
     </style>
     
     @yield('styles')
@@ -226,7 +227,7 @@
                                 $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
                             @endphp
                             @if($pendingOrdersCount > 0)
-                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-warning me-3 position-relative">
+                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-warning me-4 position-relative">
                                     <i class="fas fa-bell"></i>
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         {{ $pendingOrdersCount }}
@@ -240,9 +241,14 @@
                                     <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    <li><a class="dropdown-item" href="{{ url('/admin/profile') }}">Profile</a></li>
+                                    <li>
+                                      <a class="dropdown-item" href="{{ url('/admin/profile') }}">
+                                        <i class="fas fa-cog me-2"></i>Settings
+                                      </a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">Logout</a></li>
+                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                      </a></li>
                                 </ul>
                             </div>
                         </div>
