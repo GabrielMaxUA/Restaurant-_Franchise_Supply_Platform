@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 08, 2025 at 06:15 PM
+-- Generation Time: May 09, 2025 at 04:28 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -39,7 +39,7 @@ CREATE TABLE `admin_details` (
   `email` varchar(100) DEFAULT NULL,
   `website` varchar(100) DEFAULT NULL,
   `logo_path` text DEFAULT NULL,
-  `created_by` int(10) UNSIGNED DEFAULT NULL,
+  `created_by` varchar(100) DEFAULT NULL,
   `updated_by` int(10) UNSIGNED DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
@@ -50,7 +50,7 @@ CREATE TABLE `admin_details` (
 --
 
 INSERT INTO `admin_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `phone`, `email`, `website`, `logo_path`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
-(2, 1, 'Restaurant Franchise Supply toronto', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '4168560684', 'admin@example.com', 'www.restaurantfranchisesupply.com', 'company-logos/l0xSFESYc1n211AxhrifIJzu21QFriWBAfDCZDXn.jpg', 1, 1, '2025-05-08 13:03:09', '2025-05-08 13:18:07');
+(2, 1, 'Restaurant Franchise Supply toronto', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '4168560684', 'admin@example.com', 'www.restaurantfranchisesupply.com', 'company-logos/l0xSFESYc1n211AxhrifIJzu21QFriWBAfDCZDXn.jpg', '1', 1, '2025-05-08 13:03:09', '2025-05-08 13:18:07');
 
 -- --------------------------------------------------------
 
@@ -70,7 +70,8 @@ CREATE TABLE `carts` (
 --
 
 INSERT INTO `carts` (`id`, `user_id`, `created_at`, `updated_at`) VALUES
-(1, 14, '2025-05-08 15:56:33', '2025-05-08 15:56:33');
+(1, 14, '2025-05-08 15:56:33', '2025-05-08 15:56:33'),
+(2, 16, '2025-05-08 22:59:06', '2025-05-08 22:59:06');
 
 -- --------------------------------------------------------
 
@@ -93,7 +94,8 @@ CREATE TABLE `cart_items` (
 --
 
 INSERT INTO `cart_items` (`id`, `cart_id`, `product_id`, `variant_id`, `quantity`, `created_at`, `updated_at`) VALUES
-(4, 1, 67, NULL, 3, '2025-05-08 18:23:56', '2025-05-08 18:23:56');
+(19, 1, 68, 21, 1, '2025-05-09 02:09:01', '2025-05-09 02:09:01'),
+(20, 1, 67, 20, 6, '2025-05-09 02:09:10', '2025-05-09 02:09:23');
 
 -- --------------------------------------------------------
 
@@ -145,8 +147,8 @@ CREATE TABLE `franchisee_details` (
 --
 
 INSERT INTO `franchisee_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `contact_name`, `logo_path`, `created_at`, `updated_at`, `updated_by`) VALUES
-(2, 14, 'MaxiCompany', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_14_1746728437.JPG', '2025-05-08 15:14:15', '2025-05-08 18:20:37', '1'),
-(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_16_1746728426.JPG', '2025-05-08 15:28:59', '2025-05-08 18:20:26', '1');
+(2, 14, 'Max and Company', '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriellla', 'franchisee_logos/company_logo_14_1746744453.png', '2025-05-08 15:14:15', '2025-05-08 22:47:34', 'user1'),
+(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_16_1746746221.png', '2025-05-08 15:28:59', '2025-05-08 23:17:01', 'gabriel max');
 
 -- --------------------------------------------------------
 
@@ -193,7 +195,9 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`id`, `user_id`, `status`, `total_amount`, `shipping_address`, `shipping_city`, `shipping_state`, `shipping_zip`, `delivery_date`, `delivery_time`, `delivery_preference`, `shipping_cost`, `notes`, `manager_name`, `contact_phone`, `purchase_order`, `created_at`, `updated_at`, `qb_invoice_id`) VALUES
-(20, 14, 'rejected', 172.80, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-11', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-08 16:54:04', '2025-05-08 16:59:50', NULL);
+(20, 14, 'rejected', 172.80, '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '2025-05-11', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-08 16:54:04', '2025-05-08 16:59:50', NULL),
+(21, 16, 'pending', 103.68, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-11', 'morning', 'standard', 0.00, 'call prior', 'Default Manager', '4168560684', NULL, '2025-05-08 23:16:50', '2025-05-08 23:16:50', NULL),
+(22, 16, 'pending', 288.36, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-11', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-09 02:26:57', '2025-05-09 02:26:57', NULL);
 
 -- --------------------------------------------------------
 
@@ -217,7 +221,9 @@ CREATE TABLE `order_items` (
 --
 
 INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `quantity`, `price`, `created_at`, `updated_at`) VALUES
-(23, 20, 67, NULL, 5, 32.00, '2025-05-08 16:54:04', '2025-05-08 16:54:04');
+(23, 20, 67, NULL, 5, 32.00, '2025-05-08 16:54:04', '2025-05-08 16:54:04'),
+(24, 21, 67, NULL, 3, 32.00, '2025-05-08 23:16:50', '2025-05-08 23:16:50'),
+(25, 22, 67, 20, 3, 89.00, '2025-05-09 02:26:57', '2025-05-09 02:26:57');
 
 -- --------------------------------------------------------
 
@@ -273,7 +279,8 @@ CREATE TABLE `products` (
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`, `updated_at`) VALUES
 (65, 'checken', 'organic, free run', 10.00, 6, 248, '2025-05-07 16:28:21', '2025-05-07 15:22:53'),
 (66, 'ground beef', 'canadian farm direct supplier (pack of 1kg)', 14.00, 7, 450, '2025-05-07 16:30:25', '2025-05-07 22:09:29'),
-(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 123, '2025-05-07 16:32:13', '2025-05-08 16:59:50');
+(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 120, '2025-05-07 16:32:13', '2025-05-08 23:16:50'),
+(68, 'chicken wings', 'Bulk (Min order 1kg)', 12.00, 6, 12, '2025-05-08 23:45:21', '2025-05-08 23:45:21');
 
 -- --------------------------------------------------------
 
@@ -310,7 +317,8 @@ INSERT INTO `product_images` (`id`, `product_id`, `image_url`) VALUES
 (66, 67, 'product-images/681be0e0e0f29_1746657504.png'),
 (67, 66, 'product-images/OYygNJL8g41h97MWY5aquBgdHehGliijoVhtVghq.svg'),
 (68, 65, 'product-images/DxO7pnvhujNyJtOj5SUsm0AyXMe5mPwQVV75xr9m.svg'),
-(69, 67, 'product-images/681cd7117aef4_1746720529.JPG');
+(69, 67, 'product-images/681cd7117aef4_1746720529.JPG'),
+(70, 68, 'product-images/681d4211c2ec1_1746747921.png');
 
 -- --------------------------------------------------------
 
@@ -336,7 +344,8 @@ INSERT INTO `product_variants` (`id`, `product_id`, `name`, `price_adjustment`, 
 (17, 65, 'pack of 10', 90.00, 10, '2025-05-07 16:28:21', '2025-05-08 16:08:07'),
 (18, 66, '2kg', 22.00, 12, '2025-05-07 16:30:25', '2025-05-08 16:08:15'),
 (19, 66, '5kg', 45.00, 12, '2025-05-07 16:30:25', '2025-05-07 16:30:25'),
-(20, 67, 'pack of 800gr', 89.00, 23, '2025-05-07 16:32:13', '2025-05-08 16:08:25');
+(20, 67, 'pack of 800gr', 89.00, 20, '2025-05-07 16:32:13', '2025-05-09 02:26:57'),
+(21, 68, 'chicken wings (packed/vacuum). 3kg/pkg', 14.00, 12, '2025-05-08 23:45:21', '2025-05-08 23:45:53');
 
 -- --------------------------------------------------------
 
@@ -406,9 +415,9 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`, `created_at`, `updated_at`, `updated_by`) VALUES
 (1, 'adminMax', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '4168560684', 1, '2025-05-02 22:22:44', '2025-05-08 13:18:07', 'adminMax'),
-(4, 'maximUS', '$2y$12$hd15.smpVHhhq0.yRNu3YeW9kSOBVomoDVJ5/VmzeGBkrJJvu3gyi', 'maxim.don.mg@gmail.com', '4168560684', 2, '2025-05-04 23:09:20', '2025-05-08 14:10:58', NULL),
-(14, 'user', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '4168560684', 3, '2025-05-07 18:21:40', '2025-05-08 17:56:04', '1'),
-(16, 'gabriel', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-08 17:51:24', '1');
+(4, 'maximUSCan', '$2y$12$hd15.smpVHhhq0.yRNu3YeW9kSOBVomoDVJ5/VmzeGBkrJJvu3gyi', 'maxim.don.mg@gmail.com', '4168560684', 2, '2025-05-04 23:09:20', '2025-05-08 22:57:55', 'maximUSCan'),
+(14, 'user1', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '416 8560684', 3, '2025-05-07 18:21:40', '2025-05-08 22:57:23', 'user1'),
+(16, 'gabriel max', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-08 23:17:01', 'gabriel max');
 
 -- --------------------------------------------------------
 
@@ -433,7 +442,8 @@ INSERT INTO `variant_images` (`id`, `variant_id`, `image_url`) VALUES
 (46, 18, 'variant-images/681be13bdc36f_1746657595.jpg'),
 (47, 19, 'variant-images/681be13be5223_1746657595.png'),
 (48, 17, 'variant-images/681be1572337d_1746657623.png'),
-(54, 20, 'variant-images/681bfa0379056_1746663939.png');
+(54, 20, 'variant-images/681bfa0379056_1746663939.png'),
+(55, 21, 'variant-images/681d4211bea9b_1746747921.png');
 
 --
 -- Indexes for dumped tables
@@ -580,13 +590,13 @@ ALTER TABLE `admin_details`
 -- AUTO_INCREMENT for table `carts`
 --
 ALTER TABLE `carts`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -610,13 +620,13 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -628,7 +638,7 @@ ALTER TABLE `personal_access_tokens`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
 
 --
 -- AUTO_INCREMENT for table `product_favorites`
@@ -640,13 +650,13 @@ ALTER TABLE `product_favorites`
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
 
 --
 -- AUTO_INCREMENT for table `product_variants`
 --
 ALTER TABLE `product_variants`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -664,7 +674,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `variant_images`
 --
 ALTER TABLE `variant_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
 -- Constraints for dumped tables
