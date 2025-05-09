@@ -167,11 +167,23 @@
                             <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" href="{{ url('/franchisee/cart') }}" id="sidebar-cart-link">
                                 <i class="fas fa-shopping-basket me-2"></i>
                                 Cart
-                                @if(session('cart') && count(session('cart')) > 0)
-                                <span class="badge bg-danger ms-2 cart-sidebar-count">{{ count(session('cart')) }}</span>
+                                @php
+                                    $cart = Auth::user()->cart ?? null;
+                                    // Count DISTINCT product_ids, not cart items
+                                    $distinctProductCount = 0;
+                                    if ($cart) {
+                                        $distinctProductCount = DB::table('cart_items')
+                                            ->where('cart_id', $cart->id)
+                                            ->distinct('product_id')
+                                            ->count('product_id');
+                                    }
+                                @endphp
+                                @if($distinctProductCount > 0)
+                                <span class="badge bg-danger ms-2 cart-sidebar-count">{{ $distinctProductCount }}</span>
                                 @endif
                             </a>
                         </li>
+
                         <li class="nav-item">
                             <a class="nav-link {{ request()->is('franchisee/orders/pending*') ? 'active' : '' }}" href="{{ url('/franchisee/orders/pending') }}">
                                 <i class="fas fa-clock me-2"></i>
@@ -207,15 +219,17 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Franchisee Dashboard')</span>
                         <div class="d-flex">
-                            <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative cart-btn" id="top-cart-btn">
-                                <i class="fas fa-shopping-cart"></i>
-                                @if(session('cart') && count(session('cart')) > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count">
-                                    {{ count(session('cart')) }}
-                                </span>
-                                @endif
-                            </a>
-                            
+                        <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative cart-btn" id="top-cart-btn">
+                            <i class="fas fa-shopping-cart"></i>
+                            @php
+                                // No need to query again, we already have $distinctProductCount from above
+                            @endphp
+                            @if($distinctProductCount > 0)
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count">
+                                {{ $distinctProductCount }}
+                            </span>
+                            @endif
+                        </a>
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? 'Franchisee' }}

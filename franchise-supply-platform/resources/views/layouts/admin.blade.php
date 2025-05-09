@@ -37,20 +37,6 @@
             font-weight: bold;
         }
         
-        .notification-badge {
-            position: absolute;
-            top: 2px;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            line-height: 1;
-            text-align: center;
-            white-space: nowrap;
-            vertical-align: baseline;
-            border-radius: 10rem;
-            background-color: #dc3545;
-            color: white;
-        }
-        
         .main-content {
             padding: 20px;
             transition: margin-left 1s ease-in-out, width 1s ease-in-out;
@@ -190,7 +176,7 @@
                                     $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
                                 @endphp
                                 @if($pendingOrdersCount > 0)
-                                    <span class="notification-badge">{{ $pendingOrdersCount }}</span>
+                                    <span class="badge bg-danger ms-2">{{ $pendingOrdersCount }}</span>
                                 @endif
                             </a>
                         </li>
@@ -227,18 +213,17 @@
                                 $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
                             @endphp
                             @if($pendingOrdersCount > 0)
-                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-warning me-4 position-relative">
+                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-success me-2 position-relative">
                                     <i class="fas fa-bell"></i>
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         {{ $pendingOrdersCount }}
-                                        <span class="visually-hidden">pending orders</span>
                                     </span>
                                 </a>
                             @endif
                             
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
+                                    <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                     <li>
@@ -370,7 +355,7 @@
                     const pendingOrdersCount = data.pending_orders_count;
                     
                     // Update the notification badge in sidebar
-                    const sidebarBadge = document.querySelector('.nav-link .notification-badge');
+                    const sidebarBadge = document.querySelector('.nav-link .badge');
                     
                     if (pendingOrdersCount > 0) {
                         if (sidebarBadge) {
@@ -379,7 +364,7 @@
                             const ordersLink = document.querySelector('.nav-link:has(.fa-shopping-cart)');
                             if (ordersLink) {
                                 const badge = document.createElement('span');
-                                badge.className = 'notification-badge';
+                                badge.className = 'badge bg-danger ms-2';
                                 badge.textContent = pendingOrdersCount;
                                 ordersLink.appendChild(badge);
                             }
@@ -387,7 +372,7 @@
                         
                         // Update the notification bell in navbar
                         let navbarBadge = document.querySelector('.navbar .badge');
-                        const navbarBell = document.querySelector('.navbar .btn-outline-warning');
+                        const navbarBell = document.querySelector('.navbar .btn-outline-success');
                         
                         if (navbarBell) {
                             if (navbarBadge) {
@@ -399,12 +384,11 @@
                             if (navbar) {
                                 const bellLink = document.createElement('a');
                                 bellLink.href = '{{ url('/admin/orders?status=pending') }}';
-                                bellLink.className = 'btn btn-outline-warning me-3 position-relative';
+                                bellLink.className = 'btn btn-outline-success me-2 position-relative';
                                 bellLink.innerHTML = `
                                     <i class="fas fa-bell"></i>
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                                         ${pendingOrdersCount}
-                                        <span class="visually-hidden">pending orders</span>
                                     </span>
                                 `;
                                 navbar.prepend(bellLink);
@@ -416,7 +400,7 @@
                             sidebarBadge.remove();
                         }
                         
-                        const navbarBell = document.querySelector('.navbar .btn-outline-warning');
+                        const navbarBell = document.querySelector('.navbar .btn-outline-success');
                         if (navbarBell) {
                             navbarBell.remove();
                         }

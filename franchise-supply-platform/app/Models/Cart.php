@@ -37,6 +37,7 @@ class Cart extends Model
     
     /**
      * Get the total price of all items in the cart.
+     * UPDATED: Now uses variant.price_adjustment directly as the price
      */
     public function getTotalPriceAttribute()
     {
@@ -45,10 +46,9 @@ class Cart extends Model
         foreach ($this->items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
-                $product = $item->product;
-                if ($variant && $product) {
-                    $price = $product->base_price + $variant->price_adjustment;
-                    $total += $price * $item->quantity;
+                if ($variant) {
+                    // Use the variant's price_adjustment directly
+                    $total += $variant->price_adjustment * $item->quantity;
                 }
             } else {
                 $product = $item->product;

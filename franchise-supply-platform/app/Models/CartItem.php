@@ -37,20 +37,22 @@ class CartItem extends Model
     
     /**
      * Get the unit price for this item.
+     * UPDATED: Now uses variant.price_adjustment directly as the price
      */
     public function getUnitPriceAttribute()
     {
+        // If this item has a variant, use the variant's price_adjustment directly
         if ($this->variant_id) {
             $variant = $this->variant;
-            $product = $this->product;
-            if ($variant && $product) {
-                return $product->base_price + $variant->price_adjustment;
+            if ($variant) {
+                return $variant->price_adjustment;
             }
-        } else {
-            $product = $this->product;
-            if ($product) {
-                return $product->base_price;
-            }
+        }
+        
+        // Otherwise, use the product's base price
+        $product = $this->product;
+        if ($product) {
+            return $product->base_price;
         }
         
         return 0;

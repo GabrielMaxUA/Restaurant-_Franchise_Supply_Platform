@@ -10,31 +10,90 @@
     /* Standardized floating alert styling across all user types */
     #floating-alerts-container {
         position: fixed;
+        top: 80px;
+        right: 20px;
         z-index: 9999;
+        max-width: 90%;
+        width: 450px;
     }
     
     .alert-float {
-            position: fixed;
-            top: 47px;
-            left: 75%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            padding: 0.5rem 1rem;
-            max-width: 500px;
-            text-align: center;
-            border-radius: 4px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            animation: fadeInDown 0.5s;
-        }
+        position: relative;
+        margin-bottom: 15px;
+        padding: 15px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        animation: fadeInRight 0.5s;
+        display: flex;
+        align-items: center;
+    }
     
-    @keyframes fadeInDown {
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border-left: 5px solid #28a745;
+    }
+    
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-left: 5px solid #dc3545;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border-left: 5px solid #ffc107;
+    }
+    
+    .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border-left: 5px solid #17a2b8;
+    }
+    
+    .alert-float i {
+        margin-right: 10px;
+        font-size: 1.2em;
+    }
+    
+    .alert-content {
+        flex: 1;
+    }
+    
+    .alert-title {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+    
+    .alert-details {
+        opacity: 0.9;
+    }
+    
+    .alert-float .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        font-size: 1rem;
+        color: inherit;
+        opacity: 0.7;
+        cursor: pointer;
+    }
+    
+    .alert-float .close-btn:hover {
+        opacity: 1;
+    }
+    
+    @keyframes fadeInRight {
         from {
             opacity: 0;
-            transform: translate(-50%, -20px);
+            transform: translateX(50px);
         }
         to {
             opacity: 1;
-            transform: translate(-50%, 0);
+            transform: translateX(0);
         }
     }
     
@@ -53,47 +112,92 @@
 </style>
 
 <script>
-    // Function to create and display floating alerts
-    function showFloatingAlert(message, type) {
+    // Function to create and display floating alerts with better formatting
+    function showFloatingAlert(message, type, duration = 5000) {
         const alertsContainer = document.getElementById('floating-alerts-container');
+        if (!alertsContainer) return;
         
         // Create alert element
         const alertElement = document.createElement('div');
-        alertElement.className = `alert alert-${type} fade show alert-float`;
+        alertElement.className = `alert-float alert-${type}`;
         
-        // Create alert content with icon based on type
+        // Determine icon based on type
         let icon = 'info-circle';
-        if (type === 'success') icon = 'check-circle';
-        if (type === 'danger') icon = 'exclamation-circle';
-        if (type === 'warning') icon = 'exclamation-triangle';
+        let title = '';
+        
+        if (type === 'success') {
+            icon = 'check-circle';
+            title = 'Success';
+        } else if (type === 'danger') {
+            icon = 'exclamation-circle';
+            title = 'Error';
+        } else if (type === 'warning') {
+            icon = 'exclamation-triangle';
+            title = 'Warning';
+        } else if (type === 'info') {
+            icon = 'info-circle';
+            title = 'Information';
+        }
+        
+        // Check if message contains item count and inventory details
+        let mainMessage = message;
+        let detailsMessage = '';
+        
+        // Parse structure like "1 item(s) added to cart (13 total of this item in cart) (-1 remaining in stock)"
+        if (message.includes('added to cart') || message.includes('Failed to add')) {
+            const regex = /(.+?)(\(.+?\))?\s*(\(.+?\))?$/;
+            const matches = message.match(regex);
+            
+            if (matches) {
+                mainMessage = matches[1].trim();
+                if (matches[2]) detailsMessage += ' ' + matches[2];
+                if (matches[3]) detailsMessage += ' ' + matches[3];
+            }
+        }
         
         // Add content to the alert with proper structure
         alertElement.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center w-100">
-                <div>
-                    <i class="fas fa-${icon} me-2"></i>
-                    ${message}
-                </div>
+            <i class="fas fa-${icon}"></i>
+            <div class="alert-content">
+                <div class="alert-title">${title}</div>
+                <div class="alert-message">${mainMessage}</div>
+                ${detailsMessage ? `<div class="alert-details">${detailsMessage}</div>` : ''}
             </div>
+            <button type="button" class="close-btn">&times;</button>
         `;
         
         // Add to the container
         alertsContainer.appendChild(alertElement);
         
-        // Auto-dismiss after 5 seconds
+        // Handle close button
+        const closeBtn = alertElement.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                alertElement.classList.add('fade-out');
+                setTimeout(() => {
+                    if (alertElement.parentNode) {
+                        alertElement.parentNode.removeChild(alertElement);
+                    }
+                }, 500);
+            });
+        }
+        
+        // Auto-dismiss after specified duration
         setTimeout(() => {
-            alertElement.classList.add('fade-out');
-            setTimeout(() => {
-                if (alertElement.parentNode) {
-                    alertElement.parentNode.removeChild(alertElement);
-                }
-            }, 500);
-        }, 4500);
+            if (alertElement.parentNode) {
+                alertElement.classList.add('fade-out');
+                setTimeout(() => {
+                    if (alertElement.parentNode) {
+                        alertElement.parentNode.removeChild(alertElement);
+                    }
+                }, 500);
+            }
+        }, duration);
     }
     
-    // Special function for cart notification
-    function showCartNotification(message) {
-        showFloatingAlert(message, 'success');
+    // Function for cart notification
+    function showCartNotification(message, type = 'success') {
+        showFloatingAlert(message, type);
     }
     
     // Check for session messages on page load

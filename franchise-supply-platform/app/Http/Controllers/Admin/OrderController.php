@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -22,16 +23,52 @@ class OrderController extends Controller
     }
     
     /**
-     * Display a listing of the orders with optional user filtering.
+     * Display a listing of the orders with comprehensive filtering options.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\View\View
      */
     public function index(Request $request)
     {
-        $query = Order::with('user')->orderBy('created_at', 'desc');
+        // Start with base query including relationships
+        $query = Order::with(['user', 'user.franchiseeProfile'])->orderBy('created_at', 'desc');
         
-        // Filter by user_id if provided
+        // Apply Order Number filter (renamed from Order ID)
+        if ($request->filled('order_number')) {
+            $query->where('id', $request->order_number);
+        }
+        
+        // Apply Status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        
+        // Apply Username filter
+        if ($request->filled('username')) {
+            $username = $request->username;
+            $query->whereHas('user', function($q) use ($username) {
+                $q->where('username', 'like', "%{$username}%");
+            });
+        }
+        
+        // Apply Company Name filter
+        if ($request->filled('company_name')) {
+            $companyName = $request->company_name;
+            $query->whereHas('user.franchiseeProfile', function($q) use ($companyName) {
+                $q->where('company_name', 'like', "%{$companyName}%");
+            });
+        }
+        
+        // Apply Date Range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        
+        // Filter by specific user if requested (maintain existing functionality)
         if ($request->has('user_id')) {
             $userId = $request->user_id;
             $query->where('user_id', $userId);
@@ -56,6 +93,11 @@ class OrderController extends Controller
         ]);
     }
     
+    /**
+     * Check for new orders and low inventory items via AJAX
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function checkNewOrders()
     {
         $pendingOrdersCount = Order::where('status', 'pending')->count();
@@ -67,6 +109,12 @@ class OrderController extends Controller
         ]);
     }
     
+    /**
+     * Display the specified order details
+     * 
+     * @param Order $order
+     * @return \Illuminate\View\View
+     */
     public function show(Order $order)
     {
         // Eager load the order items with products and variants
@@ -78,6 +126,10 @@ class OrderController extends Controller
     /**
      * Update the order status
      * This method handles both PATCH and POST requests to /admin/orders/{order}/status
+     * 
+     * @param Request $request
+     * @param Order $order
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function updateStatus(Request $request, Order $order)
     {
@@ -162,7 +214,12 @@ class OrderController extends Controller
         }
     }
     
-    // This method will be implemented with the QuickBooks integration
+    /**
+     * Sync order to QuickBooks
+     * 
+     * @param Order $order
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function syncToQuickBooks(Order $order)
     {
         // Only sync approved orders that haven't been synced yet
@@ -176,5 +233,24 @@ class OrderController extends Controller
         
         return redirect()->route('admin.orders.show', $order)
             ->with('error', 'Order could not be synced to QuickBooks. It must be approved and not already synced.');
+    }
+    
+    /**
+     * Update the QuickBooks invoice ID.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\Order  $order
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function updateQbInvoice(Request $request, Order $order)
+    {
+        $request->validate([
+            'qb_invoice_id' => 'required|string|max:100',
+        ]);
+        
+        $order->qb_invoice_id = $request->qb_invoice_id;
+        $order->save();
+        
+        return redirect()->back()->with('success', "QuickBooks invoice ID updated successfully");
     }
 }

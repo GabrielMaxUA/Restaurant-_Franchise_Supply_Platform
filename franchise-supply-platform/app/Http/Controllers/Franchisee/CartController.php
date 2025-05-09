@@ -40,6 +40,7 @@ class CartController extends Controller
     
     /**
      * Display the cart contents.
+     * UPDATED: Uses variant price_adjustment directly as the price
      */
     public function index()
     {
@@ -48,13 +49,16 @@ class CartController extends Controller
         $total = 0;
         
         // Eager load related models for performance
-        $items = $cart->items()->with(['product', 'variant.product'])->get();
+        $items = $cart->items()->with(['product', 'variant', 'product.images'])->get();
         
         foreach ($items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
-                $product = $variant->product;
-                $price = $product->base_price + $variant->price_adjustment;
+                $product = $item->product;
+                
+                // UPDATED: Use variant's price_adjustment directly as the price
+                $price = $variant->price_adjustment;
+                
                 $cartItems[] = [
                     'id' => $item->id,
                     'product' => $product,
@@ -419,11 +423,12 @@ class CartController extends Controller
     
     /**
      * Show the checkout form.
+     * UPDATED: Uses variant price_adjustment directly as the price
      */
     public function checkout()
     {
         $cart = $this->getOrCreateCart();
-        $items = $cart->items()->with(['product', 'variant.product'])->get();
+        $items = $cart->items()->with(['product', 'variant', 'product.images'])->get();
         
         if ($items->isEmpty()) {
             return redirect()->route('franchisee.cart')
@@ -433,12 +438,15 @@ class CartController extends Controller
         $cartItems = [];
         $total = 0;
         
-        // Process cart items
+        // Process cart items with updated pricing model
         foreach ($items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
-                $product = $variant->product;
-                $price = $product->base_price + $variant->price_adjustment;
+                $product = $item->product;
+                
+                // UPDATED: Use variant's price_adjustment directly as the price
+                $price = $variant->price_adjustment;
+                
                 $cartItems[] = [
                     'id' => $item->id,
                     'product' => $product,
@@ -447,6 +455,7 @@ class CartController extends Controller
                     'price' => $price,
                     'subtotal' => $price * $item->quantity
                 ];
+                
                 $total += $price * $item->quantity;
             } else {
                 $product = $item->product;
@@ -472,6 +481,7 @@ class CartController extends Controller
     
     /**
      * Process the order.
+     * UPDATED: Uses variant price_adjustment directly as the price
      */
     public function placeOrder(Request $request)
     {
@@ -486,7 +496,7 @@ class CartController extends Controller
 
         // Get cart items
         $cart = $this->getOrCreateCart();
-        $items = $cart->items()->with(['product', 'variant.product'])->get();
+        $items = $cart->items()->with(['product', 'variant'])->get();
         
         if ($items->isEmpty()) {
             return redirect()->route('franchisee.cart')
@@ -500,8 +510,11 @@ class CartController extends Controller
         foreach ($items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
-                $product = $variant->product;
-                $price = $product->base_price + $variant->price_adjustment;
+                $product = $item->product;
+                
+                // UPDATED: Use variant's price_adjustment directly as the price
+                $price = $variant->price_adjustment;
+                
                 $subtotal = $price * $item->quantity;
                 $total += $subtotal;
                 
@@ -614,5 +627,43 @@ class CartController extends Controller
                 ->with('error', 'There was a problem processing your order. Please try again: ' . $e->getMessage())
                 ->withInput();
         }
+    }
+    
+    /**
+     * Debug method to check price calculations
+     */
+    public function debugCartPrices()
+    {
+        // Only allow in local or development environment
+        if (!app()->environment(['local', 'development'])) {
+            abort(404);
+        }
+        
+        $cart = $this->getOrCreateCart();
+        $items = $cart->items()->with(['product', 'variant'])->get();
+        
+        $debug = [];
+        foreach ($items as $item) {
+            $debug[] = [
+                'item_id' => $item->id,
+                'product_id' => $item->product_id,
+                'product_name' => $item->product ? $item->product->name : 'No product',
+                'product_base_price' => $item->product ? $item->product->base_price : 'N/A',
+                'variant_id' => $item->variant_id,
+                'variant_name' => $item->variant ? $item->variant->name : 'No variant',
+                'variant_price_adjustment' => $item->variant ? $item->variant->price_adjustment : 'N/A',
+                'used_price' => $item->variant_id 
+                    ? ($item->variant ? $item->variant->price_adjustment : 'Variant not found')
+                    : ($item->product ? $item->product->base_price : 'Product not found'),
+                'quantity' => $item->quantity,
+                'subtotal' => $item->variant_id 
+                    ? ($item->variant ? $item->variant->price_adjustment * $item->quantity : 'Cannot calculate')
+                    : ($item->product ? $item->product->base_price * $item->quantity : 'Cannot calculate')
+            ];
+        }
+        
+        return response()->json([
+            'cart_items' => $debug
+        ]);
     }
 }

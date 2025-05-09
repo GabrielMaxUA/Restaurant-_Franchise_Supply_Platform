@@ -424,16 +424,7 @@
                                         </td>
                                         <td>{{ $variant->name }}</td>
                                         <td>
-                                            <div class="fw-bold">${{ number_format($product->price + $variant->price_adjustment, 2) }}</div>
-                                            @if($variant->price_adjustment != 0)
-                                                <small class="text-muted">
-                                                    @if($variant->price_adjustment > 0)
-                                                        <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
-                                                    @else
-                                                        <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                                    @endif
-                                                </small>
-                                            @endif
+                                            <div class="fw-bold">${{ number_format($variant->price_adjustment, 2) }}</div>
                                         </td>
                                         <td>
                                             @if($variant->inventory_count > 10)
@@ -449,7 +440,7 @@
                                                     data-item-id="variant-{{ $variant->id }}"
                                                     data-name="{{ $variant->name }}"
                                                     data-description="{{ $variant->description ?? $product->description }}"
-                                                    data-price="{{ $product->price + $variant->price_adjustment }}"
+                                                    data-price="{{$variant->price_adjustment }}"
                                                     data-inventory="{{ $variant->inventory_count }}"
                                                     data-image-url="{{ $variant->images && $variant->images->count() > 0 ? asset('storage/' . $variant->images->first()->image_url) : ($variant->image_url ? asset('storage/' . $variant->image_url) : '') }}"
                                                     data-variant-id="{{ $variant->id }}"
@@ -487,6 +478,30 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('[id^="productModal"]').forEach(modal => {
         const productId = modal.id.replace('productModal', '');
         setupVariantSwapping(modal, productId);
+        
+        // ADD THIS: Fix for close button
+        const closeBtn = modal.querySelector('.btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                // Prevent default behavior
+                e.preventDefault();
+                
+                // Get the Bootstrap modal instance 
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) {
+                    // Use Bootstrap's method to hide the modal
+                    bsModal.hide();
+                }
+                
+                // Force cleanup
+                setTimeout(function() {
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }, 300);
+            });
+        }
     });
     
     // Initialize quick add to cart buttons to open the modal
@@ -518,205 +533,239 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-  // Process all add to cart forms with AJAX submission
-  document.querySelectorAll('.add-to-cart-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Get the add to cart button
-        const submitBtn = this.querySelector('.add-to-cart-btn');
-        if (!submitBtn) return;
-        
-        // Store original button text and disable
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
-        
-        // Log the form submission
-        console.log("Submitting add to cart form", this.action);
-        
-        // Submit via AJAX
-        fetch(this.action, {
-            method: 'POST',
-            body: new FormData(this),
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+// Process all add to cart forms with AJAX submission
+document.querySelectorAll('.add-to-cart-form').forEach(form => {
+  form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Get the add to cart button
+      const submitBtn = this.querySelector('.add-to-cart-btn');
+      if (!submitBtn) return;
+      
+      // Store original button text and disable
+      const originalBtnText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+      
+      // Log the form submission
+      console.log("Submitting add to cart form", this.action);
+      
+      // Get modal if we're in one (defined outside then/catch blocks to be available in both)
+      const modal = submitBtn.closest('.modal');
+      
+      // Submit via AJAX
+      fetch(this.action, {
+          method: 'POST',
+          body: new FormData(this),
+          headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+          }
+      })
+      .then(response => {
+          console.log("Got response from server", response);
+          return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+            // Get current quantity and product ID for reference
+            const quantityInput = this.querySelector('input[name="quantity"]');
+            const productId = this.querySelector('input[name="product_id"]').value;
+            const currentQuantity = parseInt(quantityInput.value) || 1;
+            
+            // Show success message
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Added!';
+            
+            // Get remaining inventory and current cart quantity for this product
+            const remainingInventory = data.remaining_inventory || 
+                (modal && parseInt(modal.querySelector('.inventory-count').textContent) - currentQuantity);
+            const currentCartQuantity = data.product_cart_quantity || 0;
+            
+            // Create a detailed success message showing what's in cart and what's remaining
+            let successMessage = `${currentQuantity} item(s) added to cart`;
+            
+            // Add cart quantity info if this product is already in cart
+            if (currentCartQuantity > currentQuantity) {
+                successMessage += ` (${currentCartQuantity} total of this item in cart)`;
             }
-        })
-        .then(response => {
-            console.log("Got response from server", response);
-            return response.json();
-        })
-        .then(data => {
-          // Replace only the success handling part in the add-to-cart form submission handler
-// Find this block in the existing code and replace it:
-
-if (data.success) {
-    // Get current quantity and product ID for reference
-    const quantityInput = this.querySelector('input[name="quantity"]');
-    const productId = this.querySelector('input[name="product_id"]').value;
-    const currentQuantity = parseInt(quantityInput.value) || 1;
-    
-    // Get modal if we're in one
-    const modal = submitBtn.closest('.modal');
-    
-    // Show success message
-    submitBtn.innerHTML = '<i class="fas fa-check"></i> Added!';
-    
-    // Get remaining inventory and current cart quantity for this product
-    const remainingInventory = data.remaining_inventory || 
-        (modal && parseInt(modal.querySelector('.inventory-count').textContent) - currentQuantity);
-    const currentCartQuantity = data.product_cart_quantity || 0;
-    
-    // Create a detailed success message showing what's in cart and what's remaining
-    let successMessage = `${currentQuantity} item(s) added to cart`;
-    
-    // Add cart quantity info if this product is already in cart
-    if (currentCartQuantity > currentQuantity) {
-        successMessage += ` (${currentCartQuantity} total of this item in cart)`;
-    }
-    
-    // Add inventory info if available
-    if (remainingInventory !== undefined) {
-        successMessage += ` (${remainingInventory} remaining in stock)`;
-    }
-    
-    // Show the informative notification
-    if (typeof showFloatingAlert === 'function') {
-        showFloatingAlert(successMessage, 'success');
-    }
-    
-    // Update the displayed inventory count immediately
-    if (modal) {
-        const inventoryCountElem = modal.querySelector('.inventory-count');
-        if (inventoryCountElem && remainingInventory !== undefined) {
-            inventoryCountElem.textContent = `${remainingInventory} left`;
-        }
-    }
-    
-    // Update all product inventory displays on the page with the same product ID
-    document.querySelectorAll(`.product-inventory[data-product-id="${productId}"]`).forEach(elem => {
-        if (remainingInventory !== undefined) {
-            elem.textContent = `${remainingInventory} left`;
-        }
-    });
-    
-    // Update cart counts throughout the site
-    if (data.cart_count) {
-        // First try using the global function if it exists
-        if (typeof window.updateAllCartCountBadges === 'function') {
-            window.updateAllCartCountBadges(data.cart_count);
-        } else {
-            // Fall back to dispatching the cartUpdated event
-            document.dispatchEvent(new CustomEvent('cartUpdated', {
-                detail: {
-                    count: data.cart_count
+            
+            // Add inventory info if available - FIX: Don't show negative values in the message
+            if (remainingInventory !== undefined) {
+                // Display 0 instead of negative values
+                const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                successMessage += ` (${displayInventory} remaining in stock)`;
+            }
+            
+            // Show the informative notification
+            if (typeof showFloatingAlert === 'function') {
+                showFloatingAlert(successMessage, 'success');
+            }
+            
+            // Update the displayed inventory count immediately - FIX: Handle negative values for display
+            if (modal) {
+                const inventoryCountElem = modal.querySelector('.inventory-count');
+                if (inventoryCountElem && remainingInventory !== undefined) {
+                    // FIX: Display 0 instead of negative values
+                    const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                    inventoryCountElem.textContent = `${displayInventory} left`;
                 }
-            }));
-        }
-        
-        // Also update legacy cart count element if it exists
-        if (document.getElementById('cart-count')) {
-            document.getElementById('cart-count').textContent = data.cart_count;
-        }
-    }
-    
-    // Close modal after success - IMPROVED HANDLING
-    setTimeout(() => {
-        if (modal) {
-            const modalElement = modal; // Keep a reference to the DOM element
-            const bsModal = bootstrap.Modal.getInstance(modal);
-            if (bsModal) {
-                // Properly hide the modal
-                bsModal.hide();
-                
-                // Remove backdrop manually after animation completes
-                modal.addEventListener('hidden.bs.modal', function() {
-                    // Find and remove any orphaned backdrops
-                    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-                        backdrop.remove();
-                    });
-                    
-                    // Reset body styles
-                    document.body.classList.remove('modal-open');
-                    document.body.style.paddingRight = '';
-                    document.body.style.overflow = '';
-                }, { once: true }); // Important: only run this once
             }
-        }
-        
-        // Reset button state
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
-    }, 1500);
-} else {
-                // Show error
-                let errorMessage = data.message || 'Failed to add to cart';
-                
-                // Get current cart quantity for this product if available
-                const currentCartQuantity = data.product_cart_quantity || 0;
-                
-                // Add more specific info about inventory if available
-                if (data.remaining_inventory !== undefined) {
-                    // If no specific inventory info is provided, try to calculate it from the form/modal
-                    if (!data.remaining_inventory && modal) {
-                        const inventoryElem = modal.querySelector('.inventory-count');
-                        if (inventoryElem) {
-                            data.remaining_inventory = parseInt(inventoryElem.textContent);
+            
+            // Update all product inventory displays on the page with the same product ID
+            document.querySelectorAll(`.product-inventory[data-product-id="${productId}"]`).forEach(elem => {
+                if (remainingInventory !== undefined) {
+                    // FIX: Display 0 instead of negative values
+                    const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                    elem.textContent = `${displayInventory} left`;
+                }
+            });
+            
+            // Update cart counts throughout the site
+            if (data.cart_count) {
+                // First try using the global function if it exists
+                if (typeof window.updateAllCartCountBadges === 'function') {
+                    window.updateAllCartCountBadges(data.cart_count);
+                } else {
+                    // Fall back to dispatching the cartUpdated event
+                    document.dispatchEvent(new CustomEvent('cartUpdated', {
+                        detail: {
+                            count: data.cart_count
                         }
-                    }
-                    
-                    if (!data.requested_quantity) {
-                        const quantityInput = form.querySelector('input[name="quantity"]');
-                        if (quantityInput) {
-                            data.requested_quantity = parseInt(quantityInput.value) || 1;
-                        }
-                    }
-                    
-                    if (data.remaining_inventory === 0) {
-                        errorMessage = 'This item is out of stock';
-                        
-                        // Add cart quantity info if this product is already in cart
-                        if (currentCartQuantity > 0) {
-                            errorMessage += ` (You already have ${currentCartQuantity} in your cart)`;
-                        }
-                    } else if (data.remaining_inventory !== undefined) {
-                        // We have inventory info, so show a detailed message
-                        errorMessage = `Adding this quantity would exceed available inventory. Only ${data.remaining_inventory} items available`;
-                        
-                        if (data.requested_quantity) {
-                            errorMessage += ` (you requested ${data.requested_quantity})`;
-                        }
-                        
-                        // Add cart quantity info if this product is already in cart
-                        if (currentCartQuantity > 0) {
-                            errorMessage += ` - You already have ${currentCartQuantity} in your cart`;
-                        }
-                    }
+                    }));
                 }
                 
-                // Show error message
-                if (typeof showFloatingAlert === 'function') {
-                    showFloatingAlert(errorMessage, 'danger');
+                // Also update legacy cart count element if it exists
+                if (document.getElementById('cart-count')) {
+                    document.getElementById('cart-count').textContent = data.cart_count;
+                }
+            }
+            
+            // Close modal after success - IMPROVED HANDLING
+            setTimeout(() => {
+                if (modal) {
+                    const modalElement = modal; // Keep a reference to the DOM element
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    if (bsModal) {
+                        // Properly hide the modal
+                        bsModal.hide();
+                        
+                        // Force cleanup after slight delay to ensure modal animation completes
+                        setTimeout(function() {
+                            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                            document.body.classList.remove('modal-open');
+                            document.body.style.overflow = '';
+                            document.body.style.paddingRight = '';
+                        }, 300);
+                    }
                 }
                 
                 // Reset button state
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;
+            }, 1500);
+        } else {
+            // Show error
+            let errorMessage = data.message || 'Failed to add to cart';
+            
+            // Get current cart quantity for this product if available
+            const currentCartQuantity = data.product_cart_quantity || 0;
+            
+            // Add more specific info about inventory if available
+            if (data.remaining_inventory !== undefined) {
+                // If no specific inventory info is provided, try to calculate it from the form/modal
+                if (data.remaining_inventory === null && modal) {
+                    const inventoryElem = modal.querySelector('.inventory-count');
+                    if (inventoryElem) {
+                        const inventoryText = inventoryElem.textContent;
+                        data.remaining_inventory = parseInt(inventoryText);
+                    }
+                }
+                
+                if (!data.requested_quantity) {
+                    const quantityInput = form.querySelector('input[name="quantity"]');
+                    if (quantityInput) {
+                        data.requested_quantity = parseInt(quantityInput.value) || 1;
+                    }
+                }
+                
+                // FIX: Handle zero and negative inventory values correctly for error messages
+                if (data.remaining_inventory <= 0) {
+                    // Zero or negative inventory means it's out of stock or already all in cart
+                    if (currentCartQuantity > 0) {
+                        // If the user has items in their cart, this means they have all available stock
+                        errorMessage = `You already have all available stock (${currentCartQuantity}) in your cart`;
+                    } else {
+                        // Otherwise it's just out of stock
+                        errorMessage = 'This item is out of stock';
+                    }
+                } else {
+                    // We have some inventory available, but not enough for the requested quantity
+                    errorMessage = `Adding this quantity would exceed available inventory. Only ${data.remaining_inventory} items available`;
+                    
+                    if (data.requested_quantity) {
+                        errorMessage += ` (you requested ${data.requested_quantity})`;
+                    }
+                    
+                    // Add cart quantity info if this product is already in cart
+                    if (currentCartQuantity > 0) {
+                        errorMessage += ` - You already have ${currentCartQuantity} in your cart`;
+                    }
+                }
             }
-        })
-        .catch(error => {
-            console.error('Error adding to cart:', error);
+            
+            // Show error message
             if (typeof showFloatingAlert === 'function') {
-                showFloatingAlert('Failed to add to cart. Please try again.', 'danger');
+                showFloatingAlert(errorMessage, 'danger');
             }
             
             // Reset button state
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
-        });
-    });
+        }
+      })
+      .catch(error => {
+          console.error('Error adding to cart:', error);
+          if (typeof showFloatingAlert === 'function') {
+              showFloatingAlert('Failed to add to cart. Please try again.', 'danger');
+          }
+          
+          // Reset button state
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnText;
+      });
+  });
 });
+
+// Helper function to update inventory display with fix for negative values
+function updateInventoryDisplay(count) {
+    const stockDisplay = modal.querySelector('.main-display-stock');
+    const inventoryCountElem = modal.querySelector('.inventory-count');
+    
+    if (!stockDisplay || !inventoryCountElem) return;
+    
+    // Clear existing status classes and icons
+    const statusSpan = stockDisplay.querySelector('span:first-child');
+    if (!statusSpan) return;
+    
+    statusSpan.className = '';
+    
+    // FIX: Ensure count is never displayed as negative
+    const displayCount = count < 0 ? 0 : count;
+    
+    // Update inventory count
+    inventoryCountElem.textContent = displayCount + ' left';
+    
+    // Set appropriate status class and icon
+    if (displayCount > 10) {
+        statusSpan.className = 'badge bg-success';
+        statusSpan.innerHTML = '<i class="fas fa-check-circle me-1"></i> In Stock';
+    } else if (displayCount > 0) {
+        statusSpan.className = 'badge bg-warning text-dark';
+        statusSpan.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Low Stock';
+    } else {
+        statusSpan.className = 'badge bg-danger';
+        statusSpan.innerHTML = '<i class="fas fa-times-circle me-1"></i> Out of Stock';
+    }
+}
 
 });
 
@@ -1219,59 +1268,4 @@ function asset(path) {
     }
     return '/storage/' + path;
 }
-window.testCartUpdate = function(count) {
-    console.log("Testing cart update with count:", count);
-    
-    // Try the global function
-    if (typeof window.updateAllCartCountBadges === 'function') {
-        console.log("Using global updateAllCartCountBadges function");
-        window.updateAllCartCountBadges(count);
-    } else {
-        // Dispatch the event
-        console.log("Dispatching cartUpdated event");
-        document.dispatchEvent(new CustomEvent('cartUpdated', {
-            detail: {
-                count: count
-            }
-        }));
-    }
-    
-    // Also try updating DOM directly
-    console.log("Updating DOM elements directly");
-    const sidebarBadge = document.querySelector('#sidebar-cart-link .badge');
-    const topNavBadge = document.querySelector('#top-cart-btn .badge');
-    
-    if (sidebarBadge) {
-        console.log("Found sidebar badge, updating to:", count);
-        sidebarBadge.textContent = count;
-    } else {
-        console.log("Sidebar badge not found");
-    }
-    
-    if (topNavBadge) {
-        console.log("Found top nav badge, updating to:", count);
-        topNavBadge.textContent = count;
-    } else {
-        console.log("Top nav badge not found");
-    }
-};
-
-// Add a simple button to test the cart update function
-// document.addEventListener('DOMContentLoaded', function() {
-//     console.log("Adding test button");
-//     const testButton = document.createElement('button');
-//     testButton.textContent = "Test Cart Update";
-//     testButton.className = "btn btn-sm btn-warning mt-2";
-//     testButton.style.position = "fixed";
-//     testButton.style.bottom = "10px";
-//     testButton.style.right = "10px";
-//     testButton.style.zIndex = "9999";
-    
-//     testButton.addEventListener('click', function() {
-//         const count = parseInt(prompt("Enter a test cart count:") || "1");
-//         window.testCartUpdate(count);
-//     });
-    
-//     document.body.appendChild(testButton);
-// });
 </script>
