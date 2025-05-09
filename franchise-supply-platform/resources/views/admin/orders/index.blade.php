@@ -7,13 +7,13 @@
 @section('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-    .welcome-banner {
+    /* .welcome-banner {
         background-color: #e2ebd8;
         border-radius: 0.5rem;
         border-left: 5px solid #28a745;
         padding: 1rem;
         margin-bottom: 1.5rem;
-    }
+    } */
     
     .search-card {
         background-color: #f8f9fa;
@@ -83,16 +83,7 @@
 @endsection
 
 @section('content')
-<!-- Welcome Banner (similar to the one on the User Management page) -->
-@if(request()->routeIs('admin.orders.index') && !request()->anyFilled(['order_number', 'status', 'username', 'company_name', 'date_from', 'date_to']))
-<div class="welcome-banner">
-    <h4 class="mb-2">
-        <i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Admin' }}!
-    </h4>
-    <p class="mb-2">Platform Status: <strong>{{ App\Models\Order::where('status', 'pending')->count() }}</strong> pending orders.</p>
-    <p class="mb-0">Use the filters below to find specific orders or browse the complete order history.</p>
-</div>
-@endif
+
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">{{ $pageTitle ?? 'Manage Orders' }}</h1>

@@ -248,22 +248,34 @@
                         </div>
                     </div>
                 </nav>
-                
                 <!-- Page Content -->
-                <div class="container-fluid">
-                  @if(session('welcome_back') && !session('hide_welcome'))
-                  <div class="alert alert-success persistent-guide mb-4">
-                    <h4 class="alert-heading">
-                      <i class="fas fa-star me-2">
-                      </i> Welcome back, {{ session('user_name') ?? Auth::user()->username ?? 'Franchisee' }}!
-                    </h4>
-                      <p>Nice to see you back!</p>
-                      <hr>
-                      <p class="mb-0">Check the dashboard for more insights about your restaurant supply status.</p>
-                  </div>
-                  @endif
-                </div>
-                
+<div class="container-fluid">
+  @if(session('welcome_back') && !session('hide_welcome'))
+  <div class="alert alert-success persistent-guide mb-4">
+      <h4 class="alert-heading">
+          <i class="fas fa-star me-2"></i> Welcome back, {{ session('user_name') ?? Auth::user()->username ?? 'Franchisee' }}!
+      </h4>
+      <p>Nice to see you back!</p>
+
+      @php
+        // Check if there are any recent orders with non-completed statuses
+        $pendingOrders = App\Models\Order::where('user_id', Auth::id())
+          ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
+          ->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))
+          ->exists();
+      @endphp
+
+      @if($pendingOrders)
+          <div class="mt-2">
+              <p><i class="fas fa-bell me-2"></i> <strong>You have order updates!</strong> Check your orders for the latest status changes.</p>
+          </div>
+      @endif
+
+      <hr>
+      <p class="mb-0">Check the dashboard for more insights about your restaurant supply status.</p>
+  </div>
+  @endif
+</div>
                 @yield('content')
             </div>
         </div>

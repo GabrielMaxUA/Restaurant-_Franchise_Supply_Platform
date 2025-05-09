@@ -15,6 +15,59 @@ use Carbon\Carbon;
 class OrderController extends Controller
 {
     /**
+     * Constructor - Check for order updates on initialization
+     */
+ /**
+ * Constructor - Check for order updates on initialization
+ */
+public function __construct()
+{
+    $this->middleware(function ($request, $next) {
+        // Check if user is authenticated before trying to get order updates
+        if (Auth::check()) {
+            // Check directly in the constructor for order updates
+            $user = Auth::user();
+            $hasUpdates = Order::where('user_id', $user->id)
+                ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
+                ->where('updated_at', '>=', Carbon::now()->subDays(7))
+                ->exists();
+                
+            if ($hasUpdates) {
+                session(['has_order_updates' => true]);
+                session(['welcome_back' => true]);
+                session(['hide_welcome' => false]); 
+            }
+        }
+        return $next($request);
+    });
+}
+    
+    /**
+     * Get recent order status updates for the current user and store in session
+     * 
+     * @return void
+     */
+    private function setOrderStatusUpdates()
+    {
+        $user = Auth::user();
+        if (!$user) return;
+        
+        // Get orders that have been updated in the last 7 days
+        $recentlyUpdatedOrders = Order::where('user_id', $user->id)
+            ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
+            ->where('updated_at', '>=', Carbon::now()->subDays(7))
+            ->count();
+        
+        // If there are any updated orders, set the flag
+        if ($recentlyUpdatedOrders > 0) {
+            // Store simple flag that there are updates
+            session(['has_order_updates' => true]);
+            session(['welcome_back' => true]);
+            session(['hide_welcome' => false]);
+        }
+    }
+
+    /**
      * Place a new order from cart.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -87,7 +140,8 @@ class OrderController extends Controller
                 'shipping_address' => $fullAddress,
                 'total_amount' => 0, // Will update this later
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
+                'delivery_date' => $request->delivery_date
             ]);
             
             // Now get the order so we can work with it
@@ -173,6 +227,9 @@ class OrderController extends Controller
             
             DB::commit();
             
+            // Flag that there are order updates
+            session(['has_order_updates' => true]);
+            
             return redirect()->route('franchisee.orders.details', $order->id)
                 ->with('success', 'Order placed successfully!');
                 
@@ -183,6 +240,7 @@ class OrderController extends Controller
                 ->with('error', 'Failed to place order: ' . $e->getMessage());
         }
     }
+    
     /**
      * Display pending orders.
      *
@@ -191,6 +249,9 @@ class OrderController extends Controller
     public function pendingOrders()
     {
         $user = Auth::user();
+        
+        // Clear order updates notification when viewing orders
+        session(['has_order_updates' => false]);
         
         // Get orders that are still in progress
         $orders = Order::where('user_id', $user->id)
@@ -220,6 +281,9 @@ class OrderController extends Controller
     public function orderHistory(Request $request)
     {
         $user = Auth::user();
+        
+        // Clear order updates notification when viewing order history
+        session(['has_order_updates' => false]);
         
         // Build query
         $query = Order::where('user_id', $user->id);
@@ -313,7 +377,7 @@ class OrderController extends Controller
         $oldStatus = $order->status;
         
         // Check if status is valid
-        if (!in_array($status, ['pending', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'])) {
+        if (!in_array($status, ['pending', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'rejected'])) {
             return redirect()->back()->with('error', 'Invalid order status.');
         }
         
@@ -335,6 +399,9 @@ class OrderController extends Controller
         
         $order->save();
         
+        // Flag that there are order updates
+        session(['has_order_updates' => true]);
+        
         return redirect()->back()->with('success', 'Order status updated successfully.');
     }
     
@@ -347,6 +414,9 @@ class OrderController extends Controller
     public function orderDetails($id)
     {
         $user = Auth::user();
+        
+        // Clear order updates notification when viewing order details
+        session(['has_order_updates' => false]);
         
         $order = Order::where('user_id', $user->id)
             ->with(['items.product', 'items.variant'])
@@ -527,5 +597,17 @@ class OrderController extends Controller
         }
         
         return empty($inventoryErrors) ? true : $inventoryErrors;
+    }
+    
+    /**
+     * Clear the welcome banner from the session.
+     * 
+     * @return \Illuminate\Http\Response
+     */
+    public function dismissWelcomeBanner()
+    {
+        session(['hide_welcome' => true]);
+        
+        return redirect()->back();
     }
 }

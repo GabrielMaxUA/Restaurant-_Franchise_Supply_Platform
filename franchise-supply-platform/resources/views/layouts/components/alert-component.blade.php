@@ -29,9 +29,11 @@
     }
     
     .alert-success {
-        background-color: #d4edda;
-        color: #155724;
+        background-color: #e2ebd8;
+        border-radius: 0.5rem;
         border-left: 5px solid #28a745;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
     }
     
     .alert-danger {
@@ -112,88 +114,93 @@
 </style>
 
 <script>
-    // Function to create and display floating alerts with better formatting
-    function showFloatingAlert(message, type, duration = 5000) {
-        const alertsContainer = document.getElementById('floating-alerts-container');
-        if (!alertsContainer) return;
-        
-        // Create alert element
-        const alertElement = document.createElement('div');
-        alertElement.className = `alert-float alert-${type}`;
-        
-        // Determine icon based on type
-        let icon = 'info-circle';
-        let title = '';
-        
-        if (type === 'success') {
-            icon = 'check-circle';
-            title = 'Success';
-        } else if (type === 'danger') {
-            icon = 'exclamation-circle';
-            title = 'Error';
-        } else if (type === 'warning') {
-            icon = 'exclamation-triangle';
-            title = 'Warning';
-        } else if (type === 'info') {
-            icon = 'info-circle';
-            title = 'Information';
-        }
-        
-        // Check if message contains item count and inventory details
-        let mainMessage = message;
-        let detailsMessage = '';
-        
-        // Parse structure like "1 item(s) added to cart (13 total of this item in cart) (-1 remaining in stock)"
-        if (message.includes('added to cart') || message.includes('Failed to add')) {
-            const regex = /(.+?)(\(.+?\))?\s*(\(.+?\))?$/;
-            const matches = message.match(regex);
-            
-            if (matches) {
-                mainMessage = matches[1].trim();
-                if (matches[2]) detailsMessage += ' ' + matches[2];
-                if (matches[3]) detailsMessage += ' ' + matches[3];
-            }
-        }
-        
-        // Add content to the alert with proper structure
-        alertElement.innerHTML = `
-            <i class="fas fa-${icon}"></i>
-            <div class="alert-content">
-                <div class="alert-title">${title}</div>
-                <div class="alert-message">${mainMessage}</div>
-                ${detailsMessage ? `<div class="alert-details">${detailsMessage}</div>` : ''}
-            </div>
-            <button type="button" class="close-btn">&times;</button>
-        `;
-        
-        // Add to the container
-        alertsContainer.appendChild(alertElement);
-        
-        // Handle close button
-        const closeBtn = alertElement.querySelector('.close-btn');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                alertElement.classList.add('fade-out');
-                setTimeout(() => {
-                    if (alertElement.parentNode) {
-                        alertElement.parentNode.removeChild(alertElement);
-                    }
-                }, 500);
-            });
-        }
-        
-        // Auto-dismiss after specified duration
-        setTimeout(() => {
-            if (alertElement.parentNode) {
-                alertElement.classList.add('fade-out');
-                setTimeout(() => {
-                    if (alertElement.parentNode) {
-                        alertElement.parentNode.removeChild(alertElement);
-                    }
-                }, 500);
-            }
-        }, duration);
+   // Function to create and display floating alerts with better formatting
+function showFloatingAlert(message, type, duration = 5000) {
+    const alertsContainer = document.getElementById('floating-alerts-container');
+    if (!alertsContainer) return;
+    
+    // Create alert element
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert-float alert-${type}`;
+    
+    // Determine icon based on type
+    let icon = 'info-circle';
+    let title = '';
+    
+    if (type === 'success') {
+        icon = 'check-circle';
+        title = 'Success';
+    } else if (type === 'danger') {
+        icon = 'exclamation-circle';
+        title = 'Error';
+    } else if (type === 'warning') {
+        icon = 'exclamation-triangle';
+        title = 'Warning';
+    } else if (type === 'info') {
+        icon = 'info-circle';
+        title = 'Information';
     }
+    
+    // Initialize message parts
+    let itemAddedMessage = '';
+    let inventoryMessage = '';
+    
+    // Parse cart-related messages with better structure
+    if (message.includes('added to cart')) {
+        // Extract "remaining in stock" part if present
+        const stockMatch = message.match(/\((\d+)\s+remaining in stock\)/);
+        if (stockMatch) {
+            inventoryMessage = `${stockMatch[1]} remaining in stock`;
+            // Remove the stock part from the main message
+            message = message.replace(stockMatch[0], '').trim();
+        }
+        
+        // The rest is the item added message
+        itemAddedMessage = message;
+    } else {
+        // For non-cart messages, use the whole message
+        itemAddedMessage = message;
+    }
+    
+    // Add content to the alert with proper structure
+    alertElement.innerHTML = `
+        <i class="fas fa-${icon}"></i>
+        <div class="alert-content">
+            <div class="alert-title">${title}</div>
+            <div class="alert-message">${itemAddedMessage}</div>
+            ${inventoryMessage ? `<div class="alert-details">${inventoryMessage}</div>` : ''}
+        </div>
+        <button type="button" class="close-btn">&times;</button>
+    `;
+    
+    // Add to the container
+    alertsContainer.appendChild(alertElement);
+    
+    // Handle close button
+    const closeBtn = alertElement.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            alertElement.classList.add('fade-out');
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 500);
+        });
+    }
+    
+    // Auto-dismiss after specified duration
+    setTimeout(() => {
+        if (alertElement.parentNode) {
+            alertElement.classList.add('fade-out');
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 500);
+        }
+    }, duration);
+}
     
     // Function for cart notification
     function showCartNotification(message, type = 'success') {

@@ -570,28 +570,31 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
             // Get current quantity and product ID for reference
             const quantityInput = this.querySelector('input[name="quantity"]');
             const productId = this.querySelector('input[name="product_id"]').value;
-            const currentQuantity = parseInt(quantityInput.value) || 1;
+            const addedQuantity = parseInt(quantityInput.value);
             
             // Show success message
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Added!';
             
             // Get remaining inventory and current cart quantity for this product
-            const remainingInventory = data.remaining_inventory || 
-                (modal && parseInt(modal.querySelector('.inventory-count').textContent) - currentQuantity);
-            const currentCartQuantity = data.product_cart_quantity || 0;
+            const remainingInventory = data.remaining_inventory !== undefined ? 
+                data.remaining_inventory : 
+                (modal && parseInt(modal.querySelector('.inventory-count').textContent) - addedQuantity);
+                
+            // Get total cart quantity for this product from the server response
+            const totalInCart = data.product_cart_quantity || addedQuantity;
             
-            // Create a detailed success message showing what's in cart and what's remaining
-            let successMessage = `${currentQuantity} item(s) added to cart`;
+            // Create a detailed success message
+            let successMessage = `${addedQuantity} item(s) added to cart`;
             
-            // Add cart quantity info if this product is already in cart
-            if (currentCartQuantity > currentQuantity) {
-                successMessage += ` (${currentCartQuantity} total of this item in cart)`;
+            // Always show total in cart if it's available and greater than what we just added
+            if (totalInCart > addedQuantity) {
+                successMessage = `${addedQuantity} item(s) added to cart (${totalInCart} total in cart)`;
             }
             
-            // Add inventory info if available - FIX: Don't show negative values in the message
+            // Add inventory info if available
             if (remainingInventory !== undefined) {
                 // Display 0 instead of negative values
-                const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                const displayInventory = Math.max(0, remainingInventory);
                 successMessage += ` (${displayInventory} remaining in stock)`;
             }
             
@@ -600,12 +603,12 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
                 showFloatingAlert(successMessage, 'success');
             }
             
-            // Update the displayed inventory count immediately - FIX: Handle negative values for display
+            // Update the displayed inventory count immediately
             if (modal) {
                 const inventoryCountElem = modal.querySelector('.inventory-count');
                 if (inventoryCountElem && remainingInventory !== undefined) {
-                    // FIX: Display 0 instead of negative values
-                    const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                    // Display 0 instead of negative values
+                    const displayInventory = Math.max(0, remainingInventory);
                     inventoryCountElem.textContent = `${displayInventory} left`;
                 }
             }
@@ -613,8 +616,8 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
             // Update all product inventory displays on the page with the same product ID
             document.querySelectorAll(`.product-inventory[data-product-id="${productId}"]`).forEach(elem => {
                 if (remainingInventory !== undefined) {
-                    // FIX: Display 0 instead of negative values
-                    const displayInventory = remainingInventory < 0 ? 0 : remainingInventory;
+                    // Display 0 instead of negative values
+                    const displayInventory = Math.max(0, remainingInventory);
                     elem.textContent = `${displayInventory} left`;
                 }
             });
@@ -687,7 +690,7 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
                     }
                 }
                 
-                // FIX: Handle zero and negative inventory values correctly for error messages
+                // Handle zero and negative inventory values correctly for error messages
                 if (data.remaining_inventory <= 0) {
                     // Zero or negative inventory means it's out of stock or already all in cart
                     if (currentCartQuantity > 0) {

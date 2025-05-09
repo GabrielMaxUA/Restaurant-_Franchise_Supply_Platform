@@ -380,20 +380,31 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Order Actions -->
-            @if($order->status == 'pending')
-            <div class="card order-details-card">
-                <div class="card-body">
-                    <div class="section-title">Order Actions</div>
-                    <div class="d-flex">
-                        <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-outline-secondary action-btn" target="_blank">
-                            <i class="fas fa-file-pdf me-2"></i> Download Invoice
-                        </a>
-                    </div>
-                </div>
-            </div>
-            @endif
+          <div class="card order-details-card">
+              <div class="card-body">
+                  <div class="section-title">Order Actions</div>
+                  <div class="d-flex">
+                      @if($order->status != 'pending' && $order->status != 'rejected' && $order->status != 'cancelled')
+                          <!-- Invoice available when order is approved, packed, shipped, or delivered -->
+                          <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-primary action-btn" target="_blank">
+                              <i class="fas fa-file-pdf me-2"></i> Download Invoice
+                          </a>
+                      @else
+                          <!-- Disabled button when order is pending, rejected, or cancelled -->
+                          <button class="btn btn-outline-secondary action-btn" disabled title="Invoice will be available once order is approved">
+                              <i class="fas fa-file-pdf me-2"></i> Download Invoice
+                          </button>
+                          @if($order->status == 'pending')
+                              <small class="text-muted ms-2 d-flex align-items-center">
+                                  <i class="fas fa-info-circle me-1"></i> Invoice will be available once order is approved
+                              </small>
+                          @endif
+                      @endif
+                  </div>
+              </div>
+          </div>
         </div>
         
         <div class="col-lg-4">

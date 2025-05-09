@@ -246,7 +246,7 @@ class CartController extends Controller
         }
         
         // Get current cart quantity for this product
-        $finalCartQuantity = $existingItem ? $existingItem->quantity + $quantity : $quantity;
+        $finalCartQuantity = $existingItem ? $newQuantity : $quantity;
         
         // Calculate remaining inventory after adding to cart
         $totalInventory = $variantId 
