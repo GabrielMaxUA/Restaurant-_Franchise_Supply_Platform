@@ -17,30 +17,27 @@ class OrderController extends Controller
     /**
      * Constructor - Check for order updates on initialization
      */
- /**
- * Constructor - Check for order updates on initialization
- */
-public function __construct()
-{
-    $this->middleware(function ($request, $next) {
-        // Check if user is authenticated before trying to get order updates
-        if (Auth::check()) {
-            // Check directly in the constructor for order updates
-            $user = Auth::user();
-            $hasUpdates = Order::where('user_id', $user->id)
-                ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
-                ->where('updated_at', '>=', Carbon::now()->subDays(7))
-                ->exists();
-                
-            if ($hasUpdates) {
-                session(['has_order_updates' => true]);
-                session(['welcome_back' => true]);
-                session(['hide_welcome' => false]); 
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            // Check if user is authenticated before trying to get order updates
+            if (Auth::check()) {
+                // Check directly in the constructor for order updates
+                $user = Auth::user();
+                $hasUpdates = Order::where('user_id', $user->id)
+                    ->whereIn('status', ['pending', 'processing', 'packed', 'shipped', 'delayed', 'rejected', 'cancelled'])
+                    ->where('updated_at', '>=', Carbon::now()->subDays(7))
+                    ->exists();
+                    
+                if ($hasUpdates) {
+                    session(['has_order_updates' => true]);
+                    session(['welcome_back' => true]);
+                    session(['hide_welcome' => false]); 
+                }
             }
-        }
-        return $next($request);
-    });
-}
+            return $next($request);
+        });
+    }
     
     /**
      * Get recent order status updates for the current user and store in session
@@ -54,7 +51,7 @@ public function __construct()
         
         // Get orders that have been updated in the last 7 days
         $recentlyUpdatedOrders = Order::where('user_id', $user->id)
-            ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
+            ->whereIn('status', ['pending', 'processing', 'packed', 'shipped', 'delayed', 'rejected', 'cancelled'])
             ->where('updated_at', '>=', Carbon::now()->subDays(7))
             ->count();
         
@@ -242,31 +239,44 @@ public function __construct()
     }
     
     /**
-     * Display pending orders.
+     * Display pending orders with optional status filtering.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function pendingOrders()
+    public function pendingOrders(Request $request)
     {
         $user = Auth::user();
         
         // Clear order updates notification when viewing orders
         session(['has_order_updates' => false]);
         
-        // Get orders that are still in progress
-        $orders = Order::where('user_id', $user->id)
-            ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery'])
-            ->with(['items.product', 'items.variant'])
+        // Build the base query
+        $query = Order::where('user_id', $user->id);
+        
+        // Apply status filter if provided, otherwise use default statuses for pending orders
+        if ($request->has('status')) {
+            // Filter by specific status
+            $status = $request->status;
+            $query->where('status', $status);
+        } else {
+            // Default - show only orders that are in progress
+            $query->whereIn('status', ['pending', 'processing', 'packed', 'shipped']);
+        }
+        
+        // Get orders with pagination
+        $orders = $query->with(['items.product', 'items.variant'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
-            
+                
         // Calculate counts for summary stats
         $order_counts = [
-            'total' => $orders->total(),
             'pending' => Order::where('user_id', $user->id)->where('status', 'pending')->count(),
             'processing' => Order::where('user_id', $user->id)->where('status', 'processing')->count(),
+            'packed' => Order::where('user_id', $user->id)->where('status', 'packed')->count(),
             'shipped' => Order::where('user_id', $user->id)->where('status', 'shipped')->count(),
-            'out_for_delivery' => Order::where('user_id', $user->id)->where('status', 'out_for_delivery')->count(),
+            'delivered' => Order::where('user_id', $user->id)->where('status', 'delivered')->count(),
+            'rejected' => Order::where('user_id', $user->id)->where('status', 'rejected')->count(),
         ];
         
         return view('franchisee.pending_orders', compact('orders', 'order_counts'));
@@ -281,27 +291,29 @@ public function __construct()
     public function orderHistory(Request $request)
     {
         $user = Auth::user();
-        
-        // Clear order updates notification when viewing order history
+    
+        // Clear order updates notification
         session(['has_order_updates' => false]);
-        
-        // Build query
-        $query = Order::where('user_id', $user->id);
-            
-        // Apply filters
+    
+        // Base query - now includes rejected orders along with pending and delivered
+        $query = Order::where('user_id', $user->id)
+                      ->whereIn('status', [ 'delivered', 'rejected']);
+    
+        // Apply optional filters
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
-        
+    
         if ($request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
         }
-        
-        if ($request->filled('status')) {
+    
+        // Optional: filter within allowed statuses - now includes rejected
+        if ($request->filled('status') && in_array($request->status, [ 'delivered', 'rejected'])) {
             $query->where('status', $request->status);
         }
-        
-        // Apply sorting
+    
+        // Sorting logic
         if ($request->filled('sort_by')) {
             switch ($request->sort_by) {
                 case 'date_asc':
@@ -320,44 +332,45 @@ public function __construct()
                     $query->orderBy('created_at', 'desc');
             }
         } else {
-            // Default sorting
             $query->orderBy('created_at', 'desc');
         }
-        
-        // Eager load relationships
-        $query->with(['items.product', 'items.variant']);
-        
-        // Get orders
+    
+        // Eager load items
+        $query->with(['items.product.images', 'items.variant']);
+    
+        // Debug log
+        logger()->info('Order filters:', [
+            'user_id' => $user->id,
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
+            'status' => $request->status,
+            'sort_by' => $request->sort_by,
+            'matching_rows' => $query->count()
+        ]);
+    
+        // Paginated results
         $orders = $query->paginate(15);
-        
-        // Calculate stats
+    
+        // Stats based only on delivered orders
+        $deliveredQuery = Order::where('user_id', $user->id)->where('status', 'delivered');
+    
         $stats = [
-            'total_orders' => Order::where('user_id', $user->id)->count(),
-                    
-            'total_spent' => Order::where('user_id', $user->id)
-                ->where('status', 'delivered')
-                ->sum('total_amount'),
-                    
-            'total_items' => OrderItem::whereHas('order', function($query) use ($user) {
-                    $query->where('user_id', $user->id)
-                        ->where('status', 'delivered');
-                })
-                ->sum('quantity'),
+            'total_orders' => $query->count(),
+            'total_spent' => $deliveredQuery->sum('total_amount'),
+            'total_items' => OrderItem::whereHas('order', function ($q) use ($user) {
+                $q->where('user_id', $user->id)->where('status', 'delivered');
+            })->sum('quantity'),
+            'avg_order_value' => 0
         ];
-        
-        // Calculate average order value - FIX for division by zero error
-        $deliveredOrdersCount = Order::where('user_id', $user->id)
-            ->where('status', 'delivered')
-            ->count();
-                
+    
+        $deliveredOrdersCount = $deliveredQuery->count();
         if ($deliveredOrdersCount > 0) {
             $stats['avg_order_value'] = $stats['total_spent'] / $deliveredOrdersCount;
-        } else {
-            $stats['avg_order_value'] = 0;
         }
-        
+    
         return view('franchisee.order_history', compact('orders', 'stats'));
     }
+    
     
     /**
      * Update order status and manage inventory accordingly
@@ -377,7 +390,7 @@ public function __construct()
         $oldStatus = $order->status;
         
         // Check if status is valid
-        if (!in_array($status, ['pending', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'rejected'])) {
+        if (!in_array($status, ['pending', 'processing', 'packed', 'shipped', 'delivered', 'cancelled', 'rejected'])) {
             return redirect()->back()->with('error', 'Invalid order status.');
         }
         
@@ -426,7 +439,7 @@ public function __construct()
         $order->items_count = $order->items->sum('quantity');
         
         // Format created_at as estimated delivery date (just for display purposes)
-        if (!$order->estimated_delivery && in_array($order->status, ['pending', 'processing', 'shipped', 'out_for_delivery'])) {
+        if (!$order->estimated_delivery && in_array($order->status, ['pending', 'processing', 'packed', 'shipped'])) {
             // Just an example, would typically be set elsewhere
             $order->estimated_delivery = $order->created_at->addDays(7);
         }
@@ -485,16 +498,11 @@ public function __construct()
         
         // Track inventory issues
         $inventoryIssues = [];
+        $itemsAdded = false;
         
         // Add items from the order to the cart
         foreach ($order->items as $item) {
-            // Create a unique key for this product/variant combination
-            $itemKey = $item->product_id;
-            if ($item->variant_id) {
-                $itemKey .= '_' . $item->variant_id;
-            }
-            
-            // Check if product and variant still exist and have inventory
+            // Check if product exists
             $product = Product::find($item->product_id);
             
             if (!$product) {
@@ -502,6 +510,8 @@ public function __construct()
                 continue; // Skip if product doesn't exist anymore
             }
             
+            // Create unique key for this product/variant combination
+            $itemKey = $item->product_id;
             if ($item->variant_id) {
                 $variant = ProductVariant::find($item->variant_id);
                 if (!$variant) {
@@ -520,8 +530,10 @@ public function __construct()
                 if ($quantity < $item->quantity) {
                     $inventoryIssues[] = "Only {$quantity} units of '{$item->product_name} ({$variant->name})' are available.";
                 }
+                
+                $itemKey .= '_' . $item->variant_id;
             } else {
-                // Check inventory
+                // Check inventory for product without variant
                 if ($product->inventory_count <= 0) {
                     $inventoryIssues[] = "'{$item->product_name}' is out of stock.";
                     continue; // Skip if out of stock
@@ -544,10 +556,17 @@ public function __construct()
                     'quantity' => $quantity
                 ];
             }
+            
+            $itemsAdded = true;
         }
         
         // Save updated cart to session
         session(['cart' => $cart]);
+        
+        if (!$itemsAdded) {
+            return redirect()->route('franchisee.cart')
+                ->with('error', 'Unable to add items from your previous order. All items are unavailable.');
+        }
         
         if (count($inventoryIssues) > 0) {
             return redirect()->route('franchisee.cart')

@@ -154,12 +154,7 @@
                 <label for="status" class="form-label">Status</label>
                 <select class="form-select filter-input" id="status" name="status">
                     <option value="">All Statuses</option>
-                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                    <option value="processing" {{ request('status') == 'processing' ? 'selected' : '' }}>Processing</option>
-                    <option value="shipped" {{ request('status') == 'shipped' ? 'selected' : '' }}>Shipped</option>
-                    <option value="out_for_delivery" {{ request('status') == 'out_for_delivery' ? 'selected' : '' }}>Out for Delivery</option>
                     <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                     <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
                 </select>
             </div>
@@ -248,22 +243,10 @@
                                         <span class="mx-2">|</span>
                                         <span>{{ $order->created_at->format('h:i A') }}</span>
                                         <span class="ms-2">
-                                            @if($order->status == 'pending')
-                                                <span class="badge bg-pending">Pending</span>
-                                            @elseif($order->status == 'processing')
-                                                <span class="badge bg-processing">Processing</span>
-                                            @elseif($order->status == 'shipped')
-                                                <span class="badge bg-shipped">Shipped</span>
-                                            @elseif($order->status == 'out_for_delivery')
-                                                <span class="badge bg-out_for_delivery">Out for Delivery</span>
-                                            @elseif($order->status == 'delivered')
+                                            @if($order->status == 'delivered')
                                                 <span class="badge bg-success">Delivered</span>
-                                            @elseif($order->status == 'cancelled')
-                                                <span class="badge bg-cancelled">Cancelled</span>
                                             @elseif($order->status == 'rejected')
                                                 <span class="badge bg-rejected">Rejected</span>
-                                            @else
-                                                <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
                                             @endif
                                         </span>
                                     </div>
@@ -287,18 +270,17 @@
                             </td>
                             <td class="text-center">
                                 <span class="fw-medium">${{ number_format($order->total_amount, 2) }}</span>
-                                <div class="small text-muted">
-                                    {{ $order->payment_method ?? 'Standard payment' }}
-                                </div>
                             </td>
                             <td>
                                 <div class="d-flex justify-content-end">
                                     <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm btn-outline-primary me-2" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    @if($order->status == 'delivered')
                                     <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-sm btn-outline-warning me-2" title="Download Invoice">
                                         <i class="fas fa-file-invoice"></i>
                                     </a>
+                                    @endif
                                     <!-- Always show Repeat Order button, regardless of status -->
                                     <a href="{{ route('franchisee.orders.repeat', $order->id) }}" class="btn btn-sm btn-success repeat-order-btn" title="Repeat Order">
                                         <i class="fas fa-sync-alt"></i> Repeat
