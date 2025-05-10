@@ -340,29 +340,6 @@
         });
     </script>
     
-    <!-- Auto-dismiss alerts script -->
-    <script>
-        // Auto-dismiss alerts after 5 seconds (except persistent guides)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Only select alerts that are NOT persistent guides
-            const alerts = document.querySelectorAll('.alert:not(.persistent-guide)');
-            
-            alerts.forEach(function(alert) {
-                // Set timeout to start fade out after 4.5 seconds
-                setTimeout(function() {
-                    alert.classList.add('fade-out');
-                }, 4500);
-                
-                // Set timeout to remove alert after animation completes (5 seconds total)
-                setTimeout(function() {
-                    if (alert.parentNode) {
-                        alert.parentNode.removeChild(alert);
-                    }
-                }, 5000);
-            });
-        });
-    </script>
-    
     <!-- Enhanced Sidebar toggle script with fixes -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {

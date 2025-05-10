@@ -284,8 +284,8 @@
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-3 fw-bold">Base Price:</div>
-                        <div class="col-md-9">${{ number_format($product->base_price, 2) }}</div>
+                        <div class="col-md-3 fw-bold">Price:</div>
+                        <div class="col-md-9 fw-bold">${{ number_format($product->base_price, 2) }}</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-3 fw-bold">Inventory:</div>
@@ -333,21 +333,10 @@
                             </div>
                         </div>
                         <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">Price Details:</div>
+                            <div class="col-md-3 fw-bold">Price:</div>
                             <div class="col-md-9">
                                 <div class="d-flex flex-column">
-                                    <span>Base Price: ${{ number_format($product->base_price, 2) }}</span>
-                                    <span>
-                                        Adjustment: 
-                                        @if($variant->price_adjustment > 0)
-                                            <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
-                                        @elseif($variant->price_adjustment < 0)
-                                            <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                        @else
-                                            <span class="text-muted">$0.00</span>
-                                        @endif
-                                    </span>
-                                    <span class="fw-bold mt-1">Final Price: ${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</span>
+                                    <span class="fw-bold mt-1">Price: ${{ number_format($variant->price_adjustment, 2) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -357,16 +346,6 @@
                                 <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
                                     {{ $variant->inventory_count }} in stock
                                 </span>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-3 fw-bold">Status:</div>
-                            <div class="col-md-9">
-                                @if($variant->inventory_count > 0)
-                                    <span class="badge bg-success">Available</span>
-                                @else
-                                    <span class="badge bg-danger">Out of Stock</span>
-                                @endif
                             </div>
                         </div>
                     </div>
@@ -382,8 +361,7 @@
                               <tr>
                                   <th>Image</th>
                                   <th>Name</th>
-                                  <th>Price Adjustment</th>
-                                  <th>Final Price</th>
+                                  <th>Price</th>
                                   <th>Inventory</th>
                               </tr>
                           </thead>
@@ -409,15 +387,9 @@
                                       </td>
                                       <td>{{ $variant->name }}</td>
                                       <td>
-                                          @if($variant->price_adjustment > 0)
-                                              <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
-                                          @elseif($variant->price_adjustment < 0)
-                                              <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                          @else
-                                              <span class="text-muted">$0.00</span>
-                                          @endif
+                                              <span>${{ number_format($variant->price_adjustment, 2) }}</span>
+                                       
                                       </td>
-                                      <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
                                       <td>
                                           <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
                                               {{ $variant->inventory_count }} in stock

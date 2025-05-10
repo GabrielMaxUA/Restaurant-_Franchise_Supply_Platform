@@ -26,113 +26,146 @@ class ProductController extends Controller
   {
       $this->inventoryService = $inventoryService;
   }
-
-  /**
-   * Display a listing of the products.
-   */
- public function index(Request $request)
- {
-     $query = Product::with(['category', 'images', 'variants']);
-     
-     // Filter by name
-     if ($request->filled('name')) {
-         $query->where('name', 'like', '%' . $request->name . '%');
-     }
-     
-     // Filter by category
-     if ($request->filled('category')) {
-         $query->where('category_id', $request->category);
-     }
-     
-     // Filter by inventory status
-     if ($request->filled('inventory')) {
-         switch ($request->inventory) {
-             case 'in_stock':
-                 $query->where('inventory_count', '>', 0);
-                 break;
-             case 'low_stock':
-                 $query->where('inventory_count', '>', 0)
-                       ->where('inventory_count', '<=', 10);
-                 break;
-             case 'out_of_stock':
-                 $query->where('inventory_count', 0);
-                 break;
-             case 'variants_only':
-                 $query->where('inventory_count', 0)
-                       ->whereHas('variants', function($q) {
-                           $q->where('inventory_count', '>', 0);
-                       });
-                 break;
-         }
-     }
-     
-     // Apply sorting
-     if ($request->filled('sort')) {
-         switch ($request->sort) {
-             case 'name_asc':
-                 $query->orderBy('name', 'asc');
-                 break;
-             case 'name_desc':
-                 $query->orderBy('name', 'desc');
-                 break;
-             case 'price_asc':
-                 $query->orderBy('base_price', 'asc');
-                 break;
-             case 'price_desc':
-                 $query->orderBy('base_price', 'desc');
-                 break;
-             case 'inventory_asc':
-                 $query->orderBy('inventory_count', 'asc');
-                 break;
-             case 'inventory_desc':
-                 $query->orderBy('inventory_count', 'desc');
-                 break;
-             case 'oldest':
-                 $query->orderBy('created_at', 'asc');
-                 break;
-             default: // newest
-                 $query->orderBy('created_at', 'desc');
-                 break;
-         }
-     } else {
-         // Default sorting by newest
-         $query->orderBy('created_at', 'desc');
-     }
-     
-     $products = $query->paginate(15);
-     
-     // Check for available variants on out-of-stock products
-     foreach ($products as $product) {
-         // Check if any variants are in stock
-         $hasInStockVariants = false;
-         if ($product->variants->isNotEmpty()) {
-             foreach ($product->variants as $variant) {
-                 if ($variant->inventory_count > 0) {
-                     $hasInStockVariants = true;
-                     break;
-                 }
-             }
-         }
-         $product->has_in_stock_variants = $hasInStockVariants;
-         
-         // Set stock_status property for view 
-         if ($product->inventory_count <= 0) {
-             if ($hasInStockVariants) {
-                 $product->stock_status = 'variants_only';
-             } else {
-                 $product->stock_status = 'out_of_stock';
-             }
-         } elseif ($product->inventory_count <= 10) {
-             $product->stock_status = 'low_stock';
-         } else {
-             $product->stock_status = 'in_stock';
-         }
-     }
-     
-     $categories = Category::all();
-     
-     return view('admin.products.index', compact('products', 'categories'));
- }
+/**
+ * Display a listing of the products.
+ */
+public function index(Request $request)
+{
+    $query = Product::with(['category', 'images', 'variants']);
+    
+    // Filter by name
+    if ($request->filled('name')) {
+        $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    
+    // Filter by category
+    if ($request->filled('category')) {
+        $query->where('category_id', $request->category);
+    }
+    
+    // Filter by inventory status - THIS IS THE FIXED SECTION
+    if ($request->filled('inventory')) {
+        switch ($request->inventory) {
+            case 'in_stock':
+                $query->where(function($q) {
+                    $q->where('inventory_count', '>', 0)
+                      ->orWhereHas('variants', function($vq) {
+                          $vq->where('inventory_count', '>', 0);
+                      });
+                });
+                break;
+            case 'low_stock':
+                // This gets products where either:
+                // 1. The main product has low stock (1-10 items)
+                // 2. OR any of its variants has low stock (1-10 items)
+                $query->where(function($q) {
+                    $q->where(function($mq) {
+                        $mq->where('inventory_count', '>', 0)
+                           ->where('inventory_count', '<=', 10);
+                    })
+                    ->orWhereHas('variants', function($vq) {
+                        $vq->where('inventory_count', '>', 0)
+                           ->where('inventory_count', '<=', 10);
+                    });
+                });
+                break;
+            case 'out_of_stock':
+                $query->where(function($q) {
+                    $q->where('inventory_count', 0)
+                      ->orWhereHas('variants', function($vq) {
+                          $vq->where('inventory_count', 0);
+                      });
+                });
+                break;
+        }
+    }
+    
+    // Apply sorting
+    if ($request->filled('sort')) {
+        switch ($request->sort) {
+            case 'name_asc':
+                $query->orderBy('name', 'asc');
+                break;
+            case 'name_desc':
+                $query->orderBy('name', 'desc');
+                break;
+            case 'price_asc':
+                $query->orderBy('base_price', 'asc');
+                break;
+            case 'price_desc':
+                $query->orderBy('base_price', 'desc');
+                break;
+            case 'inventory_asc':
+                $query->orderBy('inventory_count', 'asc');
+                break;
+            case 'inventory_desc':
+                $query->orderBy('inventory_count', 'desc');
+                break;
+            case 'oldest':
+                $query->orderBy('created_at', 'asc');
+                break;
+            default: // newest
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+    } else {
+        // Default sorting by newest
+        $query->orderBy('created_at', 'desc');
+    }
+    
+    $products = $query->paginate(15);
+    
+    // Check for available variants on out-of-stock products
+    foreach ($products as $product) {
+        // Check if any variants are in stock
+        $hasInStockVariants = false;
+        if ($product->variants->isNotEmpty()) {
+            foreach ($product->variants as $variant) {
+                if ($variant->inventory_count > 0) {
+                    $hasInStockVariants = true;
+                    break;
+                }
+            }
+        }
+        $product->has_in_stock_variants = $hasInStockVariants;
+        
+        // Set stock_status property for view 
+        if ($product->inventory_count <= 0) {
+            if ($hasInStockVariants) {
+                $product->stock_status = 'variants_only';
+            } else {
+                $product->stock_status = 'out_of_stock';
+            }
+        } elseif ($product->inventory_count <= 10) {
+            $product->stock_status = 'low_stock';
+        } else {
+            $product->stock_status = 'in_stock';
+        }
+    }
+    
+    // Get low stock and out of stock counts for dashboard
+    $lowStockCount = Product::where(function($q) {
+        $q->where(function($mq) {
+            $mq->where('inventory_count', '>', 0)
+               ->where('inventory_count', '<=', 10);
+        })
+        ->orWhereHas('variants', function($vq) {
+            $vq->where('inventory_count', '>', 0)
+               ->where('inventory_count', '<=', 10);
+        });
+    })->count();
+    
+    $outOfStockCount = Product::where(function($q) {
+        $q->where('inventory_count', 0)
+          ->orWhereHas('variants', function($vq) {
+              $vq->where('inventory_count', 0);
+          });
+    })->count();
+    
+    $categories = Category::all();
+    
+    return view('admin.products.index', compact('products', 'categories', 'lowStockCount', 'outOfStockCount'));
+}
 
     /**
      * Show the form for creating a new product.

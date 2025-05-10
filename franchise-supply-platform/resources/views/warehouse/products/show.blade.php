@@ -16,7 +16,7 @@
     <div class="col-md-4 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary" id="current-gallery-title">Product Images</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Product Images</h6>
                 <div id="return-to-product" style="display: none;">
                     <button class="btn btn-sm btn-outline-secondary return-product-btn">
                         <i class="fas fa-arrow-left me-1"></i> Back to Product
@@ -263,46 +263,91 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Product ID:</div>
-                    <div class="col-md-9">{{ $product->id }}</div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Name:</div>
-                    <div class="col-md-9">{{ $product->name }}</div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Category:</div>
-                    <div class="col-md-9">
-                        @if($product->category)
-                            <span class="badge bg-info">{{ $product->category->name }}</span>
-                        @else
-                            <span class="badge bg-secondary">Uncategorized</span>
-                        @endif
+                <!-- Main Product Info Panel - Initially Visible -->
+                <div id="product-info-panel">
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Product ID:</div>
+                        <div class="col-md-9">{{ $product->id }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Name:</div>
+                        <div class="col-md-9">{{ $product->name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Category:</div>
+                        <div class="col-md-9">
+                            @if($product->category)
+                                <span class="badge bg-info">{{ $product->category->name }}</span>
+                            @else
+                                <span class="badge bg-secondary">Uncategorized</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Price:</div>
+                        <div class="col-md-9 fw-bold">${{ number_format($product->base_price, 2) }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Inventory:</div>
+                        <div class="col-md-9">
+                            <span class="badge {{ $product->inventory_count > 10 ? 'bg-success' : ($product->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
+                                {{ $product->inventory_count }} in stock
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Created:</div>
+                        <div class="col-md-9">{{ $product->created_at }}</div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-3 fw-bold">Description:</div>
+                        <div class="col-md-9">
+                            {!! nl2br(e($product->description)) ?? '<span class="text-muted">No description provided</span>' !!}
+                        </div>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Base Price:</div>
-                    <div class="col-md-9">${{ number_format($product->base_price, 2) }}</div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Inventory:</div>
-                    <div class="col-md-9">
-                        <span class="badge {{ $product->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
-                            {{ $product->inventory_count }} in stock
-                        </span>
+                
+                <!-- Variant Info Panels - Initially Hidden -->
+                @foreach($product->variants as $variant)
+                    <div id="variant-info-panel-{{ $variant->id }}" class="variant-info-panel" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Product:</div>
+                            <div class="col-md-9">{{ $product->name }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Variant ID:</div>
+                            <div class="col-md-9">{{ $variant->id }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Variant Name:</div>
+                            <div class="col-md-9">{{ $variant->name }}</div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Category:</div>
+                            <div class="col-md-9">
+                                @if($product->category)
+                                    <span class="badge bg-info">{{ $product->category->name }}</span>
+                                @else
+                                    <span class="badge bg-secondary">Uncategorized</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Price:</div>
+                            <div class="col-md-9">
+                                <span class="fw-bold">${{ number_format($variant->price, 2) }}</span>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3 fw-bold">Inventory:</div>
+                            <div class="col-md-9">
+                                <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : ($variant->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
+                                    {{ $variant->inventory_count }} in stock
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3 fw-bold">Created:</div>
-                    <div class="col-md-9">{{ $product->created_at }}</div>
-                </div>
-                <div class="row mb-4">
-                    <div class="col-md-3 fw-bold">Description:</div>
-                    <div class="col-md-9">
-                        {!! nl2br(e($product->description)) ?? '<span class="text-muted">No description provided</span>' !!}
-                    </div>
-                </div>
+                @endforeach
                 
                 <hr>
                 
@@ -314,14 +359,13 @@
                               <tr>
                                   <th>Image</th>
                                   <th>Name</th>
-                                  <th>Price Adjustment</th>
-                                  <th>Final Price</th>
+                                  <th>Price</th>
                                   <th>Inventory</th>
                               </tr>
                           </thead>
                           <tbody>
                               @foreach($product->variants as $variant)
-                                  <tr>
+                                  <tr id="variant-row-{{ $variant->id }}" class="variant-row">
                                       <td class="text-center">
                                           @if($variant->images && $variant->images->count() > 0)
                                               <div class="variant-table-image" data-variant-id="{{ $variant->id }}">
@@ -340,18 +384,9 @@
                                           @endif
                                       </td>
                                       <td>{{ $variant->name }}</td>
+                                      <td>${{ number_format($variant->price, 2) }}</td>
                                       <td>
-                                          @if($variant->price_adjustment > 0)
-                                              <span class="text-success">+${{ number_format($variant->price_adjustment, 2) }}</span>
-                                          @elseif($variant->price_adjustment < 0)
-                                              <span class="text-danger">-${{ number_format(abs($variant->price_adjustment), 2) }}</span>
-                                          @else
-                                              <span class="text-muted">$0.00</span>
-                                          @endif
-                                      </td>
-                                      <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
-                                      <td>
-                                          <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : 'bg-danger' }}">
+                                          <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : ($variant->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
                                               {{ $variant->inventory_count }} in stock
                                           </span>
                                       </td>
@@ -370,10 +405,35 @@
     </div>
 </div>
 
+<!-- Store variant data in JS for easy access -->
+<script>
+    const productData = {
+        id: {{ $product->id }},
+        name: "{{ $product->name }}",
+        basePrice: {{ $product->base_price }},
+        inventory: {{ $product->inventory_count }},
+        description: `{!! str_replace(["\r\n", "\r", "\n"], "\\n", addslashes($product->description)) !!}`,
+        variants: [
+            @foreach($product->variants as $variant)
+            {
+                id: {{ $variant->id }},
+                name: "{{ $variant->name }}",
+                price: {{ $variant->price }},
+                inventory: {{ $variant->inventory_count }},
+                hasImages: {{ $variant->images && $variant->images->count() > 0 ? 'true' : 'false' }}
+            },
+            @endforeach
+        ]
+    };
+</script>
+
 @endsection
 
 @section('styles')
 <style>
+  .card-header{
+    height: 50px;
+  }
     .variant-table-image {
     position: relative;
     display: inline-block;
@@ -443,6 +503,20 @@
     padding: 3px 6px;
     width: fit-content;
 }
+
+.variant-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.variant-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.variant-row.active {
+    background-color: rgba(0, 123, 255, 0.1);
+    font-weight: 500;
+}
 </style>
 @endsection
 
@@ -452,8 +526,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Element References ---
     const mainProductCarousel = document.getElementById('main-product-carousel');
     const returnToProductBtn = document.getElementById('return-to-product');
-    const galleryTitle = document.getElementById('current-gallery-title');
-    const imageCounter = document.getElementById('image-counter');
+    const productInfoPanel = document.getElementById('product-info-panel');
+    const variantInfoPanels = document.querySelectorAll('.variant-info-panel');
+    const variantRows = document.querySelectorAll('.variant-row');
     
     // --- Disable Auto Sliding for Carousels ---
     // Stop product carousel from auto-sliding
@@ -491,6 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const variantId = this.dataset.variantId;
             showVariantGallery(variantId);
+            updateInfoPanel(variantId);
+            highlightVariantRow(variantId);
         });
     });
     
@@ -499,21 +576,38 @@ document.addEventListener('DOMContentLoaded', function() {
         image.addEventListener('click', function() {
             const variantId = this.dataset.variantId;
             showVariantGallery(variantId);
+            updateInfoPanel(variantId);
+            highlightVariantRow(variantId);
             
             // Scroll to the gallery for better user experience
             scrollToGallery();
         });
     });
     
-    // 3. Setup return to product buttons
+    // 3. Setup variant table row clicks
+    document.querySelectorAll('.variant-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const variantId = this.id.replace('variant-row-', '');
+            showVariantGallery(variantId);
+            updateInfoPanel(variantId);
+            highlightVariantRow(variantId);
+            
+            // Scroll to the gallery for better user experience
+            scrollToGallery();
+        });
+    });
+    
+    // 4. Setup return to product buttons
     document.querySelectorAll('.return-product-btn, .return-product-thumbnail').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             showProductGallery();
+            showProductInfoPanel();
+            resetVariantRowHighlights();
         });
     });
     
-    // 4. Handle product thumbnail clicks
+    // 5. Handle product thumbnail clicks
     document.querySelectorAll('.product-image-thumb').forEach((thumb, index) => {
         thumb.addEventListener('click', function(e) {
             // The data-bs-slide-to attribute will handle the carousel slide change
@@ -523,6 +617,51 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // --- Helper Functions ---
+    
+    // Function to highlight the selected variant row in the table
+    function highlightVariantRow(variantId) {
+        // Reset all rows
+        resetVariantRowHighlights();
+        
+        // Highlight the selected row
+        const row = document.getElementById(`variant-row-${variantId}`);
+        if (row) {
+            row.classList.add('active');
+        }
+    }
+    
+    // Function to reset variant row highlights
+    function resetVariantRowHighlights() {
+        variantRows.forEach(row => {
+            row.classList.remove('active');
+        });
+    }
+    
+    // Function to update the information panel based on selected variant
+    function updateInfoPanel(variantId) {
+        // Hide all info panels
+        productInfoPanel.style.display = 'none';
+        variantInfoPanels.forEach(panel => {
+            panel.style.display = 'none';
+        });
+        
+        // Show the selected variant panel
+        const variantPanel = document.getElementById(`variant-info-panel-${variantId}`);
+        if (variantPanel) {
+            variantPanel.style.display = 'block';
+        }
+    }
+    
+    // Function to show the product info panel
+    function showProductInfoPanel() {
+        // Hide all variant panels
+        variantInfoPanels.forEach(panel => {
+            panel.style.display = 'none';
+        });
+        
+        // Show the product panel
+        productInfoPanel.style.display = 'block';
+    }
     
     // Function to update active thumbnail based on carousel slide
     function updateActiveThumbnail(type, slideIndex, variantId = null) {
@@ -578,30 +717,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (variantGallery) {
             variantGallery.style.display = 'block';
             
-            // 3. Get the variant name for the title
-            let variantName = '';
-            
-            // Try to get name from table cell
-            const tableCell = document.querySelector(`tr [data-variant-id="${variantId}"] + td`);
-            if (tableCell) {
-                variantName = tableCell.textContent.trim();
-            } else {
-                // Fallback to label in thumbnail
-                const labelElement = document.querySelector(`[data-variant-id="${variantId}"] .variant-label`);
-                if (labelElement) {
-                    variantName = labelElement.textContent.trim();
-                }
-            }
-            
-            // 4. Update UI elements
-            galleryTitle.textContent = `${variantName} Images`;
+            // 3. Show the back button
             returnToProductBtn.style.display = 'block';
             
-            // 5. Clear all thumbnails and activate the first thumbnail of this variant
+            // 4. Clear all thumbnails and activate the first thumbnail of this variant
             clearActiveThumbnails();
             updateActiveThumbnail('variant', 0, variantId);
             
-            // 6. Also activate the variant thumbnail in the list
+            // 5. Also activate the variant thumbnail in the list
             const variantThumb = document.querySelector(`.variant-thumb a[data-variant-id="${variantId}"]`);
             if (variantThumb && variantThumb.closest('.thumbnail-wrapper')) {
                 variantThumb.closest('.thumbnail-wrapper').classList.add('active-thumb');
@@ -619,8 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 2. Show product gallery
         mainProductCarousel.style.display = 'block';
         
-        // 3. Update UI elements
-        galleryTitle.textContent = 'Product Images';
+        // 3. Hide the back button
         returnToProductBtn.style.display = 'none';
         
         // 4. Get the current active slide index

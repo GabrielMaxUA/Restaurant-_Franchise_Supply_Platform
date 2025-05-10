@@ -48,14 +48,21 @@
 
     <!-- Low Stock Products Card -->
     <div class="col-xl-3 col-md-6 mb-4">
-        <a href="{{ route('warehouse.inventory.low-stock') }}" class="text-decoration-none">
+        <a href="{{ route('warehouse.products.index', ['inventory' => 'low_stock']) }}" class="text-decoration-none">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
                                 Low Stock</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $lowStockProducts->count() ?? 0 }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ 
+                                    (\App\Models\Product::where('inventory_count', '<=', 10)
+                                        ->where('inventory_count', '>', 0)->count()) + 
+                                    (\App\Models\ProductVariant::where('inventory_count', '<=', 10)
+                                        ->where('inventory_count', '>', 0)->count())
+                                }}
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
@@ -68,14 +75,19 @@
 
     <!-- Out of Stock Products Card -->
     <div class="col-xl-3 col-md-6 mb-4">
-        <a href="{{ route('warehouse.inventory.out-of-stock') }}" class="text-decoration-none">
+        <a href="{{ route('warehouse.products.index', ['inventory' => 'out_of_stock']) }}" class="text-decoration-none">
             <div class="card border-left-danger shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
                             <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
                                 Out of Stock</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $outOfStockProducts->count() ?? 0 }}</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ 
+                                    (\App\Models\Product::where('inventory_count', '=', 0)->count()) + 
+                                    (\App\Models\ProductVariant::where('inventory_count', '=', 0)->count())
+                                }}
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-ban fa-2x text-gray-300"></i>
@@ -102,31 +114,65 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Product</th>
+                                <th>Variant</th>
                                 <th>Category</th>
                                 <th>Current Stock</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $displayedItems = 0;
+                                $maxDisplayItems = 5;
+                            @endphp
+                            
                             @if(isset($lowStockProducts) && count($lowStockProducts) > 0)
-                                @foreach($lowStockProducts->take(5) as $product)
-                                <tr>
-                                    <td>#{{ $product->id }}</td>
-                                    <td>{{ $product->name }}</td>
-                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
-                                    <td>
-                                        <span class="text-warning fw-bold">{{ $product->inventory_count }}</span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-warning">
-                                            <i class="fas fa-edit"></i> Update Stock
-                                        </a>
-                                    </td>
-                                </tr>
+                                @foreach($lowStockProducts as $product)
+                                    @if($product->inventory_count > 0 && $product->inventory_count <= 10 && $displayedItems < $maxDisplayItems)
+                                        @php $displayedItems++; @endphp
+                                        <tr>
+                                            <td>#{{ $product->id }}</td>
+                                            <td>{{ $product->name }}</td>
+                                            <td>-</td>
+                                            <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
+                                            <td>
+                                                <span class="text-warning fw-bold">{{ $product->inventory_count }}</span>
+                                            </td>
+                                            <td>
+                                                <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i> Update Stock
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endif
+
+                                    @if(isset($product->variants) && count($product->variants) > 0)
+                                        @foreach($product->variants as $variant)
+                                            @if($variant->inventory_count > 0 && $variant->inventory_count <= 10 && $displayedItems < $maxDisplayItems)
+                                                @php $displayedItems++; @endphp
+                                                <tr>
+                                                    <td>#{{ $product->id }}</td>
+                                                    <td>{{ $product->name }}</td>
+                                                    <td>{{ $variant->name }}</td>
+                                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
+                                                    <td>
+                                                        <span class="text-warning fw-bold">{{ $variant->inventory_count }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-warning">
+                                                            <i class="fas fa-edit"></i> Update Stock
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        @endforeach
+                                    @endif
                                 @endforeach
-                            @else
+                            @endif
+
+                            @if($displayedItems == 0)
                                 <tr>
-                                    <td colspan="5" class="text-center">No low stock products found</td>
+                                    <td colspan="6" class="text-center">No low stock products found</td>
                                 </tr>
                             @endif
                         </tbody>
@@ -152,29 +198,70 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Product</th>
+                                <th>Variant</th>
                                 <th>Category</th>
                                 <th>Last Updated</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $displayedItems = 0;
+                                $maxDisplayItems = 5;
+                                $hasItems = false;
+                            @endphp
+                            
                             @if(isset($outOfStockProducts) && count($outOfStockProducts) > 0)
-                                @foreach($outOfStockProducts->take(5) as $product)
-                                <tr>
-                                    <td>#{{ $product->id }}</td>
-                                    <td>{{ $product->name }}</td>
-                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
-                                    <td>{{ $product->updated_at ? $product->updated_at->format('M d, Y') : 'N/A' }}</td>
-                                    <td>
-                                        <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-plus-circle"></i> Add Stock
-                                        </a>
-                                    </td>
-                                </tr>
+                                @foreach($outOfStockProducts as $product)
+                                    <!-- Display main product if it's out of stock -->
+                                    @if($product->inventory_count == 0 && $displayedItems < $maxDisplayItems)
+                                        @php 
+                                            $displayedItems++; 
+                                            $hasItems = true;
+                                        @endphp
+                                        <tr>
+                                            <td>#{{ $product->id }}</td>
+                                            <td>{{ $product->name }}</td>
+                                            <td>-</td>
+                                            <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
+                                            <td>{{ $product->updated_at ? $product->updated_at->format('M d, Y') : 'N/A' }}</td>
+                                            <td>
+                                                <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-plus-circle"></i> Add Stock
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endif
+
+                                    <!-- Display any out-of-stock variants, even if main product has stock -->
+                                    @if(isset($product->variants) && count($product->variants) > 0)
+                                        @foreach($product->variants as $variant)
+                                            @if($variant->inventory_count == 0 && $displayedItems < $maxDisplayItems)
+                                                @php 
+                                                    $displayedItems++; 
+                                                    $hasItems = true;
+                                                @endphp
+                                                <tr>
+                                                    <td>#{{ $product->id }}</td>
+                                                    <td>{{ $product->name }}</td>
+                                                    <td>{{ $variant->name }}</td>
+                                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
+                                                    <td>{{ $variant->updated_at ? $variant->updated_at->format('M d, Y') : 'N/A' }}</td>
+                                                    <td>
+                                                        <a href="{{ route('warehouse.products.edit', $product->id) }}" class="btn btn-sm btn-danger">
+                                                            <i class="fas fa-plus-circle"></i> Add Stock
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        @endforeach
+                                    @endif
                                 @endforeach
-                            @else
+                            @endif
+
+                            @if(!$hasItems)
                                 <tr>
-                                    <td colspan="5" class="text-center">No out of stock products found</td>
+                                    <td colspan="6" class="text-center">No out of stock products or variants found</td>
                                 </tr>
                             @endif
                         </tbody>
@@ -200,6 +287,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Product</th>
+                                <th>Variant</th>
                                 <th>Category</th>
                                 <th>Orders Count</th>
                                 <th>Current Stock</th>
@@ -212,6 +300,7 @@
                                 <tr>
                                     <td>#{{ $product->id }}</td>
                                     <td>{{ $product->name }}</td>
+                                    <td>-</td>
                                     <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
                                     <td>{{ $product->orders_count ?? '0' }}</td>
                                     <td>
@@ -232,7 +321,7 @@
                                 @endforeach
                             @else
                                 <tr>
-                                    <td colspan="6" class="text-center">No popular products data available</td>
+                                    <td colspan="7" class="text-center">No popular products data available</td>
                                 </tr>
                             @endif
                         </tbody>

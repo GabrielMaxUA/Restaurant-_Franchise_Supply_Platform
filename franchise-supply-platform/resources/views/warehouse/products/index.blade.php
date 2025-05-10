@@ -107,22 +107,21 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover">
+            <table class="table">
                 <thead class="table-light">
                     <tr class="text-center">
                         <th>Image</th>
-                        <th>Name</th>
+                        <th>Product Information</th>
                         <th>Category</th>
-                        <th>Base Price</th>
+                        <th>Price</th>
                         <th>Inventory</th>
-                        <th>Variants</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($products as $product)
-                        <tr class="text-center align-middle">
-                            <td>
+                        <tr class="product-row">
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
                                 @if($product->images->count() > 0)
                                     <img src="{{ asset('storage/' . $product->images->first()->image_url) }}"
                                          alt="{{ $product->name }}"
@@ -135,8 +134,10 @@
                                     </div>
                                 @endif
                             </td>
-                            <td>{{ $product->name }}</td>
-                            <td>
+                            <td class="text-start fw-bold">
+                                <i class="fas fa-box me-2 text-primary"></i>{{ $product->name }}
+                            </td>
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
                                 @if($product->category)
                                     <a href="{{ route('warehouse.products.index', ['category' => $product->category_id]) }}" class="badge bg-info text-decoration-none">
                                         {{ $product->category->name }}
@@ -151,8 +152,7 @@
                                     {{ $product->inventory_count > 0 ? $product->inventory_count . ' in stock' : 'Out of stock' }}
                                 </span>
                             </td>
-                            <td>{{ $product->variants->count() }}</td>
-                            <td>
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
                                 <div class="d-flex gap-1 justify-content-center">
                                     <a href="{{ route('warehouse.products.show', $product) }}" class="btn btn-sm btn-info rounded" title="View">
                                         <i class="fas fa-eye"></i>
@@ -170,9 +170,25 @@
                                 </div>
                             </td>
                         </tr>
+                        
+                        @foreach($product->variants as $variant)
+                        <tr class="variant-row">
+                            <td class="text-start ps-4 variant-name">
+                                <i class="fas fa-angle-right me-2 text-secondary"></i>
+                                <i class="fas fa-tags me-2 text-secondary"></i>{{ $variant->name }}
+                            </td>
+                            <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
+                            <td>
+                                <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : ($variant->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
+                                    {{ $variant->inventory_count > 0 ? $variant->inventory_count . ' in stock' : 'Out of stock' }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                        
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-4">
+                            <td colspan="6" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="fas fa-search fa-3x mb-3"></i>
                                     <p class="mb-0">No products found matching your criteria</p>
@@ -195,6 +211,80 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('styles')
+<style>
+    /* Table styling */
+    .table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    /* Reset all borders */
+    .table td, .table th {
+        border: none;
+    }
+    
+    /* Set header row styling */
+    .table thead th {
+        border-bottom: 2px solid #dee2e6;
+        padding: 12px 8px;
+    }
+    
+    /* Product row styling - with prominent border */
+    .product-row {
+        border-top: 3px solid #343a40;
+    }
+    
+    .product-row td {
+        background-color: #f8f9fa;
+        padding: 15px 8px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    /* Variant row styling */
+    .variant-row td {
+        background-color: #ffffff;
+        padding: 10px 8px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    /* Last variant in each group */
+    .variant-row:last-of-type td {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    /* Product with no variants */
+    .product-row:not(:has(+ .variant-row)) td {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    /* Add some spacing between product groups */
+    .product-row td:first-child {
+        padding-top: 15px;
+    }
+    
+    /* Hover styles */
+    .product-row:hover td {
+        background-color:rgba(20, 143, 237, 0.51);
+    }
+    
+    .variant-row:hover td {
+        background-color: rgba(20, 143, 237, 0.51);
+    }
+    
+    /* Badge styling */
+    .inventory-badge {
+        padding: 6px 10px;
+    }
+    
+    /* Variants Only badge */
+    .bg-warning.text-dark {
+        background-color: #fff3cd !important;
+        border: 1px solid #ffeeba;
+    }
+</style>
 @endsection
 
 @section('scripts')

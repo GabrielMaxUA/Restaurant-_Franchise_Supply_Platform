@@ -151,65 +151,6 @@
     </div>
 </div>
 
-<!-- Quick Stats -->
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Total Users</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $users->total() }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Franchisees</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ App\Models\User::withRole('franchisee')->count() }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-store fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Staff Members</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ App\Models\User::whereIn('role_id', function($query) {
-                                $query->select('id')->from('roles')->whereIn('name', ['admin', 'warehouse']);
-                            })->count() }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-user-tie fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- Include the user info modal component --}}
 @include('layouts.components.user-info-modal')

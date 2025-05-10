@@ -230,15 +230,15 @@
                 <div class="container-fluid">
                     <!-- Welcome banner -->
                     @if(!session('hide_welcome'))
-                    <div class="alert {{ (\App\Models\Product::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\Product::where('inventory_count', '=', 0)->count() > 0) ? 'alert-danger' : 'alert-success' }} persistent-guide mb-4">
-                        <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
-                        <p class="mt-3">Inventory Status: 
-                            <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
-                            <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
-                        </p>
-                        <hr>
-                        <p class="mb-0">Check the dashboard for more insights about the inventory management status.</p>
-                    </div>
+                    <div class="alert {{ ((\App\Models\Product::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\Product::where('inventory_count', '=', 0)->count() > 0) || (\App\Models\ProductVariant::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\ProductVariant::where('inventory_count', '=', 0)->count() > 0)) ? 'alert-danger' : 'alert-success' }} persistent-guide mb-4">
+    <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
+    <p class="mt-3">Inventory Status: 
+        <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
+        <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
+    </p>
+    <hr>
+    <p class="mb-0">Check the dashboard for more insights about the inventory management status.</p>
+</div>
                     @endif
                     
                     @yield('content')
@@ -253,28 +253,7 @@
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Auto-dismiss alerts script -->
-    <script>
-        // Auto-dismiss alerts after 5 seconds (except persistent guides)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Only select alerts that are NOT persistent guides
-            const alerts = document.querySelectorAll('.alert:not(.persistent-guide)');
-            
-            alerts.forEach(function(alert) {
-                // Set timeout to start fade out after 4.5 seconds
-                setTimeout(function() {
-                    alert.classList.add('fade-out');
-                }, 4500);
-                
-                // Set timeout to remove alert after animation completes (5 seconds total)
-                setTimeout(function() {
-                    if (alert.parentNode) {
-                        alert.parentNode.removeChild(alert);
-                    }
-                }, 5000);
-            });
-        });
-    </script>
+
     
     <!-- Enhanced Sidebar toggle script with fixes -->
     <script>

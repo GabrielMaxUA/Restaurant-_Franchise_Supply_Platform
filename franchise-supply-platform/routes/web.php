@@ -26,55 +26,60 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'webLogin']);
 Route::get('/logout', [AuthController::class, 'webLogout'])->name('logout');
 
-// Admin Routes - Protected by auth middleware
-Route::prefix('admin')->middleware(['auth', 'role:admin'])->group(function () {
+  // Admin Routes - Protected by auth middleware
+  Route::prefix('admin')->middleware(['auth', 'role:admin'])->name('admin.')->group(function () {
     // Dashboard
-    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     
-    // Redirect /admin to dashboard
-    Route::get('/', function() {
-        return redirect('/admin/dashboard');
-    });
-
     // Admin Profile Routes
-    Route::get('/profile', [App\Http\Controllers\Admin\AdminProfileController::class, 'index'])->name('admin.profile.index');
-    Route::get('/profile/settings', [App\Http\Controllers\Admin\AdminProfileController::class, 'settings'])->name('admin.profile.settings');
-    Route::put('/profile/update', [App\Http\Controllers\Admin\AdminProfileController::class, 'update'])->name('admin.profile.update');
-    Route::post('/profile/change-password', [App\Http\Controllers\Admin\AdminProfileController::class, 'changePassword'])->name('admin.profile.change-password'); 
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\AdminProfileController::class, 'index'])->name('index');
+        Route::get('/settings', [App\Http\Controllers\Admin\AdminProfileController::class, 'settings'])->name('settings');
+        Route::put('/update', [App\Http\Controllers\Admin\AdminProfileController::class, 'update'])->name('update');
+        Route::post('/change-password', [App\Http\Controllers\Admin\AdminProfileController::class, 'changePassword'])->name('change-password');
+    });
     
-    // User management routes
-    Route::get('/users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users.index');
-    Route::get('/users/create', [App\Http\Controllers\Admin\UserController::class, 'create'])->name('admin.users.create');
-    Route::post('/users', [App\Http\Controllers\Admin\UserController::class, 'store'])->name('admin.users.store');
-    Route::get('/users/{user}/edit', [App\Http\Controllers\Admin\UserController::class, 'edit'])->name('admin.users.edit');
-    Route::put('/users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('admin.users.update');
-    Route::delete('/users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
-   // To use the fully qualified namespace:
-Route::get('users/{id}/info', [App\Http\Controllers\Admin\UserController::class, 'getUserInfo'])->name('admin.users.info');
-    // Product routes
-    Route::get('/products', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('admin.products.index');
-    Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('admin.products.create');
-    Route::post('/products', [App\Http\Controllers\Admin\ProductController::class, 'store'])->name('admin.products.store');
-    Route::get('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'show'])->name('admin.products.show');
-    Route::get('/products/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('admin.products.edit');
-    Route::put('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('admin.products.update');
-    Route::delete('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'destroy'])->name('admin.products.destroy');
+    // User Management Routes
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Admin\UserController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Admin\UserController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [App\Http\Controllers\Admin\UserController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('destroy');
+        Route::get('/{id}/info', [App\Http\Controllers\Admin\UserController::class, 'getUserInfo'])->name('info');
+    });
     
-    // Category routes
-    Route::get('/categories', [App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('admin.categories.index');
-    Route::get('/categories/create', [App\Http\Controllers\Admin\CategoryController::class, 'create'])->name('admin.categories.create');
-    Route::post('/categories', [App\Http\Controllers\Admin\CategoryController::class, 'store'])->name('admin.categories.store');
-    Route::get('/categories/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'show'])->name('admin.categories.show');
-    Route::get('/categories/{category}/edit', [App\Http\Controllers\Admin\CategoryController::class, 'edit'])->name('admin.categories.edit');
-    Route::put('/categories/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'update'])->name('admin.categories.update');
-    Route::delete('/categories/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'destroy'])->name('admin.categories.destroy');
+    // Product Routes
+    Route::prefix('products')->name('products.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Admin\ProductController::class, 'store'])->name('store');
+        Route::get('/{product}', [App\Http\Controllers\Admin\ProductController::class, 'show'])->name('show');
+        Route::get('/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('edit');
+        Route::put('/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('update');
+        Route::delete('/{product}', [App\Http\Controllers\Admin\ProductController::class, 'destroy'])->name('destroy');
+    });
     
-    // Order management routes
-    Route::get('/orders', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('admin.orders.index');
-    Route::get('/orders/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('admin.orders.show');
-    Route::patch('/orders/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('admin.orders.update-status');
-    Route::post('/orders/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('admin.orders.sync-quickbooks');
-
+    // Category Routes
+    Route::prefix('categories')->name('categories.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Admin\CategoryController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Admin\CategoryController::class, 'store'])->name('store');
+        Route::get('/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'show'])->name('show');
+        Route::get('/{category}/edit', [App\Http\Controllers\Admin\CategoryController::class, 'edit'])->name('edit');
+        Route::put('/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'update'])->name('update');
+        Route::delete('/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'destroy'])->name('destroy');
+    });
+    
+    // Order Management Routes
+    Route::prefix('orders')->name('orders.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('index');
+        Route::get('/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('show');
+        Route::get('/{order}/edit', [App\Http\Controllers\Admin\OrderController::class, 'edit'])->name('edit');
+        Route::patch('/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('sync-quickbooks');
+    });
   });
 
 // Warehouse Routes - Protected by auth and role middleware

@@ -5,74 +5,66 @@
 @section('page-title', 'Dashboard')
 
 @section('content')
-<div class="row">
-    <!-- Orders Summary Card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Pending Orders</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $pendingOrders ?? 0 }}</div>
+<!-- Action Blocks -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0">
+            <div class="card-body py-3">
+                <div class="row g-2 text-center">
+                    <div class="col-md-3">
+                        <a href="{{ route('admin.orders.index') }}" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-primary-subtle mb-2 mx-auto">
+                                <i class="fas fa-shopping-cart text-primary"></i>
+                            </div>
+                            <h6 class="mb-0">Manage Orders</h6>
+                            <small class="text-muted">Process and track orders</small>
+                        </a>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                    <div class="col-md-3">
+                        <a href="{{ route('admin.products.index') }}" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-success-subtle mb-2 mx-auto">
+                                <i class="fas fa-box text-success"></i>
+                            </div>
+                            <h6 class="mb-0">Product Catalog</h6>
+                            <small class="text-muted">Manage your inventory</small>
+                        </a>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Products Summary Card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Total Products</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $totalProducts ?? 0 }}</div>
+                    <div class="col-md-3">
+                        <a href="{{ route('admin.categories.index') }}" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-info-subtle mb-2 mx-auto">
+                                <i class="fas fa-tags text-info"></i>
+                            </div>
+                            <h6 class="mb-0">Categories</h6>
+                            <small class="text-muted">Organize your products</small>
+                        </a>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-box fa-2x text-gray-300"></i>
+                    <div class="col-md-3">
+                        <a href="{{ route('admin.users.index') }}" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-warning-subtle mb-2 mx-auto">
+                                <i class="fas fa-users text-warning"></i>
+                            </div>
+                            <h6 class="mb-0">User Management</h6>
+                            <small class="text-muted">Manage franchisees</small>
+                        </a>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Users Summary Card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Franchisee Users</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $franchiseeUsers ?? 0 }}</div>
+                    <div class="col-md-3">
+                        <a href="{{ route('admin.orders.index', ['status' => 'delivered']) }}" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-success-subtle mb-2 mx-auto">
+                                <i class="fas fa-dollar-sign text-success"></i>
+                            </div>
+                            <h6 class="mb-0">Total Paid</h6>
+                            <small class="text-muted">${{ number_format($totalPaidAmount ?? 0, 2) }}</small>
+                        </a>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Revenue Summary Card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Monthly Revenue</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ $monthlyRevenue ?? 0 }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                    </div>
+                    <!-- <div class="col-md-3">
+                        <a href="{{ route('admin.orders.index') }}?not_status[]=delivered&not_status[]=rejected" class="action-block p-3 d-block rounded">
+                            <div class="icon-wrapper rounded-circle bg-warning-subtle mb-2 mx-auto">
+                                <i class="fas fa-dollar-sign text-warning"></i>
+                            </div>
+                            <h6 class="mb-0">Pending Payments</h6>
+                            <small class="text-muted">${{ number_format($unpaidAmount ?? 0, 2) }}</small>
+                        </a>
+                    </div> -->
                 </div>
             </div>
         </div>
@@ -80,17 +72,17 @@
 </div>
 
 <!-- Recent Orders -->
-<div class="row mt-4">
+<div class="row">
     <div class="col-12">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold text-primary">Recent Orders</h6>
-                <a href="{{ url('/admin/orders') }}" class="btn btn-sm btn-primary">View All</a>
+                <a href="{{ route('admin.orders.index') }}" class="btn btn-sm btn-primary">View All Orders</a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
+                    <table class="table table-hover">
+                        <thead class="table-light">
                             <tr>
                                 <th>Order ID</th>
                                 <th>Franchisee</th>
@@ -104,12 +96,12 @@
                             @if(isset($recentOrders) && count($recentOrders) > 0)
                                 @foreach($recentOrders as $order)
                                 <tr>
-                                    <td>#{{ $order->id }}</td>
+                                    <td class="fw-bold">#{{ $order->id }}</td>
                                     <td>{{ $order->user->username ?? 'Unknown' }}</td>
-                                    <td>${{ $order->total_amount }}</td>
+                                    <td>${{ number_format($order->total_amount, 2) }}</td>
                                     <td>
                                         @if($order->status == 'pending')
-                                            <span class="badge bg-warning">Pending</span>
+                                            <span class="badge bg-warning text-dark">Pending</span>
                                         @elseif($order->status == 'approved')
                                             <span class="badge bg-primary">Approved</span>
                                         @elseif($order->status == 'packed')
@@ -118,21 +110,36 @@
                                             <span class="badge bg-success">Shipped</span>
                                         @elseif($order->status == 'delivered')
                                             <span class="badge bg-secondary">Delivered</span>
+                                        @elseif($order->status == 'rejected')
+                                            <span class="badge bg-danger">Rejected</span>
                                         @else
-                                            <span class="badge bg-danger">{{ ucfirst($order->status) }}</span>
+                                            <span class="badge bg-danger">{{ is_string($order->status) ? ucfirst($order->status) : 'Unknown' }}</span>
                                         @endif
                                     </td>
                                     <td>{{ $order->created_at->format('M d, Y') }}</td>
                                     <td>
-                                        <a href="{{ url('/admin/orders/'.$order->id) }}" class="btn btn-sm btn-info">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
+                                        <div class="d-flex gap-1">
+                                            @if($order->status == 'delivered' || $order->status == 'rejected')
+                                                <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            @else
+                                                <a href="{{ route('admin.orders.show', $order->id) }}" class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                                 @endforeach
                             @else
                                 <tr>
-                                    <td colspan="6" class="text-center">No recent orders found</td>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="fas fa-shopping-cart fa-3x mb-3"></i>
+                                            <p class="mb-0">No recent orders found</p>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endif
                         </tbody>
@@ -142,54 +149,111 @@
         </div>
     </div>
 </div>
+@endsection
 
-<!-- Low Stock Products -->
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-danger">Low Stock Products</h6>
-                <a href="{{ url('/admin/products') }}" class="btn btn-sm btn-danger">View All Products</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th>Current Stock</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if(isset($lowStockProducts) && count($lowStockProducts) > 0)
-                                @foreach($lowStockProducts as $product)
-                                <tr>
-                                    <td>#{{ $product->id }}</td>
-                                    <td>{{ $product->name }}</td>
-                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
-                                    <td>
-                                        <span class="text-danger fw-bold">{{ $product->inventory_count }}</span>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url('/admin/products/'.$product->id.'/edit') }}" class="btn btn-sm btn-warning">
-                                            <i class="fas fa-edit"></i> Update Stock
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            @else
-                                <tr>
-                                    <td colspan="5" class="text-center">No low stock products found</td>
-                                </tr>
-                            @endif
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+@section('styles')
+<style>
+    /* Action blocks styling */
+    .action-block {
+        transition: all 0.2s ease;
+        border: 1px solid #e3e6f0;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .action-block:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        color: inherit;
+    }
+    
+    .icon-wrapper {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .icon-wrapper i {
+        font-size: 1.5rem;
+    }
+    
+    /* Cards with left borders */
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+    
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+    
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+    
+    .border-left-danger {
+        border-left: 0.25rem solid #e74a3b !important;
+    }
+    
+    /* Chart containers */
+    .chart-area {
+        position: relative;
+        height: 24rem;
+        width: 100%;
+    }
+    
+    /* Background colors for action blocks */
+    .bg-primary-subtle {
+        background-color: rgba(78, 115, 223, 0.1);
+    }
+    
+    .bg-success-subtle {
+        background-color: rgba(28, 200, 138, 0.1);
+    }
+    
+    .bg-info-subtle {
+        background-color: rgba(54, 185, 204, 0.1);
+    }
+    
+    .bg-warning-subtle {
+        background-color: rgba(246, 194, 62, 0.1);
+    }
+    
+    .bg-danger-subtle {
+        background-color: rgba(231, 74, 59, 0.1);
+    }
+    
+    /* Badge styling */
+    .badge.bg-warning.text-dark {
+        background-color: #f6c23e !important;
+        border: 1px solid #f6c23e;
+    }
+    
+    /* Table styling */
+    .table thead th {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(78, 115, 223, 0.05);
+    }
+    
+    /* Chart view buttons */
+    .btn-group .btn-outline-primary.active {
+        background-color: #4e73df;
+        color: #fff;
+    }
+    
+    .col-md-3{
+      width: calc(100% / 5);
+    }
+
+</style>
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 @endsection
