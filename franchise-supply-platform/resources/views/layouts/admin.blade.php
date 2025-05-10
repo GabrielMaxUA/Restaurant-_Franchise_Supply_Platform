@@ -245,7 +245,7 @@
                     @if(!session('hide_welcome'))
                     <div class="alert alert-success persistent-guide mb-4">
                         <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}!</h4>
-                        <p>Platform Status: <strong>{{ \App\Models\Order::where('status', 'pending')->count() }}</strong> pending orders and <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->count() }}</strong> items low on inventory.</p>
+                        <p class="mt-3">Platform Status: <strong>{{ \App\Models\Order::where('status', 'pending')->count() }}</strong> pending orders and <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->count() }}</strong> items low on inventory.</p>
                         <hr>
                         <p class="mb-0">Check the dashboard for more insights about the supply platform status.</p>
                     </div>

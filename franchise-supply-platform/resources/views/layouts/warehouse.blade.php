@@ -169,7 +169,7 @@
                                 Categories
                             </a>
                         </li>
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link {{ request()->is('warehouse/inventory/low-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/low-stock') }}">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 Low Stock
@@ -186,7 +186,7 @@
                                 <i class="fas fa-chart-line me-2"></i>
                                 Popular Products
                             </a>
-                        </li>
+                        </li> -->
                     </ul>
                     
                     <hr>
@@ -232,7 +232,7 @@
                     @if(!session('hide_welcome'))
                     <div class="alert {{ (\App\Models\Product::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\Product::where('inventory_count', '=', 0)->count() > 0) ? 'alert-danger' : 'alert-success' }} persistent-guide mb-4">
                         <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
-                        <p>Inventory Status: 
+                        <p class="mt-3">Inventory Status: 
                             <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
                             <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
                         </p>
