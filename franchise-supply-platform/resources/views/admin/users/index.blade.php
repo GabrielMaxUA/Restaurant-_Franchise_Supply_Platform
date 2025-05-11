@@ -33,7 +33,7 @@
     <div class="card-body">
         <form action="{{ route('admin.users.index') }}" method="GET" class="mb-0">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="search_term" class="form-label">Search</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -41,7 +41,7 @@
                                placeholder="Name, email, or phone" value="{{ request('search') }}">
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="role" class="form-label">Role</label>
                     <select class="form-select" id="role" name="role">
                         <option value="">All Roles</option>
@@ -50,6 +50,14 @@
                                 {{ ucfirst($role->name) }}
                             </option>
                         @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Status</option>
+                        <option value="1" {{ request('status') == '1' ? 'selected' : '' }}>Active</option>
+                        <option value="0" {{ request('status') == '0' ? 'selected' : '' }}>Blocked</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -85,6 +93,7 @@
                         <th>Phone</th>
                         <th>Company/Franchise</th>
                         <th>Role</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -105,6 +114,11 @@
                             <td>
                                 <span class="badge {{ $user->role->name == 'admin' ? 'bg-danger' : ($user->role->name == 'warehouse' ? 'bg-primary' : 'bg-success') }}">
                                     {{ ucfirst($user->role->name) }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge {{ $user->status ? 'bg-success' : 'bg-danger' }}">
+                                    {{ $user->status ? 'Active' : 'Blocked' }}
                                 </span>
                             </td>
                             <td>
@@ -137,7 +151,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center">No users found</td>
+                            <td colspan="8" class="text-center">No users found</td>
                         </tr>
                     @endforelse
                 </tbody>

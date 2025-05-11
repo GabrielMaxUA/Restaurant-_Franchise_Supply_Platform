@@ -32,6 +32,33 @@
                 @enderror
             </div>
             
+            <!-- User Status Toggle -->
+            @if($user->id !== auth()->id())
+                <div class="form-group mb-4">
+                    <label for="status">Account Status</label>
+                    <div class="form-check form-switch">
+                        <!-- The key change is here - we need to keep status in the request even when unchecked -->
+                        <input type="hidden" name="status" value="0">
+                        <input class="form-check-input" type="checkbox" id="status" name="status" value="1" 
+                            {{ $user->isActive() ? 'checked' : '' }}>
+                        <label class="form-check-label" for="status">
+                            <span id="status-text" class="{{ $user->isActive() ? 'text-success' : 'text-danger' }}">
+                                {{ $user->isActive() ? 'Active' : 'Blocked' }}
+                            </span>
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Toggle to activate or block this user account</small>
+                </div>
+            @else
+                <div class="form-group mb-4">
+                    <label for="status">Account Status</label>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>You cannot change your own account status
+                    </div>
+                    <input type="hidden" name="status" value="1">
+                </div>
+            @endif
+            
             <!-- Franchisee details section - will be toggled based on role selection -->
             <div id="franchisee-details" class="mb-4 border rounded p-3 bg-light" style="display: none;">
                 <h6 class="mb-3 font-weight-bold">Franchisee Details</h6>
@@ -103,52 +130,49 @@
                 </div>
 
                 <!-- Company Logo Upload -->
-                <!-- For the Edit User form (paste-2.txt) -->
-
-<!-- Replace the existing logo upload section with this -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="form-group">
-            <label for="logo">Company Logo</label>
-            <input type="file" class="form-control @error('logo') is-invalid @enderror" 
-                id="logo" name="logo" accept="image/*">
-            <small class="form-text text-muted">Allowed formats: JPEG, PNG, JPG, GIF. Max size: 2MB.</small>
-            @error('logo')
-                <div class="invalid-feedback">{{ $message }}</div>
-            @enderror
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="text-center">
-            <div class="mb-2">Logo Preview:</div>
-            <div class="logoBox">
-                @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
-                    <!-- Show existing logo and preview for new uploads -->
-                    <img id="logo-preview" src="{{ asset('storage/' . $user->franchiseeProfile->logo_path) }}" 
-                        alt="Company Logo" class="img-thumbnail" style="max-height: 100px;">
-                @else
-                    <!-- Just show preview for new uploads -->
-                    <img id="logo-preview" src="#" alt="Logo Preview" 
-                        class="img-thumbnail" style="max-height: 100px; display: none;">
-                    <div id="no-logo-selected" class="text-muted">
-                        <i class="fas fa-image fa-2x mb-2"></i>
-                        <p>No logo uploaded</p>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="logo">Company Logo</label>
+                            <input type="file" class="form-control @error('logo') is-invalid @enderror" 
+                                id="logo" name="logo" accept="image/*">
+                            <small class="form-text text-muted">Allowed formats: JPEG, PNG, JPG, GIF. Max size: 2MB.</small>
+                            @error('logo')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
                     </div>
-                @endif
-            </div>
-            @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
-                <div class="mt-2 deleteLogo">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="remove_logo" name="remove_logo">
-                        <label class="form-check-label" for="remove_logo">
-                            Remove current logo
-                        </label>
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <div class="mb-2">Logo Preview:</div>
+                            <div class="logoBox">
+                                @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
+                                    <!-- Show existing logo and preview for new uploads -->
+                                    <img id="logo-preview" src="{{ asset('storage/' . $user->franchiseeProfile->logo_path) }}" 
+                                        alt="Company Logo" class="img-thumbnail" style="max-height: 100px;">
+                                @else
+                                    <!-- Just show preview for new uploads -->
+                                    <img id="logo-preview" src="#" alt="Logo Preview" 
+                                        class="img-thumbnail" style="max-height: 100px; display: none;">
+                                    <div id="no-logo-selected" class="text-muted">
+                                        <i class="fas fa-image fa-2x mb-2"></i>
+                                        <p>No logo uploaded</p>
+                                    </div>
+                                @endif
+                            </div>
+                            @if($user->franchiseeProfile && $user->franchiseeProfile->logo_path)
+                                <div class="mt-2 deleteLogo">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="remove_logo" name="remove_logo">
+                                        <label class="form-check-label" for="remove_logo">
+                                            Remove current logo
+                                        </label>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
-            @endif
-        </div>
-    </div>
-</div>
             </div>
             
             <!-- Common user fields -->
@@ -234,6 +258,24 @@
 </style>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Status toggle functionality
+        const statusToggle = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        
+        if (statusToggle) {
+            statusToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    statusText.textContent = 'Active';
+                    statusText.classList.remove('text-danger');
+                    statusText.classList.add('text-success');
+                } else {
+                    statusText.textContent = 'Blocked';
+                    statusText.classList.remove('text-success');
+                    statusText.classList.add('text-danger');
+                }
+            });
+        }
+
         const roleSelect = document.getElementById('role_id');
         const franchiseeDetails = document.getElementById('franchisee-details');
         const requiredFranchiseeFields = [

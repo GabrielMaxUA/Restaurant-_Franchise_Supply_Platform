@@ -23,13 +23,23 @@ class CheckRole
             return redirect()->route('login');
         }
         
-        // Check if user has the required role
+        // Get the authenticated user
         $user = Auth::user();
         
+        // Check if user is blocked
+        if ($user->isBlocked()) {
+            Auth::logout();
+            
+            return redirect()->route('login')
+                ->with('error', 'Your account has been blocked. Please contact the administrator.');
+        }
+        
+        // Make sure role relationship is loaded
         if (!$user->relationLoaded('role')) {
             $user->load('role');
         }
         
+        // Check if user has the required role
         if ($user->role->name !== $role) {
             if ($user->role->name === 'admin') {
                 return redirect()->route('admin.dashboard')

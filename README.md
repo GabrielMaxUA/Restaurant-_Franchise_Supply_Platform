@@ -26,10 +26,10 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 
 #### 3.1 User Roles & Permissions
 •⁠  ⁠*Admin (Web):*
-  - Manage franchisee accounts (name, phone, email, login access)
-  - Add/edit/delete products (with images, descriptions, variants)
-  - Approve or reject orders
-  - Manage inventory
+  - Manage franchisee accounts (name, phone, email, login access) 
+  - Add/edit/delete products (with images, descriptions, variants) - DONE 
+  - Approve or reject orders - DONE 
+  - Manage inventory - DONE 
   - Trigger invoice and customer sync to QuickBooks
 
 •⁠  ⁠*Warehouse Staff (Web):*
@@ -46,7 +46,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 
 #### 3.2 Functional Modules
 •⁠  ⁠*Product Catalog:*
-  - Images, variants (e.g., size/packaging), cost, stock status
+  - Images, variants (e.g., size/packaging), cost, stock status - DONE 
 •⁠  ⁠*Order Workflow:*
   - Order → Admin Approval → Warehouse Processing → Shipping
 •⁠  ⁠*QuickBooks Integration:*

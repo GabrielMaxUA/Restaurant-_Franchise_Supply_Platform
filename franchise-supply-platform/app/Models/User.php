@@ -23,6 +23,7 @@ class User extends Authenticatable
         'phone',
         'role_id',
         'updated_by',
+        'status',
     ];
 
     /**
@@ -42,6 +43,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'role_id' => 'integer',
+        'status' => 'boolean', // Cast status to boolean
     ];
 
     /**
@@ -135,6 +138,67 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user account is active.
+     * Handles NULL values properly.
+     *
+     * @return bool
+     */
+    public function isActive()
+    {
+        // If status is null, use default value 1 (active)
+        if (is_null($this->status)) {
+            return true;
+        }
+        
+        // Convert to int to ensure consistent comparison
+        return (int)$this->status == true;
+    }
+    
+    /**
+     * Check if the user account is blocked.
+     * Handles NULL values properly.
+     *
+     * @return bool
+     */
+    public function isBlocked()
+    {
+        // If status is null, use default value 1 (active)
+        if (is_null($this->status)) {
+            return false;
+        }
+        
+        // Convert to int to ensure consistent comparison
+        return (int)$this->status === 0;
+    }
+    
+    /**
+     * Scope a query to only include active users.
+     * Includes both status=1 and status=NULL users.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeActive($query)
+    {
+        return $query->where(function($q) {
+            $q->where('status', 1)
+              ->orWhereNull('status'); // Include NULL status as active (default is 1)
+        });
+    }
+    
+    /**
+     * Scope a query to only include blocked users.
+     * Only includes status=0 users.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeBlocked($query)
+    {
+        return $query->where('status', 0);
+    }
+
+    /**
      * Get or create a cart for this user.
      *
      * @return \App\Models\Cart
@@ -221,6 +285,26 @@ class User extends Authenticatable
             default:
                 return 'bg-secondary';
         }
+    }
+
+    /**
+     * Get the status badge class.
+     *
+     * @return string
+     */
+    public function getStatusBadgeClassAttribute()
+    {
+        return $this->isActive() ? 'bg-success' : 'bg-danger';
+    }
+
+    /**
+     * Get the status badge text.
+     *
+     * @return string
+     */
+    public function getStatusTextAttribute()
+    {
+        return $this->isActive() ? 'Active' : 'Blocked';
     }
 
     /**

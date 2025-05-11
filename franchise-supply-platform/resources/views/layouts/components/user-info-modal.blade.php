@@ -103,7 +103,10 @@
                         <div class="card user-info-card">
                             <div class="card-header py-3 d-flex align-items-center">
                                 <h6 class="m-0 font-weight-bold">Account Information</h6>
-                                <span id="userRole" class="ms-auto"><span class="badge bg-primary">Role</span></span>
+                                <div class="ms-auto d-flex align-items-center">
+                                    <span id="userStatus" class="me-2"><span class="badge bg-success">Active</span></span>
+                                    <span id="userRole"><span class="badge bg-primary">Role</span></span>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <div class="row detail-row">
@@ -121,6 +124,10 @@
                                 <div class="row detail-row">
                                     <div class="col-md-3 user-info-label">Phone</div>
                                     <div class="col-md-9" id="userPhone">-</div>
+                                </div>
+                                <div class="row detail-row">
+                                    <div class="col-md-3 user-info-label">Status</div>
+                                    <div class="col-md-9" id="userStatusText">-</div>
                                 </div>
                                 <div class="row detail-row">
                                     <div class="col-md-3 user-info-label">Created At</div>
@@ -381,6 +388,8 @@ function populateUserModal(data) {
         const userUpdatedAtElement = document.getElementById('userUpdatedAt');
         const userUpdatedByElement = document.getElementById('userUpdatedBy');
         const userRoleElement = document.getElementById('userRole');
+        const userStatusElement = document.getElementById('userStatus');
+        const userStatusTextElement = document.getElementById('userStatusText');
         
         // Safe updates with null checks
         if (userEmailElement) userEmailElement.textContent = data.user.email || 'N/A';
@@ -390,6 +399,15 @@ function populateUserModal(data) {
         if (userCreatedAtElement) userCreatedAtElement.textContent = formatDate(data.user.created_at);
         if (userUpdatedAtElement) userUpdatedAtElement.textContent = formatDate(data.user.updated_at);
         if (userUpdatedByElement) userUpdatedByElement.textContent = data.user.updated_by || 'N/A';
+        
+        // Set status badge and text
+        const isActive = !!data.user.status;
+        if (userStatusElement) {
+            userStatusElement.innerHTML = getStatusBadge(isActive);
+        }
+        if (userStatusTextElement) {
+            userStatusTextElement.textContent = isActive ? 'Active' : 'Blocked';
+        }
         
         // Set role badge
         if (userRoleElement) {
@@ -535,6 +553,20 @@ function getRoleBadge(role) {
         return `<span class="badge ${badgeClass}">${String(roleName).charAt(0).toUpperCase() + String(roleName).slice(1)}</span>`;
     } catch (error) {
         console.error('Error creating role badge:', error);
+        return '<span class="badge bg-secondary">Unknown</span>';
+    }
+}
+
+// Helper function to generate status badge HTML
+function getStatusBadge(isActive) {
+    try {
+        if (isActive) {
+            return '<span class="badge bg-success">Active</span>';
+        } else {
+            return '<span class="badge bg-danger">Blocked</span>';
+        }
+    } catch (error) {
+        console.error('Error creating status badge:', error);
         return '<span class="badge bg-secondary">Unknown</span>';
     }
 }

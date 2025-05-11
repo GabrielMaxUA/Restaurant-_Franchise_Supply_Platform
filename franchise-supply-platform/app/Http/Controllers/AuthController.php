@@ -20,31 +20,38 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
-
+        
         $user = User::where('email', $request->email)->first();
-
-        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
+        
+        if (!$user || !Hash::check($request->password, $user->password_hash)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
-
+        
+        // Check if the user is blocked
+        if ($user->isBlocked()) {
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been blocked. Please contact the administrator.'],
+            ]);
+        }
+        
         $user->load('role');
         $token = $user->createToken('auth-token')->plainTextToken;
-
+        
         return response()->json([
             'user' => $user,
             'token' => $token
         ]);
     }
-
+    
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-
+        
         return response()->json(['message' => 'Successfully logged out']);
     }
-
+    
     /**
      * Web authentication methods
      */
@@ -63,6 +70,13 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
         
         if ($user && Hash::check($request->password, $user->password_hash)) {
+            // Check if the user is blocked
+            if ($user->isBlocked()) {
+                return back()->withErrors([
+                    'email' => 'Your account has been blocked. Please contact the administrator.',
+                ]);
+            }
+            
             Auth::login($user);
             
             // Make sure role relationship is loaded
