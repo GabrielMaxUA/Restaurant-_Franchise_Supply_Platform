@@ -63,7 +63,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 •⁠  ⁠Status tracking for all orders
 
 #### 3.4 Web Backend
-•⁠  ⁠PHP-based dashboard (Laravel preferred)  - DONE 
+•⁠  ⁠PHP-based dashboard (Laravel)  - DONE 
 •⁠  ⁠User management, product inventory, order approval  - DONE 
 •⁠  ⁠API layer for mobile app
 
@@ -74,7 +74,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 •⁠  ⁠*Frontend Mobile:* React Native
 •⁠  ⁠*Database:* MySQL  - DONE 
 •⁠  ⁠*Notifications:* Firebase Push + SMTP for email
-•⁠  ⁠*Authentication:* JWT or Firebase Auth - DONE JWT
+•⁠  ⁠*Authentication:* JWT - DONE JWT
 •⁠  ⁠*QuickBooks API:* Invoice and customer sync
 
 ---
