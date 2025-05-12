@@ -25,15 +25,38 @@ use App\Http\Middleware\CheckUserStatus;
 Route::get('/', function () {
     return redirect('/login');
 });
+
 Route::get('/test-status', function() {
   return "Status middleware is working!";
 })
 ->middleware([CheckUserStatus::class]);
 
+// Test route
+Route::get('/web-test', function () {
+    return "Web routes are working!";
+});
+
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'webLogin']);
+Route::post('/login', [AuthController::class, 'webLogin'])->name('login.submit');
 Route::get('/logout', [AuthController::class, 'webLogout'])->name('logout');
+
+// Debug route to see all defined routes
+Route::get('/routes', function () {
+    $routeCollection = Route::getRoutes();
+    $routes = [];
+    
+    foreach ($routeCollection as $route) {
+        $routes[] = [
+            'method' => implode('|', $route->methods()),
+            'uri' => $route->uri(),
+            'name' => $route->getName(),
+            'action' => $route->getActionName(),
+        ];
+    }
+    
+    return response()->json($routes);
+});
 
 // Protected Routes - Requiring authentication and active status
 // ------------------------------------------------------------
@@ -195,7 +218,6 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         // Address API route
         Route::get('/address', [ProfileController::class, 'getAddress'])->name('franchisee.address');
     });
-
 });
 
 // Catch-all redirect to login for unauthenticated users

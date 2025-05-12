@@ -31,13 +31,17 @@ return [
     | users are actually retrieved out of your database or other storage
     | system used by the application. Typically, Eloquent is utilized.
     |
-    | Supported: "session"
+    | Supported: "session", "jwt"
     |
     */
 
     'guards' => [
         'web' => [
             'driver' => 'session',
+            'provider' => 'users',
+        ],
+        'api' => [
+            'driver' => 'jwt',
             'provider' => 'users',
         ],
     ],
@@ -63,6 +67,7 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
+            'password' => 'password_hash', // Custom password field
         ],
 
         // 'users' => [
@@ -111,5 +116,21 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | JWT Authentication
+    |--------------------------------------------------------------------------
+    |
+    | Configure JWT authentication settings. These settings will be used by the
+    | jwt-auth package to generate and validate tokens.
+    |
+    */
+
+    'jwt' => [
+        'secret' => env('JWT_SECRET'),
+        'ttl' => env('JWT_TTL', 60), // Time to live in minutes
+        'refresh_ttl' => env('JWT_REFRESH_TTL', 20160), // 2 weeks
+    ],
 
 ];

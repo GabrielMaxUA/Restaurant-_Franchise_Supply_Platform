@@ -26,7 +26,7 @@
         </a>
     </div>
 
-    <!-- In Stock Products Card -->
+    <!-- In Stock Products Card
     <div class="col-xl-3 col-md-6 mb-4">
         <a href="{{ route('warehouse.products.index') }}" class="text-decoration-none">
             <div class="card border-left-success shadow h-100 py-2">
@@ -44,7 +44,7 @@
                 </div>
             </div>
         </a>
-    </div>
+    </div> -->
 
     <!-- Low Stock Products Card -->
     <div class="col-xl-3 col-md-6 mb-4">

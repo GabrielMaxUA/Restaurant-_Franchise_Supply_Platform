@@ -26,14 +26,14 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 
 #### 3.1 User Roles & Permissions
 •⁠  ⁠*Admin (Web):*
-  - Manage franchisee accounts (name, phone, email, login access) 
+  - Manage franchisee accounts (name, phone, email, login access)  - DONE 
   - Add/edit/delete products (with images, descriptions, variants) - DONE 
-  - Approve or reject orders - DONE 
+  - Approve or reject orders - DONE  
   - Manage inventory - DONE 
   - Trigger invoice and customer sync to QuickBooks
 
 •⁠  ⁠*Warehouse Staff (Web):*
-  - View approved orders
+  - View approved orders 
   - Update order status (Packed/Shipped)
 
 •⁠  ⁠*Franchisee (Mobile App):*
@@ -46,7 +46,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 
 #### 3.2 Functional Modules
 •⁠  ⁠*Product Catalog:*
-  - Images, variants (e.g., size/packaging), cost, stock status - DONE 
+  - Images, variants (e.g., size/packaging), cost, stock status - DONE  
 •⁠  ⁠*Order Workflow:*
   - Order → Admin Approval → Warehouse Processing → Shipping
 •⁠  ⁠*QuickBooks Integration:*
@@ -54,7 +54,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 •⁠  ⁠*Notifications:*
   - Order submitted, approved, packed, shipped (push/email)
 •⁠  ⁠*Inventory Tracking:*
-  - Stock management per item
+  - Stock management per item  - DONE 
 
 #### 3.3 Mobile App
 •⁠  ⁠React Native-based, iOS + Android
@@ -63,16 +63,16 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 •⁠  ⁠Status tracking for all orders
 
 #### 3.4 Web Backend
-•⁠  ⁠PHP-based dashboard (Laravel preferred)
-•⁠  ⁠User management, product inventory, order approval
+•⁠  ⁠PHP-based dashboard (Laravel preferred)  - DONE 
+•⁠  ⁠User management, product inventory, order approval  - DONE 
 •⁠  ⁠API layer for mobile app
 
 ---
 
 ### 4. Technical Requirements
-•⁠  ⁠*Backend:* PHP (Laravel)
+•⁠  ⁠*Backend:* PHP (Laravel)  - DONE 
 •⁠  ⁠*Frontend Mobile:* React Native
-•⁠  ⁠*Database:* MySQL
+•⁠  ⁠*Database:* MySQL  - DONE 
 •⁠  ⁠*Notifications:* Firebase Push + SMTP for email
 •⁠  ⁠*Authentication:* JWT or Firebase Auth
 •⁠  ⁠*QuickBooks API:* Invoice and customer sync
@@ -81,7 +81,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 
 ### 5. Non-Functional Requirements
 •⁠  ⁠Mobile responsiveness for web admin
-•⁠  ⁠Secure data access (SSL, auth tokens)
+•⁠  ⁠Secure data access (SSL, auth tokens)  - DONE 
 •⁠  ⁠Cloud backups of database
 •⁠  ⁠Error tracking and logging
 

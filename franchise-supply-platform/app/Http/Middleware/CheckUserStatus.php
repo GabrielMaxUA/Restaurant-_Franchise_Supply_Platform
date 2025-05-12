@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class CheckUserStatus
 {
@@ -19,25 +20,34 @@ class CheckUserStatus
     public function handle(Request $request, Closure $next)
     {
         try {
-            // Check if the user is authenticated
-            if (Auth::check()) {
-                $user = Auth::user();
-                
-                // Check if status is explicitly 0 (blocked)
-                // Using direct comparison instead of isBlocked() method for extra safety
-                if (isset($user->status) && (int)$user->status === 0) {
-                    // User is blocked, log them out
-                    Auth::logout();
+            // For API requests
+            if ($request->expectsJson() || $request->is('api/*')) {
+                try {
+                    // Check if the user is authenticated with JWT
+                    $user = auth('api')->user();
                     
-                    // If it's an API request, return a JSON response
-                    if ($request->expectsJson() || $request->is('api/*')) {
+                    if ($user && isset($user->status) && (int)$user->status === 0) {
+                        // User is blocked
                         return response()->json([
                             'success' => false,
                             'message' => 'Your account has been blocked. Please contact the administrator.'
                         ], 403);
                     }
+                } catch (\Exception $e) {
+                    // Log JWT-specific errors
+                    Log::error('JWT Error in CheckUserStatus middleware: ' . $e->getMessage());
+                }
+            } 
+            // For web requests
+            else if (Auth::check()) {
+                $user = Auth::user();
+                
+                // Check if status is explicitly 0 (blocked)
+                if (isset($user->status) && (int)$user->status === 0) {
+                    // User is blocked, log them out
+                    Auth::logout();
                     
-                    // For web requests, redirect to login with an error message
+                    // Redirect to login with an error message
                     return redirect()->route('login')
                         ->with('error', 'Your account has been blocked. Please contact the administrator.');
                 }

@@ -27,7 +27,12 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'role' => \App\Http\Middleware\CheckRole::class,
-        // Changed from 'status' to 'user.status'
         'user_status' => \App\Http\Middleware\CheckUserStatus::class,
+        
+        // JWT middleware
+        'jwt.verify' => \App\Http\Middleware\JwtMiddleware::class,
+        'jwt.auth' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
+        'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,
+        'role.api' => \App\Http\Middleware\CheckApiRole::class,
     ];
 }
