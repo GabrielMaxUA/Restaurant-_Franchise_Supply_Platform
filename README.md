@@ -74,7 +74,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 •⁠  ⁠*Frontend Mobile:* React Native
 •⁠  ⁠*Database:* MySQL  - DONE 
 •⁠  ⁠*Notifications:* Firebase Push + SMTP for email
-•⁠  ⁠*Authentication:* JWT or Firebase Auth
+•⁠  ⁠*Authentication:* JWT or Firebase Auth - DONE JWT
 •⁠  ⁠*QuickBooks API:* Invoice and customer sync
 
 ---
