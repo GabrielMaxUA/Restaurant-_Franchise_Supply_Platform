@@ -67,7 +67,7 @@ class AuthController extends Controller
                   'email' => $user->email,
                   'username' => $user->username,
                   'role' => $user->role ? $user->role->name : null,
-                  'status' => $user->isActive() ? 'active' : 'inactive',
+                  'status' => $user->isActive() ? 'active' : 'blocked',
                   'company_name' => $user->getCompanyNameAttribute(),
                   'full_address' => $user->getFullAddressAttribute()
               ]
