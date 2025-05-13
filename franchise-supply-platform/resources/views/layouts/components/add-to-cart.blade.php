@@ -535,6 +535,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
 // Process all add to cart forms with AJAX submission
 document.querySelectorAll('.add-to-cart-form').forEach(form => {
+  // Add ajax-form class to prevent default loading overlay behavior
+  form.classList.add('ajax-form');
+  
   form.addEventListener('submit', function(e) {
       e.preventDefault();
       
@@ -546,6 +549,11 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
       const originalBtnText = submitBtn.innerHTML;
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+      
+      // Show loading overlay with custom message
+      if (typeof window.showLoadingOverlay === 'function') {
+          window.showLoadingOverlay('Adding item to cart...');
+      }
       
       // Log the form submission
       console.log("Submitting add to cart form", this.action);
@@ -664,6 +672,11 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
                 // Reset button state
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnText;
+                
+                // Hide loading overlay using global function
+                if (typeof window.hideLoadingOverlay === 'function') {
+                    window.hideLoadingOverlay();
+                }
             }, 1500);
         } else {
             // Show error
@@ -723,6 +736,11 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
             // Reset button state
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
+            
+            // Hide loading overlay using global function
+            if (typeof window.hideLoadingOverlay === 'function') {
+                window.hideLoadingOverlay();
+            }
         }
       })
       .catch(error => {
@@ -734,6 +752,11 @@ document.querySelectorAll('.add-to-cart-form').forEach(form => {
           // Reset button state
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnText;
+          
+          // Hide loading overlay using global function
+          if (typeof window.hideLoadingOverlay === 'function') {
+              window.hideLoadingOverlay();
+          }
       });
   });
 });
