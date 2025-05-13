@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 12, 2025 at 06:44 AM
+-- Generation Time: May 12, 2025 at 10:40 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -40,7 +40,7 @@ CREATE TABLE `admin_details` (
   `website` varchar(100) DEFAULT NULL,
   `logo_path` text DEFAULT NULL,
   `created_by` varchar(100) DEFAULT NULL,
-  `updated_by` int(10) UNSIGNED DEFAULT NULL,
+  `updated_by` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -50,7 +50,7 @@ CREATE TABLE `admin_details` (
 --
 
 INSERT INTO `admin_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `phone`, `email`, `website`, `logo_path`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
-(2, 1, 'Restaurant Franchise Supply toronto', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '4168560684', 'admin@example.com', 'www.restaurantfranchisesupply.com', 'company-logos/l0xSFESYc1n211AxhrifIJzu21QFriWBAfDCZDXn.jpg', '1', 1, '2025-05-08 13:03:09', '2025-05-08 13:18:07');
+(2, 1, 'MaxiCo', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '1234567890', 'maxgabrielua@gmail.com', 'www.restaurantfranchisesupply.com', 'company-logos/lFCONwMuMZOZJ8Y8IqA7wtRa4oQ8bjhHGCWechXX.png', '1', 'admin', '2025-05-08 13:03:09', '2025-05-13 01:58:27');
 
 -- --------------------------------------------------------
 
@@ -140,8 +140,8 @@ CREATE TABLE `franchisee_details` (
 --
 
 INSERT INTO `franchisee_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `contact_name`, `logo_path`, `created_at`, `updated_at`, `updated_by`) VALUES
-(2, 14, 'Max and Company', '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriellla', 'franchisee_logos/company_logo_14_1746744453.png', '2025-05-08 15:14:15', '2025-05-08 22:47:34', 'user1'),
-(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', NULL, '2025-05-08 15:28:59', '2025-05-11 14:30:26', 'adminMax');
+(2, 14, 'Max and Company eno', '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriellla', 'franchisee_logos/company_logo_14_1747101083.png', '2025-05-08 15:14:15', '2025-05-13 02:36:26', 'admin'),
+(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', NULL, '2025-05-08 15:28:59', '2025-05-13 01:52:40', 'admin');
 
 -- --------------------------------------------------------
 
@@ -164,7 +164,7 @@ CREATE TABLE `migrations` (
 CREATE TABLE `orders` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
-  `status` enum('pending','approved','rejected','packed','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `status` enum('pending','approved','rejected','packed','shipped','delivered') NOT NULL DEFAULT 'pending',
   `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `shipping_address` varchar(255) NOT NULL,
   `shipping_city` varchar(100) DEFAULT NULL,
@@ -180,19 +180,27 @@ CREATE TABLE `orders` (
   `purchase_order` varchar(50) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `qb_invoice_id` varchar(100) DEFAULT NULL
+  `approved_at` timestamp NULL DEFAULT NULL,
+  `qb_invoice_id` varchar(100) DEFAULT NULL,
+  `invoice_number` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `orders`
 --
 
-INSERT INTO `orders` (`id`, `user_id`, `status`, `total_amount`, `shipping_address`, `shipping_city`, `shipping_state`, `shipping_zip`, `delivery_date`, `delivery_time`, `delivery_preference`, `shipping_cost`, `notes`, `manager_name`, `contact_phone`, `purchase_order`, `created_at`, `updated_at`, `qb_invoice_id`) VALUES
-(23, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:05:10', '2025-05-10 00:41:58', NULL),
-(24, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:53:50', '2025-05-10 00:07:28', NULL),
-(25, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 01:20:43', '2025-05-10 01:50:26', NULL),
-(26, 14, 'approved', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:13:01', '2025-05-10 16:22:12', 'QB-INV-68689'),
-(27, 14, 'approved', 64.80, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:19:51', '2025-05-10 16:21:28', 'QB-INV-57901');
+INSERT INTO `orders` (`id`, `user_id`, `status`, `total_amount`, `shipping_address`, `shipping_city`, `shipping_state`, `shipping_zip`, `delivery_date`, `delivery_time`, `delivery_preference`, `shipping_cost`, `notes`, `manager_name`, `contact_phone`, `purchase_order`, `created_at`, `updated_at`, `approved_at`, `qb_invoice_id`, `invoice_number`) VALUES
+(23, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:05:10', '2025-05-10 00:41:58', NULL, NULL, NULL),
+(24, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:53:50', '2025-05-10 00:07:28', NULL, NULL, NULL),
+(25, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 01:20:43', '2025-05-10 01:50:26', NULL, NULL, NULL),
+(26, 14, 'shipped', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:13:01', '2025-05-13 00:32:20', NULL, 'QB-INV-68689', NULL),
+(27, 14, 'delivered', 64.80, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:19:51', '2025-05-13 00:11:07', NULL, 'QB-INV-57901', NULL),
+(28, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-12 23:52:10', '2025-05-13 00:48:29', NULL, NULL, NULL),
+(29, 14, 'packed', 142.56, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:14:57', '2025-05-13 01:47:26', NULL, NULL, NULL),
+(30, 14, 'packed', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:25:19', '2025-05-13 01:30:36', '2025-05-13 01:25:38', NULL, 'INV-30-202505'),
+(31, 14, 'pending', 1328.40, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:11:48', '2025-05-13 02:11:48', NULL, NULL, NULL),
+(32, 14, 'pending', 84.12, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'express', 15.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:24:06', '2025-05-13 02:24:06', NULL, NULL, NULL),
+(33, 14, 'pending', 38.88, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:27:27', '2025-05-13 02:27:27', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -220,7 +228,13 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `quanti
 (27, 24, 68, NULL, 1, 12.00, '2025-05-09 23:53:50', '2025-05-09 23:53:50'),
 (28, 25, 68, NULL, 1, 12.00, '2025-05-10 01:20:43', '2025-05-10 01:20:43'),
 (29, 26, 68, NULL, 1, 12.00, '2025-05-10 02:13:01', '2025-05-10 02:13:01'),
-(30, 27, 68, NULL, 5, 12.00, '2025-05-10 02:19:51', '2025-05-10 02:19:51');
+(30, 27, 68, NULL, 5, 12.00, '2025-05-10 02:19:51', '2025-05-10 02:19:51'),
+(31, 28, 68, NULL, 1, 12.00, '2025-05-12 23:52:10', '2025-05-12 23:52:10'),
+(32, 29, 69, NULL, 11, 12.00, '2025-05-13 01:14:57', '2025-05-13 01:14:57'),
+(33, 30, 69, NULL, 1, 12.00, '2025-05-13 01:25:19', '2025-05-13 01:25:19'),
+(34, 31, 65, NULL, 123, 10.00, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
+(35, 32, 67, NULL, 2, 32.00, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
+(36, 33, 68, NULL, 3, 12.00, '2025-05-13 02:27:27', '2025-05-13 02:27:27');
 
 -- --------------------------------------------------------
 
@@ -237,6 +251,39 @@ CREATE TABLE `order_notifications` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `order_notifications`
+--
+
+INSERT INTO `order_notifications` (`id`, `user_id`, `order_id`, `status`, `is_read`, `created_at`, `updated_at`) VALUES
+(7, 4, 28, 'pending', 1, '2025-05-12 23:52:10', '2025-05-12 23:53:46'),
+(21, 4, 28, 'approved', 1, '2025-05-13 00:23:48', '2025-05-13 00:24:48'),
+(23, 1, 28, 'packed', 1, '2025-05-13 00:24:51', '2025-05-13 00:30:17'),
+(24, 14, 26, 'shipped', 1, '2025-05-13 00:32:20', '2025-05-13 00:32:31'),
+(25, 1, 26, 'shipped', 1, '2025-05-13 00:32:20', '2025-05-13 00:34:05'),
+(26, 14, 28, 'shipped', 1, '2025-05-13 00:34:50', '2025-05-13 01:14:22'),
+(27, 1, 28, 'shipped', 1, '2025-05-13 00:34:50', '2025-05-13 00:46:09'),
+(28, 14, 28, 'delivered', 1, '2025-05-13 00:48:29', '2025-05-13 01:14:22'),
+(29, 1, 28, 'delivered', 1, '2025-05-13 00:48:29', '2025-05-13 00:58:44'),
+(30, 1, 29, 'pending', 1, '2025-05-13 01:14:57', '2025-05-13 01:18:25'),
+(31, 4, 29, 'pending', 1, '2025-05-13 01:14:57', '2025-05-13 01:28:30'),
+(32, 14, 29, 'approved', 1, '2025-05-13 01:18:19', '2025-05-13 01:24:35'),
+(33, 4, 29, 'approved', 1, '2025-05-13 01:18:19', '2025-05-13 01:28:30'),
+(34, 1, 30, 'pending', 1, '2025-05-13 01:25:19', '2025-05-13 01:25:42'),
+(35, 4, 30, 'pending', 1, '2025-05-13 01:25:19', '2025-05-13 01:28:30'),
+(36, 14, 30, 'approved', 1, '2025-05-13 01:25:38', '2025-05-13 01:25:54'),
+(37, 4, 30, 'approved', 1, '2025-05-13 01:25:38', '2025-05-13 01:28:30'),
+(38, 14, 30, 'packed', 1, '2025-05-13 01:30:36', '2025-05-13 01:31:37'),
+(39, 1, 30, 'packed', 1, '2025-05-13 01:30:36', '2025-05-13 01:31:20'),
+(40, 14, 29, 'packed', 1, '2025-05-13 01:47:26', '2025-05-13 01:49:17'),
+(41, 1, 29, 'packed', 0, '2025-05-13 01:47:26', '2025-05-13 01:47:26'),
+(42, 1, 31, 'pending', 0, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
+(43, 4, 31, 'pending', 0, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
+(44, 1, 32, 'pending', 0, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
+(45, 4, 32, 'pending', 0, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
+(46, 1, 33, 'pending', 0, '2025-05-13 02:27:27', '2025-05-13 02:27:27'),
+(47, 4, 33, 'pending', 0, '2025-05-13 02:27:27', '2025-05-13 02:27:27');
 
 -- --------------------------------------------------------
 
@@ -290,11 +337,11 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`, `updated_at`) VALUES
-(65, 'checken', 'organic, free run', 10.00, 6, 248, '2025-05-07 16:28:21', '2025-05-07 15:22:53'),
+(65, 'checken', 'organic, free run', 10.00, 6, 125, '2025-05-07 16:28:21', '2025-05-13 02:11:48'),
 (66, 'ground beef', 'canadian farm direct supplier (pack of 1kg)', 14.00, 7, 42, '2025-05-07 16:30:25', '2025-05-11 13:43:46'),
-(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 120, '2025-05-07 16:32:13', '2025-05-08 23:16:50'),
-(68, 'chicken wings', 'Bulk (Min order 1kg)', 12.00, 6, 52, '2025-05-08 23:45:21', '2025-05-10 16:33:25'),
-(69, 'wheet flour', '3 kg pck', 12.00, 10, 12, '2025-05-10 14:45:56', '2025-05-10 14:45:56');
+(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 118, '2025-05-07 16:32:13', '2025-05-13 02:24:06'),
+(68, 'chicken wings', 'Bulk (Min order 1kg)', 12.00, 6, 48, '2025-05-08 23:45:21', '2025-05-13 02:27:27'),
+(69, 'wheet flour', '3 kg pck', 12.00, 10, 0, '2025-05-10 14:45:56', '2025-05-13 01:25:19');
 
 -- --------------------------------------------------------
 
@@ -410,9 +457,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('6BTKumsxn7JYm9cnc6GWT3S5V61tkSjVXx2Mt8ib', 16, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo5OntzOjY6Il90b2tlbiI7czo0MDoialBlNkNlMHREdWx1OWFJT3F2MTdCeTVGazJlM1Z1TjlmamoyU3RXdiI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czo0MDoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2ZyYW5jaGlzZWUvY2F0YWxvZyI7fXM6OToiX3ByZXZpb3VzIjthOjE6e3M6MzoidXJsIjtzOjQ3OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvZnJhbmNoaXNlZS9vcmRlcnMvcGVuZGluZyI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjc6ImdhYnJpZWwiO3M6MTc6Imhhc19vcmRlcl91cGRhdGVzIjtiOjA7czoxMjoiaGlkZV93ZWxjb21lIjtiOjA7czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MTY7fQ==', 1746830561),
-('BHB9eCa4zJo5BAvbCAxA4qcfnopeEdSIPifm6MVe', NULL, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo3OntzOjY6Il90b2tlbiI7czo0MDoiVmNEajc3UVNVOHJhcnBIRFlFQm5uTW1mNEM1WVpBd1VmSE9yWTBYeSI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6Mjc6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9sb2dpbiI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6MTI6IndlbGNvbWVfYmFjayI7YjoxO3M6OToidXNlcl9uYW1lIjtzOjQ6InVzZXIiO3M6MTU6Imxvd19zdG9ja19pdGVtcyI7aTowO3M6MTg6Im91dF9vZl9zdG9ja19pdGVtcyI7aToxO30=', 1746728552),
-('zXKOlWdQyN05DmIphD4D88McQDm5IuxFVazE7Tfb', 14, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoidlZ4NGRyanJCUmF0SnA1STVLbXZGeGdEUzB1dlFHZVczbGd1OEtIZiI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6NDA6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9mcmFuY2hpc2VlL2NhdGFsb2ciO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToxNDtzOjEyOiJ3ZWxjb21lX2JhY2siO2I6MTtzOjk6InVzZXJfbmFtZSI7czo0OiJ1c2VyIjt9', 1746728636);
+('wEwFKGweA0bEVrvj2UvHc2wXo3QlbvJUkwT3cXSN', 1, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YToxMTp7czo2OiJfdG9rZW4iO3M6NDA6IkU5RmQ5UkhoQjlyUGY4ZFpySVgyMFU4YnFoaVdxRThGYkhWVW1mTWwiO3M6OToiX3ByZXZpb3VzIjthOjE6e3M6MzoidXJsIjtzOjQ0OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvYWRtaW4vb3JkZXJzL2NoZWNrLW5ldyI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjE7czoxMjoid2VsY29tZV9iYWNrIjtiOjE7czo5OiJ1c2VyX25hbWUiO3M6NToiYWRtaW4iO3M6MTU6Imxvd19zdG9ja19pdGVtcyI7aTowO3M6MTg6Im91dF9vZl9zdG9ja19pdGVtcyI7aToxO3M6MzoidXJsIjthOjE6e3M6ODoiaW50ZW5kZWQiO3M6Mjg6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9sb2dvdXQiO31zOjE3OiJoYXNfb3JkZXJfdXBkYXRlcyI7YjoxO3M6MTI6ImhpZGVfd2VsY29tZSI7YjowO30=', 1747103998);
 
 -- --------------------------------------------------------
 
@@ -438,10 +483,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`, `created_at`, `updated_at`, `updated_by`, `status`) VALUES
-(1, 'adminMax', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '4168560684', 1, '2025-05-02 22:22:44', '2025-05-08 13:18:07', 'adminMax', 1),
+(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'maxgabrielua@gmail.com', '1234567890', 1, '2025-05-02 22:22:44', '2025-05-13 02:04:24', 'admin', 1),
 (4, 'maximUSCan', '$2y$12$hd15.smpVHhhq0.yRNu3YeW9kSOBVomoDVJ5/VmzeGBkrJJvu3gyi', 'maxim.don.mg@gmail.com', '4168560684', 2, '2025-05-04 23:09:20', '2025-05-11 14:34:24', 'adminMax', 1),
-(14, 'user1', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '416 8560684', 3, '2025-05-07 18:21:40', '2025-05-08 22:57:23', 'user1', 1),
-(16, 'gabriel max', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-11 15:14:49', 'adminMax', 0);
+(14, 'user1', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '416 8560684', 3, '2025-05-07 18:21:40', '2025-05-13 02:36:26', 'admin', 1),
+(16, 'gabriel max', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-13 01:52:40', 'admin', 1);
 
 -- --------------------------------------------------------
 
@@ -616,7 +661,7 @@ ALTER TABLE `variant_images`
 -- AUTO_INCREMENT for table `admin_details`
 --
 ALTER TABLE `admin_details`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `carts`
@@ -628,7 +673,7 @@ ALTER TABLE `carts`
 -- AUTO_INCREMENT for table `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -652,19 +697,19 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
 -- AUTO_INCREMENT for table `order_notifications`
 --
 ALTER TABLE `order_notifications`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`

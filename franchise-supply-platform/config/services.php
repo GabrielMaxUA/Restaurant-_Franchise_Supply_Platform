@@ -46,4 +46,29 @@ return [
         'integration_enabled' => env('QB_INTEGRATION_ENABLED', false),
     ],
 
+    'sendgrid' => [
+        'api_key' => env('SENDGRID_API_KEY'),
+        'templates' => [
+            'order_confirmation' => env('SENDGRID_ORDER_CONFIRMATION_TEMPLATE'),
+            'order_notification_admin' => env('SENDGRID_ORDER_NOTIFICATION_ADMIN_TEMPLATE'),
+            'order_notification_warehouse' => env('SENDGRID_ORDER_NOTIFICATION_WAREHOUSE_TEMPLATE'),
+        ],
+        'tracking' => [
+            'enabled' => env('SENDGRID_TRACKING_ENABLED', true),
+            'click_tracking' => env('SENDGRID_CLICK_TRACKING', true),
+            'open_tracking' => env('SENDGRID_OPEN_TRACKING', true),
+        ],
+    ],
+
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM'), // Format: +1234567890
+        'enabled' => env('TWILIO_ENABLED', false),
+        'templates' => [
+            'order_confirmation' => env('TWILIO_ORDER_CONFIRMATION_TEMPLATE', 'Your order #{{1}} has been confirmed and will be processed soon. Total: {{2}}'),
+            'order_notification' => env('TWILIO_ORDER_NOTIFICATION_TEMPLATE', 'New order #{{1}} requires your attention. From: {{2}}, Amount: {{3}}'),
+        ],
+    ],
+
 ];

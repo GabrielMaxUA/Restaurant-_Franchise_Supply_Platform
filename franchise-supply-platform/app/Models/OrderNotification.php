@@ -52,8 +52,48 @@ class OrderNotification extends Model
     {
         $this->is_read = true;
         $this->save();
-        
+
         return $this;
+    }
+
+    /**
+     * Create a new notification for order placed.
+     *
+     * @param  \App\Models\Order  $order
+     * @return self
+     */
+    public static function createOrderPlacedNotification(Order $order)
+    {
+        return self::create([
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'status' => 'Order placed',
+            'is_read' => false,
+        ]);
+    }
+
+    /**
+     * Create a new notification for various users.
+     *
+     * @param  \App\Models\Order  $order
+     * @param  array  $userIds
+     * @param  string  $status
+     * @return array
+     */
+    public static function createForUsers(Order $order, array $userIds, string $status = 'New order')
+    {
+        $notifications = [];
+
+        foreach ($userIds as $userId) {
+            $notifications[] = self::create([
+                'user_id' => $userId,
+                'order_id' => $order->id,
+                'status' => $status,
+                'is_read' => false,
+            ]);
+        }
+
+        return $notifications;
     }
 
     /**
