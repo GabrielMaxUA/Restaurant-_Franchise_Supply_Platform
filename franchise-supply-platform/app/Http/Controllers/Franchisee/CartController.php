@@ -619,16 +619,21 @@ class CartController extends Controller
                     // STEP 1: WAREHOUSE EMAILS
                     \Log::info('Starting warehouse email notification');
 
-                    // Hard-code a warehouse email to ensure at least one recipient
-                    $warehouseEmails = ['warehouse@restaurantfranchisesupply.com'];
-                    \Log::info('Added default warehouse email to recipients list');
+                    // Collect warehouse emails with fallbacks
+                    $warehouseEmails = [];
 
-                    // Also get warehouse emails from database
+                    // Get warehouse emails from database
                     $dbWarehouseEmails = User::getWarehouseEmails();
                     \Log::info('Found ' . count($dbWarehouseEmails) . ' warehouse emails in database: ' . implode(', ', $dbWarehouseEmails ?: ['none']));
 
-                    // Merge default with database emails
-                    $warehouseEmails = array_merge($warehouseEmails, $dbWarehouseEmails);
+                    // Add database emails if they exist
+                    if (!empty($dbWarehouseEmails)) {
+                        $warehouseEmails = array_merge($warehouseEmails, $dbWarehouseEmails);
+                    }
+
+                    // Add hardcoded warehouse email
+                    $warehouseEmails[] = 'warehouse@restaurantfranchisesupply.com';
+                    \Log::info('Added default hardcoded warehouse email to recipients list');
 
                     // Add a fallback from config
                     $fallbackEmail = config('company.warehouse_notification_email');
@@ -652,43 +657,70 @@ class CartController extends Controller
                         \Log::warning('No valid warehouse emails found to send notifications');
                     }
 
-                    // Send notification to admin emails (from database)
-                    $adminEmails = User::getAdminEmails();
-                    // If no admin users in database, use maxgabrielua@gmail.com
-                    if (empty($adminEmails)) {
-                        $adminEmails = [config('company.admin_notification_email', 'maxgabrielua@gmail.com')];
-                    } else {
-                        // Make sure maxgabrielua@gmail.com is always included
-                        $primaryAdminEmail = 'maxgabrielua@gmail.com';
-                        if (!in_array($primaryAdminEmail, $adminEmails)) {
-                            $adminEmails[] = $primaryAdminEmail;
-                        }
+                    // STEP 2: ADMIN EMAILS
+                    \Log::info('Starting admin email notification');
+
+                    // Collect admin emails with fallbacks
+                    $adminEmails = [];
+
+                    // Get admin emails from database
+                    $dbAdminEmails = User::getAdminEmails();
+                    \Log::info('Found ' . count($dbAdminEmails) . ' admin emails in database: ' . implode(', ', $dbAdminEmails ?: ['none']));
+
+                    // Add database emails if they exist
+                    if (!empty($dbAdminEmails)) {
+                        $adminEmails = array_merge($adminEmails, $dbAdminEmails);
+                    }
+
+                    // Always add maxgabrielua@gmail.com
+                    $primaryAdminEmail = 'maxgabrielua@gmail.com';
+                    if (!in_array($primaryAdminEmail, $adminEmails)) {
+                        $adminEmails[] = $primaryAdminEmail;
+                        \Log::info('Added primary admin email: ' . $primaryAdminEmail);
+                    }
+
+                    // Add fallback from config
+                    $configAdminEmail = config('company.admin_notification_email');
+                    if ($configAdminEmail && $configAdminEmail !== $primaryAdminEmail) {
+                        $adminEmails[] = $configAdminEmail;
+                        \Log::info('Added config admin email: ' . $configAdminEmail);
                     }
 
                     // Remove duplicate emails and ensure valid format
-                    $adminEmails = array_unique(array_filter($adminEmails, function($email) {
+                    $validAdminEmails = array_unique(array_filter($adminEmails, function($email) {
                         return filter_var($email, FILTER_VALIDATE_EMAIL);
                     }));
 
-                    if (!empty($adminEmails)) {
-                        Mail::to($adminEmails)
+                    \Log::info('Final admin email list has ' . count($validAdminEmails) . ' recipients: ' . implode(', ', $validAdminEmails ?: ['none']));
+
+                    if (!empty($validAdminEmails)) {
+                        Mail::to($validAdminEmails)
                             ->send(new NewOrderNotification($order, true));
-                        \Log::info('Sent order notification to admin emails: ' . implode(', ', $adminEmails));
+                        \Log::info('Sent order notification to admin emails');
+                    } else {
+                        \Log::warning('No valid admin emails found to send notifications');
                     }
 
-                    // Send order confirmation to the customer
+                    // STEP 3: CUSTOMER CONFIRMATION EMAIL
                     if (config('company.send_customer_confirmation', true)) {
                         $customerEmail = $order->user->email;
+                        \Log::info('Customer email for order confirmation: ' . ($customerEmail ?: 'None'));
+
                         if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
                             Mail::to($customerEmail)
                                 ->send(new OrderConfirmationEmail($order));
                             \Log::info('Sent order confirmation to customer email: ' . $customerEmail);
+                        } else {
+                            \Log::warning('No valid customer email found for order confirmation');
                         }
                     }
                 } catch (\Exception $e) {
                     // Don't let email failures stop the order process, just log them
                     \Log::error('Failed to send order notification emails: ' . $e->getMessage());
+                    \Log::error('Email error trace: ' . $e->getTraceAsString());
                 }
+            } else {
+                \Log::info('Email notifications are disabled in config');
             }
 
             // Redirect to order details page
