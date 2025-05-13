@@ -10,6 +10,10 @@
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Shared styles -->
+    <link rel="stylesheet" href="{{ asset('css/notification.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/filters.css') }}">
     
     <!-- Custom CSS -->
     <style>
@@ -186,8 +190,14 @@
                                 Users
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->is('admin/quickbooks*') ? 'active' : '' }}" href="{{ url('/admin/quickbooks') }}">
+                                <i class="fas fa-calculator me-2"></i>
+                                QuickBooks
+                            </a>
+                        </li>
                     </ul>
-                    
+
                     <hr>
                     <div class="px-3 mt-4">
                         <a href="{{ url('/logout') }}" class="btn btn-danger w-100">
@@ -209,17 +219,7 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Dashboard')</span>
                         <div class="d-flex">
-                            @php
-                                $pendingOrdersCount = \App\Models\Order::where('status', 'pending')->count();
-                            @endphp
-                            @if($pendingOrdersCount > 0)
-                                <a href="{{ url('/admin/orders?status=pending') }}" class="btn btn-outline-success me-2 position-relative">
-                                    <i class="fas fa-bell"></i>
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                        {{ $pendingOrdersCount }}
-                                    </span>
-                                </a>
-                            @endif
+                            @include('layouts.components.notification-bell')
                             
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -239,7 +239,53 @@
                         </div>
                     </div>
                 </nav>
-                
+
+                <!-- Order Notifications Bar -->
+                @php
+                    $pendingOrders = \App\Models\Order::where('status', 'pending')->count();
+                    $activeOrders = \App\Models\Order::whereIn('status', ['approved', 'packed', 'shipped'])->count();
+                @endphp
+
+                @if($pendingOrders > 0 || $activeOrders > 0)
+                <div class="order-notification-bar mb-3">
+                    <div class="container-fluid">
+                        <div class="row">
+                            @if($pendingOrders > 0)
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <div class="alert alert-warning mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <div>
+                                            <strong>{{ $pendingOrders }} {{ Str::plural('order', $pendingOrders) }}</strong> pending approval
+                                            <a href="{{ route('admin.orders.index', ['status' => 'pending']) }}" class="btn btn-sm btn-warning ms-3">
+                                                View Orders
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            @if($activeOrders > 0)
+                            <div class="col-md-{{ $pendingOrders > 0 ? '6' : '12' }}">
+                                <div class="alert alert-info mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-box me-2"></i>
+                                        <div>
+                                            <strong>{{ $activeOrders }} {{ Str::plural('order', $activeOrders) }}</strong> in progress
+                                            <a href="{{ route('admin.orders.index', ['status' => ['approved', 'packed', 'shipped']]) }}" class="btn btn-sm btn-info ms-3 text-white">
+                                                View Orders
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <!-- Page Content -->
                 <div class="container-fluid">
                     @if(!session('hide_welcome'))
@@ -266,9 +312,9 @@
     
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
 
-    </script>
+    <!-- Custom JS for notifications -->
+    <script src="{{ asset('js/notifications.js') }}"></script>
     
     <!-- Enhanced Sidebar toggle script with fixes -->
     <script>

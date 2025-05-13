@@ -150,10 +150,14 @@ return [
 
     // Application Service Providers
     App\Providers\AppServiceProvider::class,
+    App\Providers\EventServiceProvider::class,
     App\Providers\RouteServiceProvider::class,
-    
+
     // JWT Service Provider
     Tymon\JWTAuth\Providers\LaravelServiceProvider::class,
+
+    // PDF Generation Service Provider
+    Barryvdh\DomPDF\ServiceProvider::class,
 ],
 
 'aliases' => [
@@ -186,6 +190,7 @@ return [
     'Request' => Illuminate\Support\Facades\Request::class,
     'Response' => Illuminate\Support\Facades\Response::class,
     'Route' => Illuminate\Support\Facades\Route::class,
+    'PDF' => Barryvdh\DomPDF\Facade\Pdf::class,
     'Schema' => Illuminate\Support\Facades\Schema::class,
     'Session' => Illuminate\Support\Facades\Session::class,
     'Storage' => Illuminate\Support\Facades\Storage::class,

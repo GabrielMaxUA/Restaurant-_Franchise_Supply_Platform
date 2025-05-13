@@ -24,23 +24,31 @@
                     <strong>Order ID:</strong> #{{ $order->id }}
                 </div>
                 <div class="mb-3">
+                    <strong>Invoice #:</strong>
+                    @if($order->status == 'pending')
+                        <span class="text-muted">Pending approval</span>
+                    @elseif($order->invoice_number)
+                        <span class="text-primary">{{ $order->invoice_number }}</span>
+                    @else
+                        <span class="text-muted">Not generated</span>
+                    @endif
+                </div>
+                <div class="mb-3">
                     <strong>Status:</strong>
                     @if($order->status == 'pending')
-                        <span class="badge bg-warning">Pending</span>
+                        <span class="badge rounded-pill bg-warning text-dark order-status-badge">Pending Approval</span>
                     @elseif($order->status == 'approved')
-                        <span class="badge bg-primary">Approved</span>
+                        <span class="badge rounded-pill bg-primary order-status-badge">Awaiting Fulfillment</span>
                     @elseif($order->status == 'packed')
-                        <span class="badge bg-info">Packed</span>
+                        <span class="badge rounded-pill bg-info order-status-badge">In Progress</span>
                     @elseif($order->status == 'shipped')
-                        <span class="badge bg-success">Shipped</span>
+                        <span class="badge rounded-pill bg-success order-status-badge">Shipped</span>
                     @elseif($order->status == 'delivered')
-                        <span class="badge bg-secondary">Delivered</span>
+                        <span class="badge rounded-pill bg-success order-status-badge">Delivered</span>
                     @elseif($order->status == 'rejected')
-                        <span class="badge bg-danger">Rejected</span>
-                    @elseif($order->status == 'cancelled')
-                        <span class="badge bg-danger">Cancelled</span>
+                        <span class="badge rounded-pill bg-danger order-status-badge">Rejected</span>
                     @else
-                        <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
+                        <span class="badge rounded-pill bg-secondary order-status-badge">{{ ucfirst($order->status) }}</span>
                     @endif
                 </div>
                 <div class="mb-3">
@@ -219,8 +227,8 @@
             </div>
             <div class="card-body text-center">
                 @if($order->status == 'pending')
-                    <div class="d-flex justify-content-center gap-3">
-                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                    <div class="d-flex justify-content-center gap-3 action-buttons">
+                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="m-0">
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="status" value="approved">
@@ -228,8 +236,8 @@
                                 <i class="fas fa-check me-2"></i>Approve Order
                             </button>
                         </form>
-                        
-                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+
+                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="m-0">
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="status" value="rejected">
@@ -239,36 +247,27 @@
                         </form>
                     </div>
                 @elseif($order->status == 'approved')
-                    <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                    <div class="d-flex justify-content-center gap-3 action-buttons">
+                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="m-0">
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="status" value="packed">
-                            <button type="submit" class="btn btn-info">
+                            <button type="submit" class="btn btn-info text-white">
                                 <i class="fas fa-box me-2"></i>Mark as Packed
                             </button>
                         </form>
-                        
+
                         @if(!$order->qb_invoice_id)
-                            <form action="{{ route('admin.orders.sync-quickbooks', $order) }}" method="POST">
+                            <form action="{{ route('admin.orders.sync-quickbooks', $order) }}" method="POST" class="m-0">
                                 @csrf
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-sync me-2"></i>Sync to QuickBooks
                                 </button>
                             </form>
                         @endif
-                        
-                        <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
-                            @csrf
-                            @method('PATCH')
-                            <input type="hidden" name="status" value="cancelled">
-                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this order?')">
-                                <i class="fas fa-ban me-2"></i>Cancel Order
-                            </button>
-                        </form>
                     </div>
                 @elseif($order->status == 'packed')
-                    <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                    <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="m-0 d-inline-block">
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="status" value="shipped">
@@ -277,17 +276,25 @@
                         </button>
                     </form>
                 @elseif($order->status == 'shipped')
-                    <form action="{{ route('admin.orders.update-status', $order) }}" method="POST">
+                    <form action="{{ route('admin.orders.update-status', $order) }}" method="POST" class="m-0 d-inline-block">
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="status" value="delivered">
-                        <button type="submit" class="btn btn-secondary">
+                        <button type="submit" class="btn btn-success">
                             <i class="fas fa-check-circle me-2"></i>Mark as Delivered
                         </button>
                     </form>
-                @elseif($order->status == 'delivered' || $order->status == 'rejected' || $order->status == 'cancelled')
+                @elseif($order->status == 'delivered' || $order->status == 'rejected')
                     <div class="alert alert-info d-inline-block mb-0">
                         <i class="fas fa-info-circle me-2"></i>No actions available for this order status.
+                    </div>
+                @endif
+
+                @if(in_array($order->status, ['approved', 'packed', 'shipped', 'delivered']))
+                    <div class="mt-3">
+                        <a href="{{ route('franchisee.orders.invoice', ['id' => $order->id]) }}?print=true" target="_blank" class="btn btn-outline-primary">
+                            <i class="fas fa-file-invoice me-2"></i> View & Print Invoice
+                        </a>
                     </div>
                 @endif
             </div>

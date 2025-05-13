@@ -247,6 +247,12 @@
                                                 <span class="badge bg-success">Delivered</span>
                                             @elseif($order->status == 'rejected')
                                                 <span class="badge bg-rejected">Rejected</span>
+                                            @elseif($order->status == 'approved')
+                                                <span class="badge bg-primary">Approved</span>
+                                            @elseif($order->status == 'packed')
+                                                <span class="badge bg-info">Packed</span>
+                                            @elseif($order->status == 'shipped')
+                                                <span class="badge bg-success">Shipped</span>
                                             @endif
                                         </span>
                                     </div>
@@ -276,8 +282,8 @@
                                     <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm btn-outline-primary me-2" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    @if($order->status == 'delivered')
-                                    <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-sm btn-outline-warning me-2" title="Download Invoice">
+                                    @if(in_array($order->status, ['approved', 'packed', 'shipped', 'delivered']))
+                                    <a href="{{ route('franchisee.orders.invoice', $order->id) }}?print=true" class="btn btn-sm btn-outline-warning me-2" title="View & Print Invoice" target="_blank">
                                         <i class="fas fa-file-invoice"></i>
                                     </a>
                                     @endif

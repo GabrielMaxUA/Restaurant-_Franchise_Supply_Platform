@@ -64,7 +64,7 @@
         margin: 30px 0;
         padding: 0 10px;
     }
-    
+
     .order-tracker:before {
         content: '';
         position: absolute;
@@ -75,6 +75,7 @@
         transform: translateY(-50%);
         left: 0;
         z-index: 1;
+        border-radius: 2px;
     }
     
     .tracker-step {
@@ -82,8 +83,8 @@
         flex-direction: column;
         align-items: center;
         position: relative;
-        z-index: 2;
-        width: 20%; /* Changed to 20% for 5 equal steps */
+        z-index: 3; /* Increased z-index to appear above the progress line */
+        width: 20%; /* 20% for 5 equal steps */
         margin-top: 35px;
     }
     
@@ -100,6 +101,8 @@
         transition: all 0.3s ease;
         color: #888;
         font-size: 18px; /* Slightly smaller icons */
+        position: relative;
+        z-index: 3; /* Keep above the progress line */
     }
     
     .step-label {
@@ -140,8 +143,10 @@
         height: 4px;
         background: #4CAF50;
         z-index: 1;
-        transition: width 0.5s ease;
+        transition: width 0.5s ease, background-color 0.5s ease;
         left: 0;
+        border-radius: 2px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
     }
     
     /* Rejected order styling */
@@ -412,44 +417,90 @@
                         <div class="order-tracker">
                             <!-- Progress line that fills based on order status -->
                             @php
+                                // Calculate progress width based on order status
                                 $progressWidth = 0;
-                                if($order->status == 'pending') $progressWidth = 0;
-                                elseif($order->status == 'processing') $progressWidth = 25;
-                                elseif($order->status == 'packed') $progressWidth = 50;
-                                elseif($order->status == 'shipped') $progressWidth = 75;
+                                $progressColor = '#4CAF50'; // Default green
+                                $numSteps = 5; // Total number of steps in the progress bar
+
+                                // Calculate position for each status (as percentage)
+                                $stepWidth = 100 / ($numSteps - 1); // Width for each step (0%, 25%, 50%, 75%, 100%)
+
+                                if($order->status == 'pending') {
+                                    $progressWidth = $stepWidth * 0; // 0%
+                                }
+                                elseif($order->status == 'processing' || $order->status == 'approved') {
+                                    $progressWidth = $stepWidth * 1; // 25%
+                                }
+                                elseif($order->status == 'packed') {
+                                    $progressWidth = $stepWidth * 2; // 50%
+                                }
+                                elseif($order->status == 'shipped') {
+                                    $progressWidth = $stepWidth * 3; // 75%
+                                }
+                                elseif($order->status == 'delivered') {
+                                    $progressWidth = $stepWidth * 4; // 100%
+                                }
+                                elseif($order->status == 'rejected' || $order->status == 'cancelled') {
+                                    $progressWidth = $stepWidth * 1; // 25% (at the approved stage)
+                                    $progressColor = '#dc3545'; // Red for rejected/cancelled
+                                }
                             @endphp
-                            <div class="progress-line" style="width: {{ $progressWidth }}%;"></div>
+                            <div class="progress-line" style="width: {{ $progressWidth }}%; background-color: {{ $progressColor }}; z-index: 2;"></div>
                             
                             <!-- Step 1: Pending -->
-                            <div class="tracker-step {{ in_array($order->status, ['pending', 'processing', 'packed', 'shipped']) ? 'active' : '' }}">
+                            <div class="tracker-step {{ $order->status == 'pending' ? 'active' : ($order->status == 'rejected' || $order->status == 'cancelled' ? '' : 'completed') }}">
                                 <div class="step-icon">
                                     <i class="fas fa-clipboard-check"></i>
                                 </div>
                                 <div class="step-label">Pending</div>
                             </div>
-                            
-                            <!-- Step 2: Processing -->
-                            <div class="tracker-step {{ in_array($order->status, ['processing', 'packed', 'shipped']) ? 'active' : '' }}">
+
+                            <!-- Step 2: Processing/Approved -->
+                            <div class="tracker-step {{ $order->status == 'processing' || $order->status == 'approved' ? 'active' :
+                                        ($order->status == 'rejected' || $order->status == 'cancelled' ? 'rejected' :
+                                        (in_array($order->status, ['packed', 'shipped', 'delivered']) ? 'completed' : '')) }}">
                                 <div class="step-icon">
-                                    <i class="fas fa-cogs"></i>
+                                    @if($order->status == 'rejected' || $order->status == 'cancelled')
+                                        <i class="fas fa-times"></i>
+                                    @else
+                                        <i class="fas fa-cogs"></i>
+                                    @endif
                                 </div>
-                                <div class="step-label">Processing</div>
+                                <div class="step-label">
+                                    @if($order->status == 'rejected')
+                                        Rejected
+                                    @elseif($order->status == 'cancelled')
+                                        Cancelled
+                                    @else
+                                        Approved
+                                    @endif
+                                </div>
                             </div>
-                            
+
                             <!-- Step 3: Packed -->
-                            <div class="tracker-step {{ in_array($order->status, ['packed', 'shipped']) ? 'active' : '' }}">
+                            <div class="tracker-step {{ $order->status == 'packed' ? 'active' :
+                                        (in_array($order->status, ['shipped', 'delivered']) ? 'completed' : '') }}">
                                 <div class="step-icon">
                                     <i class="fas fa-box"></i>
                                 </div>
                                 <div class="step-label">Packed</div>
                             </div>
-                            
+
                             <!-- Step 4: Shipped -->
-                            <div class="tracker-step {{ in_array($order->status, ['shipped']) ? 'active' : '' }}">
+                            <div class="tracker-step {{ $order->status == 'shipped' ? 'active' :
+                                        ($order->status == 'delivered' ? 'completed' : '') }}">
                                 <div class="step-icon">
                                     <i class="fas fa-shipping-fast"></i>
                                 </div>
                                 <div class="step-label">Shipped</div>
+                            </div>
+
+                            <!-- Step 5: Delivered -->
+                            <div class="tracker-step {{ $order->status == 'delivered' ? 'active' : '' }}">
+                                <div class="step-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="step-label">Delivered</div>
                             </div>
                         </div>
                     </div>

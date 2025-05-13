@@ -10,6 +10,10 @@
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Shared styles -->
+    <link rel="stylesheet" href="{{ asset('css/notification.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/filters.css') }}">
     
     <!-- Custom CSS -->
     <style>
@@ -157,9 +161,37 @@
                                 Dashboard
                             </a>
                         </li>
+
+                        <!-- Order Management Section -->
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/products*') ? 'active' : '' }}" href="{{ url('/warehouse/products') }}">
+                            <a class="nav-link {{ request()->is('warehouse/orders*') ? 'active' : '' }}" href="{{ url('/warehouse/orders') }}">
+                                <i class="fas fa-shopping-cart me-2"></i>
+                                Order Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->is('warehouse/orders/pending*') ? 'active' : '' }}" href="{{ url('/warehouse/orders/pending') }}">
+                                <i class="fas fa-clipboard-list me-2"></i>
+                                Awaiting Fulfillment
+                                @php
+                                    $approvedOrdersCount = \App\Models\Order::where('status', 'approved')->count();
+                                @endphp
+                                @if($approvedOrdersCount > 0)
+                                    <span class="badge bg-primary ms-2">{{ $approvedOrdersCount }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->is('warehouse/orders/in-progress*') ? 'active' : '' }}" href="{{ url('/warehouse/orders/in-progress') }}">
                                 <i class="fas fa-box me-2"></i>
+                                In Progress
+                            </a>
+                        </li>
+
+                        <!-- Product Management Section -->
+                        <li class="nav-item mt-3">
+                            <a class="nav-link {{ request()->is('warehouse/products*') ? 'active' : '' }}" href="{{ url('/warehouse/products') }}">
+                                <i class="fas fa-boxes me-2"></i>
                                 Products
                             </a>
                         </li>
@@ -169,24 +201,34 @@
                                 Categories
                             </a>
                         </li>
-                        <!-- <li class="nav-item">
+                        <li class="nav-item">
                             <a class="nav-link {{ request()->is('warehouse/inventory/low-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/low-stock') }}">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 Low Stock
+                                @php
+                                    $lowStockCount = \App\Models\Product::where('inventory_count', '<=', 10)
+                                        ->where('inventory_count', '>', 0)->count() +
+                                        \App\Models\ProductVariant::where('inventory_count', '<=', 10)
+                                        ->where('inventory_count', '>', 0)->count();
+                                @endphp
+                                @if($lowStockCount > 0)
+                                    <span class="badge bg-warning ms-2">{{ $lowStockCount }}</span>
+                                @endif
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link {{ request()->is('warehouse/inventory/out-of-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/out-of-stock') }}">
                                 <i class="fas fa-ban me-2"></i>
                                 Out of Stock
+                                @php
+                                    $outOfStockCount = \App\Models\Product::where('inventory_count', '=', 0)->count() +
+                                        \App\Models\ProductVariant::where('inventory_count', '=', 0)->count();
+                                @endphp
+                                @if($outOfStockCount > 0)
+                                    <span class="badge bg-danger ms-2">{{ $outOfStockCount }}</span>
+                                @endif
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/inventory/popular*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/popular') }}">
-                                <i class="fas fa-chart-line me-2"></i>
-                                Popular Products
-                            </a>
-                        </li> -->
                     </ul>
                     
                     <hr>
@@ -210,6 +252,7 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Warehouse Dashboard')</span>
                         <div class="d-flex">
+                            @include('layouts.components.notification-bell')
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? 'Warehouse Manager' }}
@@ -225,7 +268,53 @@
                         </div>
                     </div>
                 </nav>
-                
+
+                <!-- Order Notifications Bar -->
+                @php
+                    $approvedOrders = \App\Models\Order::where('status', 'approved')->count();
+                    $inProgressOrders = \App\Models\Order::whereIn('status', ['packed', 'shipped'])->count();
+                @endphp
+
+                @if($approvedOrders > 0 || $inProgressOrders > 0)
+                <div class="order-notification-bar mb-3">
+                    <div class="container-fluid">
+                        <div class="row">
+                            @if($approvedOrders > 0)
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <div class="alert alert-primary mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-clipboard-check me-2"></i>
+                                        <div>
+                                            <strong>{{ $approvedOrders }} {{ Str::plural('order', $approvedOrders) }}</strong> awaiting fulfillment
+                                            <a href="{{ route('warehouse.orders.index', ['status' => 'approved']) }}" class="btn btn-sm btn-primary ms-3">
+                                                Process Orders
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
+                            @if($inProgressOrders > 0)
+                            <div class="col-md-{{ $approvedOrders > 0 ? '6' : '12' }}">
+                                <div class="alert alert-info mb-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-box me-2"></i>
+                                        <div>
+                                            <strong>{{ $inProgressOrders }} {{ Str::plural('order', $inProgressOrders) }}</strong> in progress
+                                            <a href="{{ route('warehouse.orders.in-progress') }}" class="btn btn-sm btn-info ms-3 text-white">
+                                                View Orders
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <!-- Page Content -->
                 <div class="container-fluid">
                     <!-- Welcome banner -->

@@ -79,6 +79,26 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Get the admin detail associated with the user.
+     * Returns a default empty model if none exists.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function adminDetail()
+    {
+        return $this->hasOne(AdminDetail::class)->withDefault([
+            'company_name' => config('company.name'),
+            'address' => config('company.address'),
+            'city' => config('company.city'),
+            'state' => config('company.state'),
+            'postal_code' => config('company.zip'),
+            'website' => config('company.website'),
+            'email' => $this->email,
+            'phone' => $this->phone
+        ]);
+    }
+
+    /**
      * Compatibility method for the controller - returns the franchisee profile
      * 
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
@@ -106,6 +126,26 @@ class User extends Authenticatable implements JWTSubject
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Get all notifications for the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function orderNotifications()
+    {
+        return $this->hasMany(OrderNotification::class);
+    }
+
+    /**
+     * Get all unread notifications for the user.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function unreadNotifications()
+    {
+        return $this->orderNotifications()->where('is_read', false);
     }
 
     /**
@@ -373,5 +413,59 @@ class User extends Authenticatable implements JWTSubject
             'role' => $this->role ? $this->role->name : null,
             'username' => $this->username
         ];
+    }
+
+    /**
+     * Get all admin users
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function getAdminUsers()
+    {
+        return self::whereHas('role', function($query) {
+            $query->where('name', 'admin');
+        })->get();
+    }
+
+    /**
+     * Get all warehouse users
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function getWarehouseUsers()
+    {
+        return self::whereHas('role', function($query) {
+            $query->where('name', 'warehouse');
+        })->get();
+    }
+
+    /**
+     * Get admin email addresses
+     *
+     * @return array
+     */
+    public static function getAdminEmails()
+    {
+        return self::whereHas('role', function($query) {
+            $query->where('name', 'admin');
+        })
+        ->whereNotNull('email')
+        ->pluck('email')
+        ->toArray();
+    }
+
+    /**
+     * Get warehouse email addresses
+     *
+     * @return array
+     */
+    public static function getWarehouseEmails()
+    {
+        return self::whereHas('role', function($query) {
+            $query->where('name', 'warehouse');
+        })
+        ->whereNotNull('email')
+        ->pluck('email')
+        ->toArray();
     }
 }

@@ -10,8 +10,13 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\User;
+use App\Mail\OrderConfirmationEmail;
+use App\Notifications\NewOrderNotification;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 class CartController extends Controller
 {
@@ -602,10 +607,90 @@ class CartController extends Controller
             
             // Clear the cart after successfully placing the order
             $cart->items()->delete();
-            
+
             // Commit the transaction
             DB::commit();
-            
+
+            // Only send notifications if enabled in config
+            if (config('company.notifications_enabled', true)) {
+                try {
+                    \Log::info('Starting order notification process for Order #' . $order->id);
+
+                    // STEP 1: WAREHOUSE EMAILS
+                    \Log::info('Starting warehouse email notification');
+
+                    // Hard-code a warehouse email to ensure at least one recipient
+                    $warehouseEmails = ['warehouse@restaurantfranchisesupply.com'];
+                    \Log::info('Added default warehouse email to recipients list');
+
+                    // Also get warehouse emails from database
+                    $dbWarehouseEmails = User::getWarehouseEmails();
+                    \Log::info('Found ' . count($dbWarehouseEmails) . ' warehouse emails in database: ' . implode(', ', $dbWarehouseEmails ?: ['none']));
+
+                    // Merge default with database emails
+                    $warehouseEmails = array_merge($warehouseEmails, $dbWarehouseEmails);
+
+                    // Add a fallback from config
+                    $fallbackEmail = config('company.warehouse_notification_email');
+                    if ($fallbackEmail) {
+                        $warehouseEmails[] = $fallbackEmail;
+                        \Log::info('Added config fallback warehouse email: ' . $fallbackEmail);
+                    }
+
+                    // Validate and clean warehouse emails
+                    $validWarehouseEmails = array_unique(array_filter($warehouseEmails, function($email) {
+                        return filter_var($email, FILTER_VALIDATE_EMAIL);
+                    }));
+
+                    \Log::info('Final warehouse email list has ' . count($validWarehouseEmails) . ' recipients: ' . implode(', ', $validWarehouseEmails ?: ['none']));
+
+                    if (!empty($validWarehouseEmails)) {
+                        Mail::to($validWarehouseEmails)
+                            ->send(new NewOrderNotification($order, false));
+                        \Log::info('Sent order notification to warehouse emails');
+                    } else {
+                        \Log::warning('No valid warehouse emails found to send notifications');
+                    }
+
+                    // Send notification to admin emails (from database)
+                    $adminEmails = User::getAdminEmails();
+                    // If no admin users in database, use maxgabrielua@gmail.com
+                    if (empty($adminEmails)) {
+                        $adminEmails = [config('company.admin_notification_email', 'maxgabrielua@gmail.com')];
+                    } else {
+                        // Make sure maxgabrielua@gmail.com is always included
+                        $primaryAdminEmail = 'maxgabrielua@gmail.com';
+                        if (!in_array($primaryAdminEmail, $adminEmails)) {
+                            $adminEmails[] = $primaryAdminEmail;
+                        }
+                    }
+
+                    // Remove duplicate emails and ensure valid format
+                    $adminEmails = array_unique(array_filter($adminEmails, function($email) {
+                        return filter_var($email, FILTER_VALIDATE_EMAIL);
+                    }));
+
+                    if (!empty($adminEmails)) {
+                        Mail::to($adminEmails)
+                            ->send(new NewOrderNotification($order, true));
+                        \Log::info('Sent order notification to admin emails: ' . implode(', ', $adminEmails));
+                    }
+
+                    // Send order confirmation to the customer
+                    if (config('company.send_customer_confirmation', true)) {
+                        $customerEmail = $order->user->email;
+                        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+                            Mail::to($customerEmail)
+                                ->send(new OrderConfirmationEmail($order));
+                            \Log::info('Sent order confirmation to customer email: ' . $customerEmail);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Don't let email failures stop the order process, just log them
+                    \Log::error('Failed to send order notification emails: ' . $e->getMessage());
+                }
+            }
+
             // Redirect to order details page
             return redirect()->route('franchisee.orders.details', $order->id)
                 ->with('success', 'Your order has been placed successfully!');

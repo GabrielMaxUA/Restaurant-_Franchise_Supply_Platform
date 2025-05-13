@@ -72,6 +72,7 @@ This platform will enable restaurant franchisors to manage their warehouse inven
 ### 4. Technical Requirements
 •⁠  ⁠*Backend:* PHP (Laravel)  - DONE 
 •⁠  ⁠*Frontend Mobile:* React Native
+
 •⁠  ⁠*Database:* MySQL  - DONE 
 •⁠  ⁠*Notifications:* Firebase Push + SMTP for email
 •⁠  ⁠*Authentication:* JWT - DONE JWT

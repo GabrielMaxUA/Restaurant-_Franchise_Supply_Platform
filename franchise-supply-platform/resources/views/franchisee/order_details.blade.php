@@ -239,7 +239,21 @@
                 <div class="order-header">
                     <div class="order-info">
                         <div class="order-number">Order #{{ $order->id }}</div>
-                        <div class="order-status status-{{ $order->status }}">{{ ucfirst($order->status) }}</div>
+                        @if($order->status == 'pending')
+                            <span class="badge rounded-pill bg-warning text-dark order-status-badge">Pending Approval</span>
+                        @elseif($order->status == 'approved')
+                            <span class="badge rounded-pill bg-primary order-status-badge">Awaiting Fulfillment</span>
+                        @elseif($order->status == 'packed')
+                            <span class="badge rounded-pill bg-info order-status-badge">In Progress</span>
+                        @elseif($order->status == 'shipped')
+                            <span class="badge rounded-pill bg-success order-status-badge">Shipped</span>
+                        @elseif($order->status == 'delivered')
+                            <span class="badge rounded-pill bg-success order-status-badge">Delivered</span>
+                        @elseif($order->status == 'rejected')
+                            <span class="badge rounded-pill bg-danger order-status-badge">Rejected</span>
+                        @else
+                            <span class="badge rounded-pill bg-secondary order-status-badge">{{ ucfirst($order->status) }}</span>
+                        @endif
                     </div>
                 </div>
 
@@ -323,20 +337,23 @@
             <div class="card order-details-card">
                 <div class="card-body">
                     <div class="section-title">Order Actions</div>
-                    @if(!in_array($order->status, ['pending', 'rejected', 'cancelled']))
-                        <a href="{{ route('franchisee.orders.invoice', $order->id) }}" class="btn btn-primary action-btn" target="_blank">
-                            <i class="fas fa-file-pdf me-2"></i> Download Invoice
-                        </a>
-                    @else
-                        <button class="btn btn-outline-secondary action-btn" disabled>
-                            <i class="fas fa-file-pdf me-2"></i> Download Invoice
-                        </button>
+                    <div class="action-buttons">
+                        @if(!in_array($order->status, ['pending', 'rejected', 'cancelled']))
+                            <a href="{{ route('franchisee.orders.invoice', ['id' => $order->id]) }}?print=true" class="btn btn-primary" target="_blank">
+                                <i class="fas fa-file-invoice me-2"></i> View & Print Invoice
+                            </a>
+                        @else
+                            <button class="btn btn-outline-secondary" disabled>
+                                <i class="fas fa-file-invoice me-2"></i> View & Print Invoice
+                            </button>
+                        @endif
+
                         @if($order->status === 'pending')
                             <small class="text-muted ms-2 d-flex align-items-center">
                                 <i class="fas fa-info-circle me-1"></i> Invoice will be available once approved
                             </small>
                         @endif
-                    @endif
+                    </div>
                 </div>
             </div>
         </div>

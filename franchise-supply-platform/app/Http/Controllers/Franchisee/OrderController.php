@@ -14,6 +14,7 @@ use Carbon\Carbon;
 
 class OrderController extends Controller
 {
+    use \Illuminate\Foundation\Auth\Access\AuthorizesRequests;
     /**
      * Constructor - Check for order updates on initialization
      */
@@ -620,13 +621,74 @@ class OrderController extends Controller
     
     /**
      * Clear the welcome banner from the session.
-     * 
+     *
      * @return \Illuminate\Http\Response
      */
     public function dismissWelcomeBanner()
     {
         session(['hide_welcome' => true]);
-        
+
         return redirect()->back();
+    }
+
+    /**
+     * Generate and display an HTML invoice for an order
+     *
+     * @param int $id
+     * @return \Illuminate\Http\Response
+     */
+    public function generateInvoice($id)
+    {
+        $user = Auth::user();
+
+        // Different query based on user role
+        if ($user->isAdmin() || $user->isWarehouse()) {
+            // Admin or warehouse staff can view any invoice
+            $order = Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
+                ->findOrFail($id);
+        } else {
+            // Regular franchisee can only see their own orders
+            $order = Order::where('user_id', $user->id)
+                ->with(['items.product', 'items.variant', 'user.franchiseeProfile'])
+                ->findOrFail($id);
+        }
+
+        // Only allow downloads for orders that are approved or beyond
+        if (!in_array($order->status, ['approved', 'packed', 'shipped', 'delivered'])) {
+            return redirect()->back()->with('error', 'Invoice is only available for approved or completed orders.');
+        }
+
+        // Generate invoice number if not already set
+        $invoiceNumber = $order->invoice_number ?? config('company.invoice_prefix', 'INV-') . $order->id . '-' . date('Ymd');
+
+        // Make sure we have the franchisee profile
+        if (!$order->relationLoaded('user.franchiseeProfile')) {
+            $order->load(['user.franchiseeProfile']);
+        }
+
+        // Get the admin profile for company information
+        $adminUser = \App\Models\User::whereHas('role', function($q) {
+            $q->where('name', 'admin');
+        })->first();
+
+        $adminDetail = null;
+        if ($adminUser) {
+            $adminDetail = $adminUser->adminDetail;
+        }
+
+        // Get current date in the format needed for the invoice
+        $currentDate = date('F d, Y');
+
+        // Get due date (30 days from now by default)
+        $dueDate = date('F d, Y', strtotime('+30 days'));
+
+        // Return an HTML view of the invoice with print styling
+        return view('franchisee.invoice-print', [
+            'order' => $order,
+            'invoiceNumber' => $invoiceNumber,
+            'adminDetail' => $adminDetail,
+            'currentDate' => $currentDate,
+            'dueDate' => $dueDate
+        ]);
     }
 }

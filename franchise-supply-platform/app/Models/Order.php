@@ -13,6 +13,10 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'status',
+        'shipped_at',
+        'delivered_at',
+        'approved_at',
+        'tracking_number',
         'total_amount',
         'shipping_address',
         'shipping_city',
@@ -26,13 +30,25 @@ class Order extends Model
         'manager_name',
         'contact_phone',
         'purchase_order',
-        'qb_invoice_id'
+        'qb_invoice_id',
+        'invoice_number'
+    ];
+
+    /**
+     * The event map for the model.
+     *
+     * @var array
+     */
+    protected $dispatchesEvents = [
+        'saved' => \App\Events\OrderSaved::class,
     ];
 
     protected $casts = [
         'delivery_date' => 'date',
         'total_amount' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
+        'shipped_at' => 'datetime',
+        'delivered_at' => 'datetime',
     ];
 
     public function user()
@@ -43,6 +59,14 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Get the notifications associated with the order.
+     */
+    public function notifications()
+    {
+        return $this->hasMany(OrderNotification::class);
     }
     
     /**

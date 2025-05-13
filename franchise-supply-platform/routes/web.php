@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Franchisee\DashboardController as FranchiseeDashboardController;
 use App\Http\Controllers\Franchisee\CatalogController;
@@ -36,6 +37,130 @@ Route::get('/web-test', function () {
     return "Web routes are working!";
 });
 
+// Order notification test route (only accessible in development environment)
+Route::get('/test-order-notification', function () {
+    if (!app()->environment(['local', 'development'])) {
+        abort(404);
+    }
+
+    try {
+        // Get an example order (most recent)
+        $order = \App\Models\Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
+            ->latest()
+            ->first();
+
+        if (!$order) {
+            return "No orders found to test notification with.";
+        }
+
+        // Get admin and warehouse emails
+        $adminEmails = \App\Models\User::getAdminEmails();
+        $warehouseEmails = \App\Models\User::getWarehouseEmails();
+
+        // Add hardcoded fallbacks
+        if (empty($adminEmails)) {
+            $adminEmails = [config('company.admin_notification_email', 'maxgabrielua@gmail.com')];
+        } else {
+            // Make sure maxgabrielua@gmail.com is always included for admin notifications
+            if (!in_array('maxgabrielua@gmail.com', $adminEmails)) {
+                $adminEmails[] = 'maxgabrielua@gmail.com';
+            }
+        }
+
+        // Add warehouse fallback
+        if (empty($warehouseEmails)) {
+            $warehouseEmails[] = config('company.warehouse_notification_email', 'warehouse@restaurantfranchisesupply.com');
+        }
+
+        // Filter emails to ensure they're valid
+        $adminEmails = array_unique(array_filter($adminEmails, function($email) {
+            return filter_var($email, FILTER_VALIDATE_EMAIL);
+        }));
+
+        $warehouseEmails = array_unique(array_filter($warehouseEmails, function($email) {
+            return filter_var($email, FILTER_VALIDATE_EMAIL);
+        }));
+
+        // Send admin notifications
+        if (!empty($adminEmails)) {
+            \Illuminate\Support\Facades\Mail::to($adminEmails)
+                ->send(new \App\Notifications\NewOrderNotification($order, true));
+        }
+
+        // Send warehouse notifications
+        if (!empty($warehouseEmails)) {
+            \Illuminate\Support\Facades\Mail::to($warehouseEmails)
+                ->send(new \App\Notifications\NewOrderNotification($order, false));
+        }
+
+        // Send customer confirmation if customer email exists
+        $customerEmail = $order->user->email;
+        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            \Illuminate\Support\Facades\Mail::to($customerEmail)
+                ->send(new \App\Mail\OrderConfirmationEmail($order));
+        }
+
+        return "Test order notifications sent!<br><br>
+                <strong>Admin Emails:</strong> " . implode(', ', $adminEmails) . "<br>
+                <strong>Warehouse Emails:</strong> " . implode(', ', $warehouseEmails) . "<br>
+                <strong>Customer Email:</strong> " . ($customerEmail ?: 'None') . "<br><br>
+                <strong>Order ID:</strong> " . $order->id;
+    } catch (\Exception $e) {
+        return "Error sending test order notifications: " . $e->getMessage() . "<br><br>
+                <strong>Trace:</strong><br>
+                " . nl2br($e->getTraceAsString());
+    }
+});
+
+// Email test route (only accessible in development environment)
+Route::get('/mail-test', function () {
+    if (!app()->environment(['local', 'development'])) {
+        abort(404);
+    }
+
+    try {
+        $recipient = request('email') ?? 'maxgabrielua@gmail.com';
+
+        // Get mail configuration
+        $mailConfig = [
+            'driver' => config('mail.default'),
+            'host' => config('mail.mailers.smtp.host'),
+            'port' => config('mail.mailers.smtp.port'),
+            'from' => config('mail.from'),
+            'encryption' => config('mail.mailers.smtp.encryption'),
+        ];
+
+        // Send a test email
+        \Mail::to($recipient)->send(new \Illuminate\Mail\Mailable\MailMessage([
+            'subject' => 'Test Email from Restaurant Franchise Supply',
+            'greeting' => 'Hello!',
+            'introLines' => [
+                'This is a test email from your Restaurant Franchise Supply system.',
+                'If you received this email, your mail configuration is working correctly.'
+            ],
+            'outroLines' => [
+                'Mail Configuration:',
+                'Driver: ' . $mailConfig['driver'],
+                'Host: ' . $mailConfig['host'],
+                'Port: ' . $mailConfig['port'],
+                'From: ' . $mailConfig['from']['address'],
+            ],
+        ]));
+
+        return "Test email sent to {$recipient}! Check your inbox or mail logs.<br><br>
+                <strong>Mail Configuration:</strong><br>
+                Driver: {$mailConfig['driver']}<br>
+                Host: {$mailConfig['host']}<br>
+                Port: {$mailConfig['port']}<br>
+                From: {$mailConfig['from']['address']}<br>
+                Encryption: {$mailConfig['encryption']}";
+    } catch (\Exception $e) {
+        return "Error sending test email: " . $e->getMessage() . "<br><br>
+                <strong>Trace:</strong><br>
+                " . nl2br($e->getTraceAsString());
+    }
+});
+
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'webLogin'])->name('login.submit');
@@ -62,6 +187,21 @@ Route::get('/routes', function () {
 // ------------------------------------------------------------
 // First check authentication, then check status
 Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function () {
+
+    // Routes available to all authenticated users
+    // Invoice route - accessible by admin, warehouse staff, and franchisees
+    Route::get('/orders/{id}/invoice', [App\Http\Controllers\Franchisee\OrderController::class, 'generateInvoice'])
+        ->name('franchisee.orders.invoice');
+
+    // Notification Routes (available to all authenticated users)
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/mark-read/{id}', [NotificationController::class, 'markAsRead'])->name('mark-read');
+        Route::get('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+        Route::get('/recent', [NotificationController::class, 'recent'])->name('recent');
+    });
     
     // Admin Routes - Protected by role:admin middleware
     Route::prefix('admin')->middleware(['role:admin'])->name('admin.')->group(function () {
@@ -120,6 +260,16 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
             Route::patch('/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('update-status');
             Route::post('/{order}/quickbooks', [App\Http\Controllers\Admin\OrderController::class, 'syncToQuickBooks'])->name('sync-quickbooks');
         });
+
+        // QuickBooks Integration Routes
+        Route::prefix('quickbooks')->name('quickbooks.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\QuickBooksController::class, 'settings'])->name('settings');
+            Route::get('/connect', [App\Http\Controllers\Admin\QuickBooksController::class, 'connect'])->name('connect');
+            Route::get('/callback', [App\Http\Controllers\Admin\QuickBooksController::class, 'callback'])->name('callback');
+            Route::get('/disconnect', [App\Http\Controllers\Admin\QuickBooksController::class, 'disconnect'])->name('disconnect');
+            Route::get('/refresh-token', [App\Http\Controllers\Admin\QuickBooksController::class, 'refreshToken'])->name('refresh-token');
+            Route::get('/test-connection', [App\Http\Controllers\Admin\QuickBooksController::class, 'testConnection'])->name('test-connection');
+        });
     });
 
     // Warehouse Routes - Protected by role:warehouse middleware
@@ -160,6 +310,21 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/inventory/low-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'lowStock'])->name('warehouse.inventory.low-stock');
         Route::get('/inventory/out-of-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'outOfStock'])->name('warehouse.inventory.out-of-stock');
         Route::get('/inventory/popular', [App\Http\Controllers\Warehouse\ProductController::class, 'mostPopular'])->name('warehouse.inventory.popular');
+
+        // Order management - shared controller with admin, but with role-based access control
+        Route::prefix('orders')->name('warehouse.orders.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('index');
+            Route::get('/pending', [App\Http\Controllers\Admin\OrderController::class, 'pendingOrders'])->name('pending');
+            Route::get('/in-progress', [App\Http\Controllers\Admin\OrderController::class, 'inProgress'])->name('in-progress');
+            Route::get('/shipped', [App\Http\Controllers\Admin\OrderController::class, 'shipped'])->name('shipped');
+            Route::get('/completed', [App\Http\Controllers\Admin\OrderController::class, 'completed'])->name('completed');
+            Route::get('/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('show');
+            Route::patch('/{order}/status', [App\Http\Controllers\Admin\OrderController::class, 'updateStatus'])->name('update-status');
+            Route::get('/{order}/packing-slip', [App\Http\Controllers\Admin\OrderController::class, 'packingSlip'])->name('packing-slip');
+            Route::get('/{order}/shipping-label', [App\Http\Controllers\Admin\OrderController::class, 'shippingLabel'])->name('shipping-label');
+            Route::get('/reports/fulfillment', [App\Http\Controllers\Admin\OrderController::class, 'fulfillmentReport'])->name('fulfillment-report');
+            Route::get('/check-new', [App\Http\Controllers\Admin\OrderController::class, 'checkNewOrders'])->name('check-new');
+        });
     });
 
     // Franchisee Routes - Protected by role:franchisee middleware
@@ -195,7 +360,6 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/orders/{order}/details', [OrderController::class, 'orderDetails'])->name('franchisee.orders.details');
         Route::get('/orders/{order}/modify', [OrderController::class, 'modifyOrder'])->name('franchisee.orders.modify');
         Route::post('/orders/{order}/update', [OrderController::class, 'updateOrder'])->name('franchisee.orders.update');
-        Route::get('/orders/{order}/invoice', [OrderController::class, 'generateInvoice'])->name('franchisee.orders.invoice');
         Route::get('/orders/{order}/repeat', [OrderController::class, 'repeatOrder'])->name('franchisee.orders.repeat');
         Route::get('/orders/reports', [OrderController::class, 'reports'])->name('franchisee.orders.reports');
         Route::get('/orders/export', [OrderController::class, 'export'])->name('franchisee.orders.export');

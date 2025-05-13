@@ -7,14 +7,7 @@
 @section('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-    /* .welcome-banner {
-        background-color: #e2ebd8;
-        border-radius: 0.5rem;
-        border-left: 5px solid #28a745;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    } */
-    
+ 
     .search-card {
         background-color: #f8f9fa;
         border-radius: 0.5rem;
@@ -22,6 +15,41 @@
         padding: 1rem;
         margin-bottom: 1.5rem;
     }
+
+    /* Badge styling for consistent badges */
+    .badge.bg-warning.text-dark {
+        background-color: #f6c23e !important;
+        border: 1px solid #f6c23e;
+    }
+
+    .badge.bg-primary {
+        background-color: #4e73df !important;
+        border: 1px solid #4e73df;
+    }
+
+    .badge.bg-info {
+        background-color: #36b9cc !important;
+        border: 1px solid #36b9cc;
+    }
+
+    .badge.bg-success {
+        background-color: #1cc88a !important;
+        border: 1px solid #1cc88a;
+    }
+
+    .badge.bg-danger {
+        background-color: #e74a3b !important;
+        border: 1px solid #e74a3b;
+    }
+
+    .badge.bg-secondary {
+        background-color: #858796 !important;
+        border: 1px solid #858796;
+    }
+
+    
+
+    /* Filter badge styling - intentionally left empty as styling is defined below */
     
     .search-card h5 {
         border-bottom: 1px solid #dee2e6;
@@ -64,20 +92,24 @@
         margin-bottom: 1rem;
     }
     
+    /* Active filter badges styling to match the rest of the admin UI */
     .active-filters .badge {
         display: inline-flex;
         align-items: center;
-        background-color: #e9f4fe;
-        color: #0d6efd;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #495057;
         font-weight: normal;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.5rem;
-    }
-    
-    .active-filters .badge-label {
-        font-weight: bold;
+        padding: 0.4em 0.7em;
         margin-right: 0.5rem;
-        color: #0d6efd;
+        margin-bottom: 0.5rem;
+        border-radius: 0.375rem;
+    }
+
+    .active-filters .badge-label {
+        font-weight: 600;
+        margin-right: 0.3rem;
+        color: #4e73df;
     }
 </style>
 @endsection
@@ -113,6 +145,14 @@
                     <input type="text" class="form-control" id="order_number" name="order_number" value="{{ request('order_number') }}" placeholder="Enter order number">
                 </div>
             </div>
+
+            <div class="col-md-6 col-lg-3 mb-3">
+                <label for="invoice_number" class="form-label">Invoice #</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-file-invoice"></i></span>
+                    <input type="text" class="form-control" id="invoice_number" name="invoice_number" value="{{ request('invoice_number') }}" placeholder="Enter invoice number">
+                </div>
+            </div>
             
             <div class="col-md-6 col-lg-3 mb-3">
                 <label for="status" class="form-label">Status</label>
@@ -124,7 +164,6 @@
                     <option value="shipped" {{ request('status') == 'shipped' ? 'selected' : '' }}>Shipped</option>
                     <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
                     <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
-                    <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                 </select>
             </div>
             
@@ -170,36 +209,50 @@
     </form>
 </div>
 
-@if(request()->anyFilled(['order_number', 'status', 'username', 'company_name', 'date_from', 'date_to']))
-    <div class="active-filters">
-        <span class="fw-bold me-2">Active Filters:</span>
-        
+@if(request()->anyFilled(['order_number', 'invoice_number', 'status', 'username', 'company_name', 'date_from', 'date_to']))
+    <div class="active-filters d-flex flex-wrap align-items-center">
+        <span class="fw-bold me-3 mb-2">Active Filters:</span>
+
         @if(request('order_number'))
-            <span class="badge">
+            <span class="badge rounded-pill">
                 <span class="badge-label">Order #:</span> {{ request('order_number') }}
             </span>
         @endif
-        
-        @if(request('status'))
-            <span class="badge">
-                <span class="badge-label">Status:</span> {{ ucfirst(request('status')) }}
+
+        @if(request('invoice_number'))
+            <span class="badge rounded-pill">
+                <span class="badge-label">Invoice #:</span> {{ request('invoice_number') }}
             </span>
         @endif
-        
+
+        @if(request('status'))
+            <span class="badge rounded-pill">
+                <span class="badge-label">Status:</span>
+                @php
+                    $status = request('status');
+                    if(is_array($status)) {
+                        echo implode(', ', array_map('ucfirst', $status));
+                    } else {
+                        echo ucfirst($status);
+                    }
+                @endphp
+            </span>
+        @endif
+
         @if(request('username'))
-            <span class="badge">
+            <span class="badge rounded-pill">
                 <span class="badge-label">Username:</span> {{ request('username') }}
             </span>
         @endif
-        
+
         @if(request('company_name'))
-            <span class="badge">
+            <span class="badge rounded-pill">
                 <span class="badge-label">Company:</span> {{ request('company_name') }}
             </span>
         @endif
-        
+
         @if(request('date_from') || request('date_to'))
-            <span class="badge">
+            <span class="badge rounded-pill">
                 <span class="badge-label">Date Range:</span>
                 {{ request('date_from') ?: 'Any' }} - {{ request('date_to') ?: 'Any' }}
             </span>
@@ -217,6 +270,7 @@
             <thead>
                 <tr>
                     <th>Order #</th>
+                    <th>Invoice #</th>
                     <th>Franchisee</th>
                     <th>Company/Franchise</th>
                     <th>Date</th>
@@ -230,27 +284,34 @@
                 @forelse ($orders as $order)
                     <tr>
                         <td>#{{ $order->id }}</td>
+                        <td>
+                            @if($order->status == 'pending')
+                                <span class="text-muted"><i class="fas fa-clock"></i> Pending</span>
+                            @elseif($order->invoice_number)
+                                <span class="text-primary">{{ $order->invoice_number }}</span>
+                            @else
+                                <span class="text-muted">Not generated</span>
+                            @endif
+                        </td>
                         <td>{{ $order->user->username ?? 'Unknown' }}</td>
                         <td>{{ $order->user->franchiseeProfile->company_name ?? 'Unknown' }}</td>
                         <td>{{ $order->created_at->format('M d, Y H:i') }}</td>
                         <td>${{ number_format($order->total_amount, 2) }}</td>
                         <td>
                             @if($order->status == 'pending')
-                                <span class="badge bg-warning text-dark">Pending</span>
+                                <span class="badge rounded-pill bg-warning text-dark">Pending Approval</span>
                             @elseif($order->status == 'approved')
-                                <span class="badge bg-primary">Approved</span>
+                                <span class="badge rounded-pill bg-primary">Awaiting Fulfillment</span>
                             @elseif($order->status == 'packed')
-                                <span class="badge bg-info">Packed</span>
+                                <span class="badge rounded-pill bg-info">In Progress</span>
                             @elseif($order->status == 'shipped')
-                                <span class="badge bg-success">Shipped</span>
+                                <span class="badge rounded-pill bg-success">Shipped</span>
                             @elseif($order->status == 'delivered')
-                                <span class="badge bg-secondary">Delivered</span>
+                                <span class="badge rounded-pill bg-success">Delivered</span>
                             @elseif($order->status == 'rejected')
-                                <span class="badge bg-danger">Rejected</span>
-                            @elseif($order->status == 'cancelled')
-                                <span class="badge bg-danger">Cancelled</span>
+                                <span class="badge rounded-pill bg-danger">Rejected</span>
                             @else
-                                <span class="badge bg-secondary">{{ ucfirst($order->status) }}</span>
+                                <span class="badge rounded-pill bg-secondary">{{ ucfirst($order->status) }}</span>
                             @endif
                         </td>
                         <td>

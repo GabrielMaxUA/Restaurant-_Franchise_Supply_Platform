@@ -38,7 +38,16 @@ class AdminProfileController extends Controller
         $user = Auth::user();
         $adminDetail = $user->adminDetail;
         $tab = $request->query('tab');
-        
+
+        // For debugging - log whether we have admin details
+        \Log::info('Admin settings page loaded', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'has_admin_detail' => !is_null($adminDetail),
+            'admin_detail_id' => $adminDetail ? $adminDetail->id : null,
+            'admin_detail_company' => $adminDetail ? $adminDetail->company_name : null
+        ]);
+
         return view('admin.settings', compact('user', 'adminDetail', 'tab'));
     }
 /**
@@ -81,14 +90,18 @@ public function update(Request $request)
         $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now();
         $user->save();
-        
-        // Update or create admin details
-        $adminDetail = $user->adminDetail;
-        
-        if (!$adminDetail) {
+
+        // Check if admin details exist for this user
+        $existingAdminDetail = AdminDetail::where('user_id', $user->id)->first();
+
+        if ($existingAdminDetail) {
+            // Use existing record
+            $adminDetail = $existingAdminDetail;
+        } else {
+            // Create new record
             $adminDetail = new AdminDetail();
             $adminDetail->user_id = $user->id;
-            $adminDetail->created_by = $user->Auth::user()->username;
+            $adminDetail->created_by = Auth::user()->username;
         }
         
         $adminDetail->company_name = $request->company_name;
