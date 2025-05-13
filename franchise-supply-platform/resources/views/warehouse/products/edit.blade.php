@@ -75,10 +75,21 @@
         <div class="card mb-4">
             <div class="card-header">Product Images</div>
             <div class="card-body">
+                <!-- File Upload Guidelines Box -->
+                <div class="alert alert-info mb-3">
+                    <h5><i class="fas fa-info-circle"></i> File Upload Guidelines</h5>
+                    <ul>
+                        <li>You can upload <strong>multiple images</strong> at once by holding Ctrl (or Cmd on Mac) while selecting files</li>
+                        <li>Each image must be under 2MB in size</li>
+                        <li>Supported formats: JPG, PNG, GIF</li>
+                        <li>Maximum 5 images per product</li>
+                    </ul>
+                </div>
+                
                 <div class="mb-4">
                     <label for="images" class="form-label">Upload New Images</label>
                     <input type="file" class="form-control" id="images" name="images[]" multiple accept="image/*">
-                    <small class="text-muted">You can select multiple files. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
+                    <small class="text-muted">You can select multiple files by holding Ctrl (or Cmd on Mac) while selecting. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
                     <div id="product-image-previews" class="row mt-3"></div>
                 </div>
                 
@@ -123,7 +134,7 @@
                                    value="{{ old('existing_variants.'.$variant->id.'.name', $variant->name) }}" required>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Price Adjustment</label>
+                            <label class="form-label">Price</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 <input type="number" class="form-control" 
@@ -215,7 +226,7 @@
                                         <input type="text" class="form-control" name="new_variants[{{ $index }}][name]" value="{{ $variant['name'] }}" required>
                                     </div>
                                     <div class="col-md-3 mb-2">
-                                        <label class="form-label">Price Adjustment</label>
+                                        <label class="form-label">Price</label>
                                         <div class="input-group">
                                             <span class="input-group-text">$</span>
                                             <input type="number" class="form-control" name="new_variants[{{ $index }}][price_adjustment]" 
@@ -260,79 +271,179 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM fully loaded");
+    
+    // Set up file validation constants
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    const MAX_FILES = 5; // Maximum 5 files per input
+    
+    // Function to clear all size warnings
+    function clearSizeWarnings() {
+        document.querySelectorAll('.alert-warning').forEach(warning => {
+            warning.remove();
+        });
+    }
+    
+    // Function to validate file size and display warnings
+    function validateFileSize(file, container) {
+        if (file.size > MAX_FILE_SIZE) {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            
+            // Show a flash warning message
+            const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                <strong>Warning!</strong> File "${file.name}" (${fileSizeMB}MB) exceeds the 2MB size limit and will be rejected.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            const warningContainer = document.createElement('div');
+            warningContainer.innerHTML = warningHTML;
+            container.appendChild(warningContainer.firstChild);
+            return false;
+        }
+        return true;
+    }
+    
     const newVariantsContainer = document.getElementById('new-variants-container');
     const noVariantsMessage = document.getElementById('no-variants-message');
     const addVariantButton = document.getElementById('add-variant');
+    
+    console.log("newVariantsContainer:", newVariantsContainer);
+    console.log("noVariantsMessage:", noVariantsMessage);
+    console.log("addVariantButton:", addVariantButton);
+    
+    // Also try to get the button by class name or text content as fallback
+    if (!addVariantButton) {
+        console.log("Trying to find button by class or text content");
+        const buttons = document.querySelectorAll("button");
+        buttons.forEach(button => {
+            console.log("Found button:", button.textContent, button);
+            if (button.textContent.trim() === "Add Variant") {
+                console.log("Found button with 'Add Variant' text");
+                addVariantButton = button;
+            }
+        });
+    }
+    
+    // Initialize variantIndex from old form data or default to 0
     let variantIndex = {{ count(old('new_variants', [])) }};
+    console.log("Initial variantIndex:", variantIndex);
     
     // Add new variant
-    addVariantButton.addEventListener('click', function() {
-        noVariantsMessage.classList.add('d-none');
-        
-        const variantHtml = `
-            <div class="new-variant-row border rounded p-3 mb-3">
-                <div class="row align-items-center">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label">Variant Name</label>
-                        <input type="text" class="form-control" name="new_variants[${variantIndex}][name]" required>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label">Price Adjustment</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" name="new_variants[${variantIndex}][price_adjustment]" value="0" step="0.01">
+    if (addVariantButton) {
+        console.log("Setting up click listener for add variant button");
+        addVariantButton.addEventListener('click', function(e) {
+            console.log("Add variant button clicked!");
+            e.preventDefault(); // Prevent any default form submission
+            
+            if (noVariantsMessage) {
+                noVariantsMessage.classList.add('d-none');
+            } else {
+                console.log("noVariantsMessage element not found");
+            }
+            
+            const variantHtml = `
+                <div class="new-variant-row border rounded p-3 mb-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Variant Name</label>
+                            <input type="text" class="form-control" name="new_variants[${variantIndex}][name]" required>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="new_variants[${variantIndex}][price_adjustment]" value="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label">Inventory</label>
+                            <input type="number" class="form-control" name="new_variants[${variantIndex}][inventory_count]" value="0" min="0">
+                        </div>
+                        <div class="col-md-2 mb-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger remove-variant">Remove</button>
                         </div>
                     </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label">Inventory</label>
-                        <input type="number" class="form-control" name="new_variants[${variantIndex}][inventory_count]" value="0" min="0">
-                    </div>
-                    <div class="col-md-2 mb-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-danger remove-variant">Remove</button>
+                    
+                    <!-- New Variant Image Upload -->
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <label class="form-label">Variant Images</label>
+                            <input type="file" class="form-control new-variant-image" 
+                                   name="variant_image_new_${variantIndex}[]" multiple accept="image/*">
+                            <small class="text-muted">Upload images for this variant</small>
+                            <div class="new-variant-image-preview mt-2 row"></div>
+                        </div>
                     </div>
                 </div>
+            `;
+            
+            if (newVariantsContainer) {
+                console.log("Inserting new variant HTML");
+                newVariantsContainer.insertAdjacentHTML('beforeend', variantHtml);
                 
-                <!-- New Variant Image Upload -->
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <label class="form-label">Variant Images</label>
-                        <input type="file" class="form-control new-variant-image" 
-                               name="variant_image_new_${variantIndex}[]" multiple accept="image/*">
-                        <small class="text-muted">Upload images for this variant</small>
-                        <div class="new-variant-image-preview mt-2 row"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        newVariantsContainer.insertAdjacentHTML('beforeend', variantHtml);
-        
-        // Setup image preview for the new variant
-        const newVariantImage = document.querySelector(`.new-variant-row:last-child .new-variant-image`);
-        const newPreviewContainer = document.querySelector(`.new-variant-row:last-child .new-variant-image-preview`);
-        setupVariantImagePreview(newVariantImage, newPreviewContainer);
-        
-        variantIndex++;
-    });
+                // Setup image preview for the new variant
+                const newVariantImage = document.querySelector(`.new-variant-row:last-child .new-variant-image`);
+                const newPreviewContainer = document.querySelector(`.new-variant-row:last-child .new-variant-image-preview`);
+                
+                console.log("New variant image element:", newVariantImage);
+                console.log("New variant preview container:", newPreviewContainer);
+                
+                if (newVariantImage && newPreviewContainer) {
+                    setupVariantImagePreview(newVariantImage, newPreviewContainer);
+                } else {
+                    console.log("Could not find new variant image elements");
+                }
+                
+                variantIndex++;
+                console.log("Incremented variantIndex to:", variantIndex);
+            } else {
+                console.log("newVariantsContainer is null, cannot add variant");
+            }
+        });
+    } else {
+        console.log("Add variant button not found in the DOM even after trying alternatives");
+    }
     
     // Remove variant
-    newVariantsContainer.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-variant')) {
-            e.target.closest('.new-variant-row').remove();
-            
-            // Show message if no variants
-            if (newVariantsContainer.querySelectorAll('.new-variant-row').length === 0) {
-                noVariantsMessage.classList.remove('d-none');
+    if (newVariantsContainer) {
+        console.log("Setting up click listener for remove variant buttons");
+        newVariantsContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-variant')) {
+                console.log("Remove variant button clicked");
+                e.target.closest('.new-variant-row').remove();
+                
+                // Show message if no variants
+                if (newVariantsContainer.querySelectorAll('.new-variant-row').length === 0 && noVariantsMessage) {
+                    noVariantsMessage.classList.remove('d-none');
+                }
             }
-        }
-    });
+        });
+    }
     
     // Function to set up variant image preview with multiple file support
     function setupVariantImagePreview(variantImageInput, previewContainer) {
+        console.log("Setting up image preview for:", variantImageInput);
         variantImageInput.addEventListener('change', function(event) {
+            console.log("Variant image input changed");
             previewContainer.innerHTML = ''; // Clear previous preview
             
+            // Find parent container for warnings
+            const parentSection = variantImageInput.closest('.file-section') || variantImageInput.closest('.form-group');
+            clearSizeWarnings(); // Clear any existing warnings
+            
             if (this.files && this.files.length > 0) {
+                console.log("Files selected:", this.files.length);
+                
+                // Check if too many files are selected
+                if (this.files.length > MAX_FILES) {
+                    const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                        <strong>Warning!</strong> You selected ${this.files.length} files for this variant. Maximum ${MAX_FILES} files are allowed per variant.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+                    const warningContainer = document.createElement('div');
+                    warningContainer.innerHTML = warningHTML;
+                    parentSection.appendChild(warningContainer.firstChild);
+                }
+                
                 const row = document.createElement('div');
                 row.className = 'row';
                 previewContainer.appendChild(row);
@@ -361,6 +472,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         card.appendChild(cardBody);
                         col.appendChild(card);
                         row.appendChild(col);
+                        
+                        console.log("Added preview for:", file.name);
                     };
                     reader.readAsDataURL(file);
                 });
@@ -369,53 +482,82 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Setup image previews for any existing variant image inputs
-    document.querySelectorAll('.new-variant-image').forEach(function(input) {
+    const newVariantImages = document.querySelectorAll('.new-variant-image');
+    console.log("Found new variant image inputs:", newVariantImages.length);
+    newVariantImages.forEach(function(input) {
         const previewContainer = input.nextElementSibling.nextElementSibling;
-        setupVariantImagePreview(input, previewContainer);
+        if (previewContainer) {
+            setupVariantImagePreview(input, previewContainer);
+        } else {
+            console.log("Preview container not found for:", input);
+        }
     });
     
     // Setup image previews for existing variant image inputs
-    document.querySelectorAll('.variant-image').forEach(function(input) {
+    const variantImages = document.querySelectorAll('.variant-image');
+    console.log("Found existing variant image inputs:", variantImages.length);
+    variantImages.forEach(function(input) {
         const previewContainer = input.nextElementSibling.nextElementSibling;
-        setupVariantImagePreview(input, previewContainer);
+        if (previewContainer) {
+            setupVariantImagePreview(input, previewContainer);
+        } else {
+            console.log("Preview container not found for:", input);
+        }
     });
     
     // Product image preview
-    document.getElementById('images').addEventListener('change', function(event) {
-        const previewContainer = document.getElementById('product-image-previews');
-        previewContainer.innerHTML = ''; // Clear previous previews
-        
-        if (this.files && this.files.length > 0) {
-            Array.from(this.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const col = document.createElement('div');
-                    col.className = 'col-md-3 mb-3';
-                    
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = 'card-img-top';
-                    img.style.height = '150px';
-                    img.style.objectFit = 'contain';
-                    img.alt = 'Image Preview';
-                    
-                    const cardBody = document.createElement('div');
-                    cardBody.className = 'card-body p-2';
-                    cardBody.innerHTML = `<small class="text-muted">${file.name}</small>`;
-                    
-                    card.appendChild(img);
-                    card.appendChild(cardBody);
-                    col.appendChild(card);
-                    previewContainer.appendChild(col);
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-    });
+    const imagesInput = document.getElementById('images');
+    console.log("Product images input:", imagesInput);
+    
+    if (imagesInput) {
+        imagesInput.addEventListener('change', function(event) {
+            console.log("Product images input changed");
+            const previewContainer = document.getElementById('product-image-previews');
+            
+            if (previewContainer) {
+                previewContainer.innerHTML = ''; // Clear previous previews
+                
+                if (this.files && this.files.length > 0) {
+                    console.log("Product images selected:", this.files.length);
+                    Array.from(this.files).forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const col = document.createElement('div');
+                            col.className = 'col-md-3 mb-3';
+                            
+                            const card = document.createElement('div');
+                            card.className = 'card';
+                            
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'card-img-top';
+                            img.style.height = '150px';
+                            img.style.objectFit = 'contain';
+                            img.alt = 'Image Preview';
+                            
+                            const cardBody = document.createElement('div');
+                            cardBody.className = 'card-body p-2';
+                            cardBody.innerHTML = `<small class="text-muted">${file.name}</small>`;
+                            
+                            card.appendChild(img);
+                            card.appendChild(cardBody);
+                            col.appendChild(card);
+                            previewContainer.appendChild(col);
+                            
+                            console.log("Added product image preview for:", file.name);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            } else {
+                console.log("Product image preview container not found");
+            }
+        });
+    } else {
+        console.log("Product images input not found");
+    }
+    
+    console.log("Script initialization complete");
 });
 </script>
 @endpush
-@endsection

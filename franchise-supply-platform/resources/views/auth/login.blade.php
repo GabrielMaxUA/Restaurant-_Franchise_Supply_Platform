@@ -11,6 +11,9 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Loading Overlay Styles -->
+    <link rel="stylesheet" href="{{ asset('css/loading-overlay.css') }}">
+    
     <style>
         body {
             background-color: #f8f9fc;
@@ -104,5 +107,8 @@
 
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Loading Overlay Script -->
+    <script src="{{ asset('js/loading-overlay.js') }}"></script>
 </body>
 </html>

@@ -109,19 +109,19 @@
         <div class="table-responsive">
             <table class="table">
                 <thead class="table-light">
-                    <tr class="text-center">
-                        <th>Image</th>
+                    <tr>
+                        <th class="text-center">Image</th>
                         <th>Product Information</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Inventory</th>
-                        <th>Actions</th>
+                        <th class="text-center">Category</th>
+                        <th class="text-center">Price</th>
+                        <th class="text-center">Inventory</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($products as $product)
                         <tr class="product-row">
-                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle text-center">
                                 @if($product->images->count() > 0)
                                     <img src="{{ asset('storage/' . $product->images->first()->image_url) }}"
                                          alt="{{ $product->name }}"
@@ -137,7 +137,7 @@
                             <td class="text-start fw-bold">
                                 <i class="fas fa-box me-2 text-primary"></i>{{ $product->name }}
                             </td>
-                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle text-center">
                                 @if($product->category)
                                     <a href="{{ route('warehouse.products.index', ['category' => $product->category_id]) }}" class="badge bg-info text-decoration-none">
                                         {{ $product->category->name }}
@@ -146,8 +146,8 @@
                                     <span class="badge bg-secondary">Uncategorized</span>
                                 @endif
                             </td>
-                            <td>${{ number_format($product->base_price, 2) }}</td>
-                            <td>
+                            <td class="text-center">${{ number_format($product->base_price, 2) }}</td>
+                            <td class="text-center">
                                 <span class="badge {{ $product->inventory_count > 10 ? 'bg-success' : ($product->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
                                     {{ $product->inventory_count > 0 ? $product->inventory_count . ' in stock' : 'Out of stock' }}
                                 </span>
@@ -177,8 +177,8 @@
                                 <i class="fas fa-angle-right me-2 text-secondary"></i>
                                 <i class="fas fa-tags me-2 text-secondary"></i>{{ $variant->name }}
                             </td>
-                            <td>${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
-                            <td>
+                            <td class="text-center">${{ number_format($product->base_price + $variant->price_adjustment, 2) }}</td>
+                            <td class="text-center">
                                 <span class="badge {{ $variant->inventory_count > 10 ? 'bg-success' : ($variant->inventory_count > 0 ? 'bg-warning' : 'bg-danger') }}">
                                     {{ $variant->inventory_count > 0 ? $variant->inventory_count . ' in stock' : 'Out of stock' }}
                                 </span>

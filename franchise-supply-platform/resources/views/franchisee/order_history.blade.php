@@ -242,7 +242,7 @@
                                         <span class="fw-medium">{{ $order->created_at->format('M d, Y') }}</span>
                                         <span class="mx-2">|</span>
                                         <span>{{ $order->created_at->format('h:i A') }}</span>
-                                        <span class="ms-2">
+                                        <span class="ms-2 text-center">
                                             @if($order->status == 'delivered')
                                                 <span class="badge bg-success">Delivered</span>
                                             @elseif($order->status == 'rejected')

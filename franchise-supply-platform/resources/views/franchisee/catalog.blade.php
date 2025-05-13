@@ -183,18 +183,18 @@
                         <table class="table table-hover product-table align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width: 80px;">Image</th>
+                                    <th style="width: 80px;" class="text-center">Image</th>
                                     <th>Product</th>
-                                    <th>Category</th>
-                                    <th>Price</th>
-                                    <th>Status</th>
-                                    <th style="width: 150px;">Actions</th>
+                                    <th class="text-center">Category</th>
+                                    <th class="text-center">Price</th>
+                                    <th class="text-center">Status</th>
+                                    <th style="width: 150px;" class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($products as $product)
                                 <tr class="product-row" data-product-id="{{ $product->id }}">
-                                    <td>
+                                    <td class="text-center">
                                         @if($product->images && $product->images->count() > 0)
                                             <img src="{{ asset('storage/' . $product->images->first()->image_url) }}" 
                                                  class="img-thumbnail product-image" alt="{{ $product->name }}">
@@ -215,9 +215,9 @@
                                             <span class="badge bg-warning">Featured</span>
                                         @endif
                                     </td>
-                                    <td>{{ $product->category->name ?? 'Uncategorized' }}</td>
-                                    <td><strong>${{ number_format($product->price, 2) }}</strong></td>
-                                    <td>
+                                    <td class="text-center">{{ $product->category->name ?? 'Uncategorized' }}</td>
+                                    <td class="text-center"><strong>${{ number_format($product->price, 2) }}</strong></td>
+                                    <td class="text-center">
                                         @if($product->inventory_count > 10)
                                             <span class="status-in-stock"><i class="fas fa-check-circle me-1"></i> In Stock</span>
                                         @elseif($product->inventory_count > 0)

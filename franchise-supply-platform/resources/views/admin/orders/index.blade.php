@@ -275,7 +275,7 @@
                     <th>Company/Franchise</th>
                     <th>Date</th>
                     <th>Total Amount</th>
-                    <th>Status</th>
+                    <th class="text-center">Status</th>
                     <th>QuickBooks</th>
                     <th>Actions</th>
                 </tr>
@@ -297,7 +297,7 @@
                         <td>{{ $order->user->franchiseeProfile->company_name ?? 'Unknown' }}</td>
                         <td>{{ $order->created_at->format('M d, Y H:i') }}</td>
                         <td>${{ number_format($order->total_amount, 2) }}</td>
-                        <td>
+                        <td class="text-center">
                             @if($order->status == 'pending')
                                 <span class="badge rounded-pill bg-warning text-dark">Pending Approval</span>
                             @elseif($order->status == 'approved')

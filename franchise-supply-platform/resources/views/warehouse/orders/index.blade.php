@@ -157,7 +157,7 @@
                         <th>Customer</th>
                         <th>Items</th>
                         <th>Total</th>
-                        <th>Status</th>
+                        <th class="text-center">Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -172,7 +172,7 @@
                             </td>
                             <td>{{ $order->items->sum('quantity') }}</td>
                             <td>${{ number_format($order->total_amount, 2) }}</td>
-                            <td>
+                            <td class="text-center">
                                 @if($order->status == 'approved')
                                     <span class="badge bg-primary rounded-pill order-status-badge">Awaiting Fulfillment</span>
                                 @elseif($order->status == 'packed')

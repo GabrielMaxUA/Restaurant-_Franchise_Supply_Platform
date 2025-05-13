@@ -75,10 +75,21 @@
         <div class="card mb-4">
             <div class="card-header">Product Images</div>
             <div class="card-body">
+                <!-- File Upload Guidelines Box -->
+                <div class="alert alert-info mb-3">
+                    <h5><i class="fas fa-info-circle"></i> File Upload Guidelines</h5>
+                    <ul>
+                        <li>You can upload <strong>multiple images</strong> at once by holding Ctrl (or Cmd on Mac) while selecting files</li>
+                        <li>Each image must be under 2MB in size</li>
+                        <li>Supported formats: JPG, PNG, GIF</li>
+                        <li>Maximum 5 images per product</li>
+                    </ul>
+                </div>
+                
                 <div class="mb-4">
                     <label for="images" class="form-label">Upload New Images</label>
                     <input type="file" class="form-control" id="images" name="images[]" multiple accept="image/*">
-                    <small class="text-muted">You can select multiple files. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
+                    <small class="text-muted">You can select multiple files by holding Ctrl (or Cmd on Mac) while selecting. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
                     <div id="product-image-previews" class="row mt-3"></div>
                 </div>
                 
@@ -123,7 +134,7 @@
                                    value="{{ old('existing_variants.'.$variant->id.'.name', $variant->name) }}" required>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Price Adjustment</label>
+                            <label class="form-label">Price</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 <input type="number" class="form-control" 
@@ -214,7 +225,7 @@
                                         <input type="text" class="form-control" name="new_variants[{{ $index }}][name]" value="{{ $variant['name'] }}" required>
                                     </div>
                                     <div class="col-md-3 mb-2">
-                                        <label class="form-label">Price Adjustment</label>
+                                        <label class="form-label">Price</label>
                                         <div class="input-group">
                                             <span class="input-group-text">$</span>
                                             <input type="number" class="form-control" name="new_variants[{{ $index }}][price_adjustment]" 
@@ -259,6 +270,35 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded");
+    
+    // Set up file validation constants
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    const MAX_FILES = 5; // Maximum 5 files per input
+    
+    // Function to clear all size warnings
+    function clearSizeWarnings() {
+        document.querySelectorAll('.alert-warning').forEach(warning => {
+            warning.remove();
+        });
+    }
+    
+    // Function to validate file size and display warnings
+    function validateFileSize(file, container) {
+        if (file.size > MAX_FILE_SIZE) {
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            
+            // Show a flash warning message
+            const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                <strong>Warning!</strong> File "${file.name}" (${fileSizeMB}MB) exceeds the 2MB size limit and will be rejected.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+            const warningContainer = document.createElement('div');
+            warningContainer.innerHTML = warningHTML;
+            container.appendChild(warningContainer.firstChild);
+            return false;
+        }
+        return true;
+    }
     
     const newVariantsContainer = document.getElementById('new-variants-container');
     const noVariantsMessage = document.getElementById('no-variants-message');
@@ -305,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="text" class="form-control" name="new_variants[${variantIndex}][name]" required>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <label class="form-label">Price Adjustment</label>
+                            <label class="form-label">Price</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 <input type="number" class="form-control" name="new_variants[${variantIndex}][price_adjustment]" value="0" step="0.01">
@@ -383,13 +423,43 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Variant image input changed");
             previewContainer.innerHTML = ''; // Clear previous preview
             
+            // Find parent container for warnings
+            const parentSection = variantImageInput.closest('.file-section') || variantImageInput.closest('.form-group');
+            clearSizeWarnings(); // Clear any existing warnings
+            
             if (this.files && this.files.length > 0) {
                 console.log("Files selected:", this.files.length);
+                
+                // Check if too many files are selected
+                if (this.files.length > MAX_FILES) {
+                    const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                        <strong>Warning!</strong> You selected ${this.files.length} files for this variant. Maximum ${MAX_FILES} files are allowed per variant.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+                    const warningContainer = document.createElement('div');
+                    warningContainer.innerHTML = warningHTML;
+                    parentSection.appendChild(warningContainer.firstChild);
+                }
+                
                 const row = document.createElement('div');
                 row.className = 'row';
                 previewContainer.appendChild(row);
                 
                 Array.from(this.files).forEach(file => {
+                    // Validate file size
+                    validateFileSize(file, parentSection);
+                    
+                    // Check file type
+                    if (!file.type.match('image/(jpeg|png|gif|jpg)')) {
+                        const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            <strong>Warning!</strong> File "${file.name}" is not a supported format (JPG, PNG, GIF).
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                        const warningContainer = document.createElement('div');
+                        warningContainer.innerHTML = warningHTML;
+                        parentSection.appendChild(warningContainer.firstChild);
+                    }
+                    
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         const col = document.createElement('div');
@@ -454,13 +524,39 @@ document.addEventListener('DOMContentLoaded', function() {
         imagesInput.addEventListener('change', function(event) {
             console.log("Product images input changed");
             const previewContainer = document.getElementById('product-image-previews');
+            const parentContainer = imagesInput.closest('.card-body');
             
             if (previewContainer) {
                 previewContainer.innerHTML = ''; // Clear previous previews
+                clearSizeWarnings(); // Clear any existing warnings
                 
                 if (this.files && this.files.length > 0) {
+                    // Check if too many files are selected
+                    if (this.files.length > MAX_FILES) {
+                        const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            <strong>Warning!</strong> You selected ${this.files.length} files. Maximum ${MAX_FILES} files are allowed.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                        const warningContainer = document.createElement('div');
+                        warningContainer.innerHTML = warningHTML;
+                        parentContainer.appendChild(warningContainer.firstChild);
+                    }
                     console.log("Product images selected:", this.files.length);
                     Array.from(this.files).forEach(file => {
+                        // Validate file size
+                        validateFileSize(file, parentContainer);
+                        
+                        // Check file type
+                        if (!file.type.match('image/(jpeg|png|gif|jpg)')) {
+                            const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                                <strong>Warning!</strong> File "${file.name}" is not a supported format (JPG, PNG, GIF).
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>`;
+                            const warningContainer = document.createElement('div');
+                            warningContainer.innerHTML = warningHTML;
+                            parentContainer.appendChild(warningContainer.firstChild);
+                        }
+                        
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const col = document.createElement('div');

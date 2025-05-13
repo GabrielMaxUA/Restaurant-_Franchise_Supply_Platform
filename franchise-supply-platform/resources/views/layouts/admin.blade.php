@@ -14,6 +14,7 @@
     <!-- Shared styles -->
     <link rel="stylesheet" href="{{ asset('css/notification.css') }}">
     <link rel="stylesheet" href="{{ asset('css/filters.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/loading-overlay.css') }}">
     
     <!-- Custom CSS -->
     <style>
@@ -442,5 +443,8 @@
     
     <!-- Optional JavaScript -->
     @yield('scripts')
+    
+    <!-- Loading Overlay Script -->
+    <script src="{{ asset('js/loading-overlay.js') }}"></script>
 </body>
 </html>

@@ -14,6 +14,7 @@
     <!-- Shared styles -->
     <link rel="stylesheet" href="{{ asset('css/notification.css') }}">
     <link rel="stylesheet" href="{{ asset('css/filters.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/loading-overlay.css') }}">
     
     <!-- Custom CSS -->
     <style>
@@ -115,6 +116,40 @@
         a:hover .card {
             transform: translateY(-5px);
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        /* Left border styling for cards and alerts */
+        .border-left-primary {
+            border-left: 4px solid #4e73df;
+        }
+        
+        .border-left-success {
+            border-left: 4px solid #1cc88a;
+        }
+        
+        .border-left-warning {
+            border-left: 4px solid #f6c23e;
+        }
+        
+        .border-left-danger {
+            border-left: 4px solid #e74a3b;
+        }
+        
+        .border-left-info {
+            border-left: 4px solid #36b9cc;
+        }
+        
+        .border-left-secondary {
+            border-left: 4px solid #858796;
+        }
+        
+        /* Alert styling with left border */
+        .alert.border-left-primary,
+        .alert.border-left-info {
+            border-left-width: 4px;
+            border-left-style: solid;
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
         }
         
         /* Navbar styling */
@@ -281,7 +316,7 @@
                         <div class="row">
                             @if($approvedOrders > 0)
                             <div class="col-md-6 mb-2 mb-md-0">
-                                <div class="alert alert-primary mb-0">
+                                <div class="alert alert-primary mb-0 border-left-primary">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-clipboard-check me-2"></i>
                                         <div>
@@ -297,7 +332,7 @@
 
                             @if($inProgressOrders > 0)
                             <div class="col-md-{{ $approvedOrders > 0 ? '6' : '12' }}">
-                                <div class="alert alert-info mb-0">
+                                <div class="alert alert-info mb-0 border-left-info">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-box me-2"></i>
                                         <div>
@@ -320,14 +355,14 @@
                     <!-- Welcome banner -->
                     @if(!session('hide_welcome'))
                     <div class="alert {{ ((\App\Models\Product::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\Product::where('inventory_count', '=', 0)->count() > 0) || (\App\Models\ProductVariant::where('inventory_count', '<=', 10)->count() > 0 || \App\Models\ProductVariant::where('inventory_count', '=', 0)->count() > 0)) ? 'alert-danger' : 'alert-success' }} persistent-guide mb-4">
-    <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
-    <p class="mt-3">Inventory Status: 
-        <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
-        <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
-    </p>
-    <hr>
-    <p class="mb-0">Check the dashboard for more insights about the inventory management status.</p>
-</div>
+                        <h4 class="alert-heading"><i class="fas fa-star me-2"></i> Welcome back, {{ Auth::user()->username ?? 'Warehouse Manager' }}!</h4>
+                        <p class="mt-3">Inventory Status: 
+                            <strong>{{ \App\Models\Product::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '<=', 10)->where('inventory_count', '>', 0)->count() }}</strong> items low on inventory and 
+                            <strong>{{ \App\Models\Product::where('inventory_count', '=', 0)->count() + \App\Models\ProductVariant::where('inventory_count', '=', 0)->count() }}</strong> items out of stock.
+                        </p>
+                        <hr>
+                        <p class="mb-0">Check the dashboard for more insights about the inventory management status.</p>
+                    </div>
                     @endif
                     
                     @yield('content')
@@ -405,5 +440,11 @@
     
     <!-- Optional JavaScript -->
     @yield('scripts')
+    
+    <!-- Push stacked scripts -->
+    @stack('scripts')
+    
+    <!-- Loading Overlay Script -->
+    <script src="{{ asset('js/loading-overlay.js') }}"></script>
 </body>
 </html>

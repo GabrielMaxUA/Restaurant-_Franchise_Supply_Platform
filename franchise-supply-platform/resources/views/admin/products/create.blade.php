@@ -122,6 +122,7 @@
                 <label for="images">Product Images</label>
                 <input type="file" class="form-control @error('images') is-invalid @enderror" 
                     id="images" name="images[]" multiple accept="image/*">
+                <small class="text-muted">You can select multiple files by holding Ctrl (or Cmd on Mac) while selecting. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
                 @error('images')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
@@ -142,7 +143,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Price Adjustment ($)</label>
+                                    <label>Price ($)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">$</span>
                                         <input type="number" step="0.01" class="form-control price-input" 
@@ -164,9 +165,10 @@
                         <div class="row mt-3">
                             <div class="col-12">
                                 <div class="form-group file-section" id="variant-image-section-0">
-                                    <label>Variant Image (Optional)</label>
+                                    <label>Variant Images (Optional)</label>
                                     <input type="file" class="form-control variant-image" 
                                         name="variant_image_0[]" multiple accept="image/*">
+                                    <small class="text-muted">You can select multiple files by holding Ctrl (or Cmd on Mac) while selecting. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
                                     <div class="variant-image-preview mt-2 row"></div>
                                 </div>
                             </div>
@@ -565,12 +567,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial setup for inventory inputs
     setupInventoryInputs();
     
+    // Function to clear all size warnings
+    function clearSizeWarnings() {
+        document.querySelectorAll('.alert-warning').forEach(warning => {
+            warning.remove();
+        });
+    }
+    
     // Main function to validate all files and update UI
     function validateAllFiles() {
-        // Reset all section error highlighting
+        // Reset all section error highlighting and clear existing warnings
         document.querySelectorAll('.file-section').forEach(section => {
             section.classList.remove('error-section');
         });
+        clearSizeWarnings();
         
         let allValid = true;
         let anyFiles = false;
@@ -596,8 +606,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (file.size > MAX_FILE_SIZE) {
                     allValid = false;
-                    issues.push(`File "${file.name}" is ${(file.size / (1024 * 1024)).toFixed(2)}MB (max 2MB)`);
+                    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                    issues.push(`File "${file.name}" is ${fileSizeMB}MB (max 2MB)`);
                     document.getElementById('product-images-section').classList.add('error-section');
+                    
+                    // Show a flash warning message
+                    const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                        <strong>Warning!</strong> File "${file.name}" (${fileSizeMB}MB) exceeds the 2MB size limit and will be rejected.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>`;
+                    const warningContainer = document.createElement('div');
+                    warningContainer.innerHTML = warningHTML;
+                    document.getElementById('product-images-section').appendChild(warningContainer.firstChild);
                 }
                 
                 if (!file.type.match('image/(jpeg|png|gif|jpg)')) {
@@ -628,8 +648,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (file.size > MAX_FILE_SIZE) {
                         allValid = false;
-                        issues.push(`File "${file.name}" is ${(file.size / (1024 * 1024)).toFixed(2)}MB (max 2MB)`);
+                        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                        issues.push(`File "${file.name}" is ${fileSizeMB}MB (max 2MB)`);
                         section.classList.add('error-section');
+                        
+                        // Show a flash warning message for the variant
+                        const warningHTML = `<div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            <strong>Warning!</strong> Variant image "${file.name}" (${fileSizeMB}MB) exceeds the 2MB size limit and will be rejected.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>`;
+                        const warningContainer = document.createElement('div');
+                        warningContainer.innerHTML = warningHTML;
+                        section.appendChild(warningContainer.firstChild);
                     }
                     
                     if (!file.type.match('image/(jpeg|png|gif|jpg)')) {
@@ -745,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="form-group">
+                <div class=Price
                     <label>Price Adjustment ($)</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
@@ -768,9 +798,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="row mt-3">
             <div class="col-12">
                 <div class="form-group file-section" id="variant-image-section-${variantIndex}">
-                    <label>Variant Image (Optional)</label>
+                    <label>Variant Images (Optional)</label>
                     <input type="file" class="form-control variant-image" 
                         name="variant_image_${variantIndex}[]" multiple accept="image/*">
+                    <small class="text-muted">You can select multiple files by holding Ctrl (or Cmd on Mac) while selecting. Supported formats: JPG, PNG, GIF (max 2MB each)</small>
                     <div class="variant-image-preview mt-2 row"></div>
                 </div>
             </div>

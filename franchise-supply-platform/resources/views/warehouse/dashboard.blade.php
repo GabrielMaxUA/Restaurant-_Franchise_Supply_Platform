@@ -26,26 +26,6 @@
         </a>
     </div>
 
-    <!-- In Stock Products Card
-    <div class="col-xl-3 col-md-6 mb-4">
-        <a href="{{ route('warehouse.products.index') }}" class="text-decoration-none">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                In Stock</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $inStockProducts ?? 0 }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-warehouse fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div> -->
-
     <!-- Low Stock Products Card -->
     <div class="col-xl-3 col-md-6 mb-4">
         <a href="{{ route('warehouse.products.index', ['inventory' => 'low_stock']) }}" class="text-decoration-none">
@@ -91,6 +71,28 @@
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-ban fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <!-- Orders Waiting Fulfillment Card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <a href="{{ route('warehouse.orders.index') }}" class="text-decoration-none">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Orders</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                <span class="badge bg-info me-1">{{ $orders }}</span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shipping-fast fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
@@ -331,6 +333,77 @@
         </div>
     </div>
 </div>
+
+<!-- Orders Alert -->
+<div class="row mt-4">
+    <div class="col-12">
+        @if(isset($approvedOrders) && $approvedOrders > 0)
+        <div class="alert alert-primary mb-4 border-left-primary">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-clipboard-check me-2"></i>
+                <div>
+                    <strong>{{ $approvedOrders }} {{ Str::plural('order', $approvedOrders) }}</strong> awaiting fulfillment
+                    <a href="{{ route('warehouse.orders.index', ['status' => 'approved']) }}" class="btn btn-sm btn-primary ms-3">
+                        Process Orders
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
+
+<!-- Orders Waiting Fulfillment Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4 border-left-info">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-info">Orders Waiting Fulfillment</h6>
+                <a href="{{ route('warehouse.orders.pending') }}" class="btn btn-sm btn-info">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Total</th>
+                                <th class="text-center">Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($recentOrders as $order)
+                                <tr>
+                                    <td>#{{ $order->id }}</td>
+                                    <td>{{ $order->user->name }}</td>
+                                    <td>{{ $order->created_at->format('M d, Y') }}</td>
+                                    <td>${{ number_format($order->total_amount, 2) }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {{ $order->status == 'approved' ? 'bg-info' : ($order->status == 'packed' ? 'bg-primary' : 'bg-secondary') }}">
+                                            {{ ucfirst($order->status) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('warehouse.orders.show', $order->id) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center">No orders waiting for fulfillment</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('styles')
@@ -349,6 +422,23 @@
     
     .border-left-danger {
         border-left: 4px solid #e74a3b;
+    }
+    
+    .border-left-info {
+        border-left: 4px solid #36b9cc;
+    }
+    
+    .border-left-secondary {
+        border-left: 4px solid #858796;
+    }
+    
+    /* Alert styling with left border */
+    .alert.border-left-primary,
+    .alert.border-left-info {
+        border-left-width: 4px;
+        border-left-style: solid;
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
     }
 </style>
 @endsection

@@ -43,41 +43,13 @@ public function index(Request $request)
         $query->where('category_id', $request->category);
     }
     
-    // Filter by inventory status - THIS IS THE FIXED SECTION
+    // Check the route to determine which inventory filter to apply
+    $routeName = $request->route()->getName();
+    $isWarehouse = (strpos($routeName, 'warehouse.') === 0);
+    
+    // Filter by inventory status
     if ($request->filled('inventory')) {
-        switch ($request->inventory) {
-            case 'in_stock':
-                $query->where(function($q) {
-                    $q->where('inventory_count', '>', 0)
-                      ->orWhereHas('variants', function($vq) {
-                          $vq->where('inventory_count', '>', 0);
-                      });
-                });
-                break;
-            case 'low_stock':
-                // This gets products where either:
-                // 1. The main product has low stock (1-10 items)
-                // 2. OR any of its variants has low stock (1-10 items)
-                $query->where(function($q) {
-                    $q->where(function($mq) {
-                        $mq->where('inventory_count', '>', 0)
-                           ->where('inventory_count', '<=', 10);
-                    })
-                    ->orWhereHas('variants', function($vq) {
-                        $vq->where('inventory_count', '>', 0)
-                           ->where('inventory_count', '<=', 10);
-                    });
-                });
-                break;
-            case 'out_of_stock':
-                $query->where(function($q) {
-                    $q->where('inventory_count', 0)
-                      ->orWhereHas('variants', function($vq) {
-                          $vq->where('inventory_count', 0);
-                      });
-                });
-                break;
-        }
+        $this->applyInventoryFilter($query, $request->inventory, $isWarehouse);
     }
     
     // Apply sorting
@@ -143,7 +115,88 @@ public function index(Request $request)
         }
     }
     
-    // Get low stock and out of stock counts for dashboard
+    // Get inventory stats based on role
+    $inventoryStats = $this->calculateInventoryStats($isWarehouse);
+    
+    $categories = Category::all();
+    
+    // Return the appropriate view based on role
+    if ($isWarehouse) {
+        return view('warehouse.products.index', 
+            compact('products', 'categories') + $inventoryStats
+        );
+    }
+    
+    return view('admin.products.index', 
+        compact('products', 'categories') + $inventoryStats
+    );
+}
+
+/**
+ * Apply inventory status filter to the query
+ * 
+ * @param \Illuminate\Database\Eloquent\Builder $query
+ * @param string $inventoryStatus
+ * @param bool $isWarehouse
+ * @return void
+ */
+protected function applyInventoryFilter($query, $inventoryStatus, $isWarehouse = false)
+{
+    switch ($inventoryStatus) {
+        case 'in_stock':
+            if ($isWarehouse) {
+                // Warehouse considers in_stock as inventory > 10
+                $query->where(function($q) {
+                    $q->where('inventory_count', '>', 10)
+                      ->orWhereHas('variants', function($vq) {
+                          $vq->where('inventory_count', '>', 10);
+                      });
+                });
+            } else {
+                // Admin considers in_stock as inventory > 0
+                $query->where(function($q) {
+                    $q->where('inventory_count', '>', 0)
+                      ->orWhereHas('variants', function($vq) {
+                          $vq->where('inventory_count', '>', 0);
+                      });
+                });
+            }
+            break;
+        case 'low_stock':
+            // This gets products where either:
+            // 1. The main product has low stock (1-10 items)
+            // 2. OR any of its variants has low stock (1-10 items)
+            $query->where(function($q) {
+                $q->where(function($mq) {
+                    $mq->where('inventory_count', '>', 0)
+                        ->where('inventory_count', '<=', 10);
+                })
+                ->orWhereHas('variants', function($vq) {
+                    $vq->where('inventory_count', '>', 0)
+                        ->where('inventory_count', '<=', 10);
+                });
+            });
+            break;
+        case 'out_of_stock':
+            $query->where(function($q) {
+                $q->where('inventory_count', 0)
+                  ->orWhereHas('variants', function($vq) {
+                      $vq->where('inventory_count', 0);
+                  });
+            });
+            break;
+    }
+}
+
+/**
+ * Calculate inventory statistics
+ * 
+ * @param bool $isWarehouse
+ * @return array
+ */
+protected function calculateInventoryStats($isWarehouse = false)
+{
+    // Low stock count
     $lowStockCount = Product::where(function($q) {
         $q->where(function($mq) {
             $mq->where('inventory_count', '>', 0)
@@ -155,6 +208,7 @@ public function index(Request $request)
         });
     })->count();
     
+    // Out of stock count
     $outOfStockCount = Product::where(function($q) {
         $q->where('inventory_count', 0)
           ->orWhereHas('variants', function($vq) {
@@ -162,9 +216,19 @@ public function index(Request $request)
           });
     })->count();
     
-    $categories = Category::all();
+    if ($isWarehouse) {
+        // In stock count for warehouse (inventory > 0)
+        $inStockCount = Product::where(function($q) {
+            $q->where('inventory_count', '>', 0)
+              ->orWhereHas('variants', function($vq) {
+                  $vq->where('inventory_count', '>', 0);
+              });
+        })->count();
+        
+        return compact('inStockCount', 'lowStockCount', 'outOfStockCount');
+    }
     
-    return view('admin.products.index', compact('products', 'categories', 'lowStockCount', 'outOfStockCount'));
+    return compact('lowStockCount', 'outOfStockCount');
 }
 
     /**
@@ -173,6 +237,13 @@ public function index(Request $request)
     public function create()
     {
         $categories = Category::orderBy('name')->get();
+        
+        // Check if this is a warehouse route
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return view('warehouse.products.create', compact('categories'));
+        }
+        
         return view('admin.products.create', compact('categories'));
     }
 
@@ -327,6 +398,19 @@ public function index(Request $request)
                 ]);
             }
         }
+        
+        // Log debug information to help troubleshoot issues
+        \Log::debug('Product creation with variants', [
+            'variants' => $request->has('variants') ? count($request->variants) : 0,
+            'route' => $request->route()->getName(),
+        ]);
+        
+        // Check if this is a warehouse route
+        $routeName = $request->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return redirect()->route('warehouse.products.index')
+                ->with('success', 'Product created successfully.');
+        }
     
         return redirect()->route('admin.products.index')
             ->with('success', 'Product created successfully.');
@@ -335,19 +419,79 @@ public function index(Request $request)
     /**
      * Display the specified product.
      */
-    public function show(Product $product)
+    public function show($product = null)
     {
+        // Handle the case where the parameter isn't type-hinted as Product
+        if (!($product instanceof Product)) {
+            $product = Product::findOrFail($product);
+        }
+        
         $product->load(['category', 'variants.images', 'images']);
+        
+        // Add stock status metadata
+        $hasInStockVariants = false;
+        if ($product->variants->isNotEmpty()) {
+            foreach ($product->variants as $variant) {
+                if ($variant->inventory_count > 0) {
+                    $hasInStockVariants = true;
+                    break;
+                }
+            }
+        }
+        
+        // Set stock_status based on inventory
+        if ($product->inventory_count <= 0) {
+            if ($hasInStockVariants) {
+                $product->stock_status = 'variants_only';
+            } else {
+                $product->stock_status = 'out_of_stock';
+            }
+        } elseif ($product->inventory_count <= 10) {
+            $product->stock_status = 'low_stock';
+        } else {
+            $product->stock_status = 'in_stock';
+        }
+        
+        // Map base_price to price for consistency
+        $product->price = $product->base_price;
+        
+        // Set stock_quantity from inventory_count
+        $product->stock_quantity = $product->inventory_count;
+        
+        // Get related products for warehouse view
+        $relatedProducts = null;
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            $relatedProducts = Product::where('category_id', $product->category_id)
+                ->where('id', '!=', $product->id)
+                ->take(4)
+                ->get();
+                
+            return view('warehouse.products.show', compact('product', 'relatedProducts'));
+        }
+        
         return view('admin.products.show', compact('product'));
     }
 
     /**
      * Show the form for editing the specified product.
      */
-    public function edit(Product $product)
+    public function edit($product = null)
     {
+        // Handle the case where the parameter isn't type-hinted as Product
+        if (!($product instanceof Product)) {
+            $product = Product::findOrFail($product);
+        }
+        
         $categories = Category::orderBy('name')->get();
         $product->load(['variants.images', 'images']);
+        
+        // Check the route to determine which view to use
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return view('warehouse.products.edit', compact('product', 'categories'));
+        }
+        
         return view('admin.products.edit', compact('product', 'categories'));
     }
 
@@ -357,8 +501,13 @@ public function index(Request $request)
     /**
  * Update the specified product in storage.
  */
-public function update(Request $request, Product $product)
+public function update(Request $request, $product = null)
 {
+    // Handle the case where the parameter isn't type-hinted as Product
+    if (!($product instanceof Product)) {
+        $product = Product::findOrFail($product);
+    }
+
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'description' => 'nullable|string',
@@ -371,6 +520,11 @@ public function update(Request $request, Product $product)
 
     // Handle existing variants
     if ($request->has('existing_variants')) {
+        // Log the structure of the existing variants data for debugging
+        \Log::debug('Processing existing variants', [
+            'data' => $request->input('existing_variants')
+        ]);
+        
         foreach ($request->existing_variants as $id => $variantData) {
             $variant = ProductVariant::find($id);
             if ($variant) {
@@ -383,12 +537,14 @@ public function update(Request $request, Product $product)
                         $image->delete();
                     }
                     $variant->delete();
+                    \Log::debug("Deleted variant ID: $id");
                 } else {
                     $variant->update([
                         'name' => $variantData['name'],
                         'price_adjustment' => $variantData['price_adjustment'] ?? 0,
                         'inventory_count' => $variantData['inventory_count'] ?? 0,
                     ]);
+                    \Log::debug("Updated variant ID: $id", ['data' => $variantData]);
                     
                     // Handle variant image update
                     $variantImageKey = "variant_image_existing_" . $id;
@@ -402,12 +558,17 @@ public function update(Request $request, Product $product)
                                     Storage::disk('public')->delete($image->image_url);
                                 }
                                 $image->delete();
+                                \Log::debug("Deleted variant image ID: {$image->id}");
                             }
                         }
                     }
                     
                     // Add new images if provided
                     if ($request->hasFile($variantImageKey)) {
+                        \Log::debug("Processing new images for variant $id", [
+                            'file_count' => count($request->file($variantImageKey))
+                        ]);
+                        
                         foreach ($request->file($variantImageKey) as $image) {
                             // Compress and store the image
                             $path = $this->compressAndStoreImage($image, 'variant-images');
@@ -417,15 +578,29 @@ public function update(Request $request, Product $product)
                                 'image_url' => $path,
                             ]);
                         }
+                    } else {
+                        \Log::debug("No new images for variant $id");
                     }
                 }
+            } else {
+                \Log::warning("Variant not found for ID: $id");
             }
         }
+    } else {
+        \Log::debug('No existing variants in request');
     }
 
     // Handle new variants
     if ($request->has('new_variants')) {
+        \Log::debug('Processing new variants', [
+            'count' => count($request->new_variants),
+            'keys' => array_keys($request->new_variants),
+            'data' => $request->new_variants
+        ]);
+        
         foreach ($request->new_variants as $index => $variant) {
+            \Log::debug("Processing new variant index: $index", ['data' => $variant]);
+            
             if (!empty($variant['name'])) {
                 $newVariant = ProductVariant::create([
                     'product_id' => $product->id,
@@ -434,22 +609,64 @@ public function update(Request $request, Product $product)
                     'inventory_count' => $variant['inventory_count'] ?? 0,
                 ]);
                 
+                \Log::debug("Created new variant ID: {$newVariant->id}", [
+                    'name' => $newVariant->name,
+                    'price_adjustment' => $newVariant->price_adjustment,
+                    'inventory_count' => $newVariant->inventory_count
+                ]);
+                
                 // Handle multiple variant images if provided
                 $variantImageKey = "variant_image_new_" . $index;
                 if ($request->hasFile($variantImageKey)) {
+                    \Log::debug("Processing images for new variant", [
+                        'variant_id' => $newVariant->id,
+                        'image_key' => $variantImageKey,
+                        'file_count' => count($request->file($variantImageKey))
+                    ]);
+                    
                     foreach ($request->file($variantImageKey) as $image) {
                         // Compress and store the image
                         $path = $this->compressAndStoreImage($image, 'variant-images');
                         
-                        VariantImage::create([
+                        $variantImage = VariantImage::create([
                             'variant_id' => $newVariant->id,
                             'image_url' => $path,
                         ]);
+                        
+                        \Log::debug("Created variant image", [
+                            'variant_id' => $newVariant->id,
+                            'image_id' => $variantImage->id,
+                            'path' => $path
+                        ]);
                     }
+                } else {
+                    \Log::debug("No images for new variant", [
+                        'variant_id' => $newVariant->id,
+                        'image_key' => $variantImageKey,
+                        'has_file' => $request->hasFile($variantImageKey)
+                    ]);
+                    
+                    // List all files in the request for debugging
+                    $files = [];
+                    foreach ($request->allFiles() as $key => $file) {
+                        $files[] = $key;
+                    }
+                    \Log::debug("All files in request", ['files' => $files]);
                 }
+            } else {
+                \Log::debug("Skipping empty variant at index $index");
             }
         }
+    } else {
+        \Log::debug('No new variants in request');
     }
+    
+    // Log debug information to help troubleshoot issues
+    \Log::debug('Variant processing completed', [
+        'existing_variants' => $request->has('existing_variants') ? array_keys($request->existing_variants) : [],
+        'new_variants' => $request->has('new_variants') ? array_keys($request->new_variants) : [],
+        'request_files' => $request->hasFile('variant_image_new_0') ? 'Has files' : 'No files',
+    ]);
 
     // Handle product images
     if ($request->hasFile('images')) {
@@ -493,8 +710,13 @@ public function update(Request $request, Product $product)
     /**
      * Remove the specified product from storage.
      */
-    public function destroy(Product $product)
+    public function destroy($product = null)
     {
+        // Handle the case where the parameter isn't type-hinted as Product
+        if (!($product instanceof Product)) {
+            $product = Product::findOrFail($product);
+        }
+        
         // Delete related images from storage
         foreach ($product->images as $image) {
             if (Storage::disk('public')->exists($image->image_url)) {
@@ -513,8 +735,157 @@ public function update(Request $request, Product $product)
     
         // The database cascade will delete related records
         $product->delete();
+        
+        // Check if this is a warehouse route
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return redirect()->route('warehouse.products.index')
+                ->with('success', 'Product deleted successfully.');
+        }
     
         return redirect()->route('admin.products.index')
             ->with('success', 'Product deleted successfully.');
+    }
+    
+    /**
+     * Display products with low stock.
+     */
+    public function lowStock()
+    {
+        $products = Product::with(['category', 'variants', 'images'])
+            ->where(function($q) {
+                $q->where(function($mq) {
+                    $mq->where('inventory_count', '>', 0)
+                       ->where('inventory_count', '<=', 10);
+                })
+                ->orWhereHas('variants', function($vq) {
+                    $vq->where('inventory_count', '>', 0)
+                       ->where('inventory_count', '<=', 10);
+                });
+            })
+            ->orderBy('inventory_count', 'asc')
+            ->paginate(15);
+        
+        // Process products for display
+        foreach ($products as $product) {
+            // Check if any variants are in stock
+            $hasInStockVariants = false;
+            if ($product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count > 0) {
+                        $hasInStockVariants = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Set stock_status property
+            if ($product->inventory_count <= 0) {
+                if ($hasInStockVariants) {
+                    $product->stock_status = 'variants_only';
+                } else {
+                    $product->stock_status = 'out_of_stock';
+                }
+            } elseif ($product->inventory_count <= 10) {
+                $product->stock_status = 'low_stock';
+            } else {
+                $product->stock_status = 'in_stock';
+            }
+        }
+        
+        return view('warehouse.inventory.low-stock', compact('products'));
+    }
+    
+    /**
+     * Display products that are out of stock OR have out-of-stock variants.
+     */
+    public function outOfStock()
+    {
+        // Get products that are out of stock OR have out of stock variants
+        $products = Product::with(['category', 'variants', 'images'])
+            ->where(function($q) {
+                $q->where('inventory_count', 0)
+                  ->orWhereHas('variants', function($vq) {
+                      $vq->where('inventory_count', 0);
+                  });
+            })
+            ->orderBy('updated_at', 'desc')
+            ->paginate(15);
+        
+        // Process products for display and identify which have out-of-stock variants
+        foreach ($products as $product) {
+            $hasOutOfStockVariants = false;
+            
+            if ($product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count == 0) {
+                        $hasOutOfStockVariants = true;
+                        $variant->is_out_of_stock = true;
+                    } else {
+                        $variant->is_out_of_stock = false;
+                    }
+                }
+            }
+            
+            // Flag whether the main product, variants, or both are out of stock
+            $product->has_out_of_stock_variants = $hasOutOfStockVariants;
+            $product->main_is_out_of_stock = ($product->inventory_count == 0);
+        }
+        
+        return view('warehouse.inventory.out-of-stock', compact('products'));
+    }
+        
+    /**
+     * Display most popular products.
+     */
+    public function mostPopular()
+    {
+        $products = Product::with(['category', 'variants', 'images'])
+            ->select('products.*', \DB::raw('COUNT(order_items.id) as orders_count'))
+            ->leftJoin('order_items', 'products.id', '=', 'order_items.product_id')
+            ->groupBy(
+                'products.id', 
+                'products.name', 
+                'products.description', 
+                'products.base_price',
+                'products.inventory_count', 
+                'products.category_id', 
+                'products.created_at', 
+                'products.updated_at'
+            )
+            ->having('orders_count', '>', 0)
+            ->orderBy('orders_count', 'desc')
+            ->paginate(15);
+        
+        // Process products for display
+        foreach ($products as $product) {
+            // Check if any variants are in stock
+            $hasInStockVariants = false;
+            if ($product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    if ($variant->inventory_count > 0) {
+                        $hasInStockVariants = true;
+                        break;
+                    }
+                }
+            }
+            
+            $product->has_in_stock_variants = $hasInStockVariants;
+            
+            // Set stock_status property
+            if ($product->inventory_count <= 0) {
+                if ($hasInStockVariants) {
+                    $product->stock_status = 'variants_only';
+                } else {
+                    $product->stock_status = 'out_of_stock';
+                }
+            } elseif ($product->inventory_count <= 10) {
+                $product->stock_status = 'low_stock';
+            } else {
+                $product->stock_status = 'in_stock';
+            }
+        }
+        
+        return view('warehouse.inventory.popular', compact('products'));
     }
 }

@@ -318,14 +318,14 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/settings', [WarehouseProfileController::class, 'settings'])->name('warehouse.settings');
         Route::post('/profile/change-password', [WarehouseProfileController::class, 'changePassword'])->name('warehouse.profile.change-password');
         
-        // Product routes - using dedicated Warehouse controllers
-        Route::get('/products', [App\Http\Controllers\Warehouse\ProductController::class, 'index'])->name('warehouse.products.index');
-        Route::get('/products/create', [App\Http\Controllers\Warehouse\ProductController::class, 'create'])->name('warehouse.products.create');
-        Route::post('/products', [App\Http\Controllers\Warehouse\ProductController::class, 'store'])->name('warehouse.products.store');
-        Route::get('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'show'])->name('warehouse.products.show');
-        Route::get('/products/{product}/edit', [App\Http\Controllers\Warehouse\ProductController::class, 'edit'])->name('warehouse.products.edit');
-        Route::put('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'update'])->name('warehouse.products.update');
-        Route::delete('/products/{product}', [App\Http\Controllers\Warehouse\ProductController::class, 'destroy'])->name('warehouse.products.destroy');
+        // Product routes - using shared Admin controller
+        Route::get('/products', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('warehouse.products.index');
+        Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('warehouse.products.create');
+        Route::post('/products', [App\Http\Controllers\Admin\ProductController::class, 'store'])->name('warehouse.products.store');
+        Route::get('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'show'])->name('warehouse.products.show');
+        Route::get('/products/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('warehouse.products.edit');
+        Route::put('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('warehouse.products.update');
+        Route::delete('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'destroy'])->name('warehouse.products.destroy');
         
         // Category routes - using dedicated Warehouse controllers
         Route::get('/categories', [App\Http\Controllers\Warehouse\CategoryController::class, 'index'])->name('warehouse.categories.index');
@@ -336,10 +336,10 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::put('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'update'])->name('warehouse.categories.update');
         Route::delete('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'destroy'])->name('warehouse.categories.destroy');
         
-        // Inventory management - using dedicated Warehouse controllers
-        Route::get('/inventory/low-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'lowStock'])->name('warehouse.inventory.low-stock');
-        Route::get('/inventory/out-of-stock', [App\Http\Controllers\Warehouse\ProductController::class, 'outOfStock'])->name('warehouse.inventory.out-of-stock');
-        Route::get('/inventory/popular', [App\Http\Controllers\Warehouse\ProductController::class, 'mostPopular'])->name('warehouse.inventory.popular');
+        // Inventory management - using shared Admin controller
+        Route::get('/inventory/low-stock', [App\Http\Controllers\Admin\ProductController::class, 'lowStock'])->name('warehouse.inventory.low-stock');
+        Route::get('/inventory/out-of-stock', [App\Http\Controllers\Admin\ProductController::class, 'outOfStock'])->name('warehouse.inventory.out-of-stock');
+        Route::get('/inventory/popular', [App\Http\Controllers\Admin\ProductController::class, 'mostPopular'])->name('warehouse.inventory.popular');
 
         // Order management - shared controller with admin, but with role-based access control
         Route::prefix('orders')->name('warehouse.orders.')->group(function () {

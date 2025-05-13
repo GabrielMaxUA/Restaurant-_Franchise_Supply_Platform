@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductVariant;
+use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -78,6 +79,20 @@ class DashboardController extends Controller
             ->orderBy('orders_count', 'desc')
             ->take(5)
             ->get();
+            
+        // Get orders waiting for fulfillment (approved status)
+        $pendingOrders = Order::where('status', 'approved')->count();
+        $approvedOrders = $pendingOrders; // Set approved orders count for the alert
+        
+        // Get all orders EXCEPT delivered and rejected
+        $orders = Order::whereNotIn('status', ['delivered', 'rejected'])->count();
+        
+        // Get recent orders - only orders that are not delivered or rejected
+        $recentOrders = Order::with('user')
+            ->whereNotIn('status', ['delivered', 'rejected'])
+            ->orderBy('updated_at', 'desc')
+            ->take(5)
+            ->get();
         
         return view('warehouse.dashboard', compact(
             'totalProducts',
@@ -86,7 +101,11 @@ class DashboardController extends Controller
             'outOfStockCount',
             'lowStockProducts',
             'outOfStockProducts',
-            'popularProducts'
+            'popularProducts',
+            'pendingOrders',
+            'approvedOrders',
+            'orders',
+            'recentOrders'
         ));
     }
 }
