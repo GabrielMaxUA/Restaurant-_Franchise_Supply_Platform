@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: May 12, 2025 at 10:40 PM
+-- Generation Time: May 13, 2025 at 07:28 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -50,7 +50,7 @@ CREATE TABLE `admin_details` (
 --
 
 INSERT INTO `admin_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `phone`, `email`, `website`, `logo_path`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
-(2, 1, 'MaxiCo', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '1234567890', 'maxgabrielua@gmail.com', 'www.restaurantfranchisesupply.com', 'company-logos/lFCONwMuMZOZJ8Y8IqA7wtRa4oQ8bjhHGCWechXX.png', '1', 'admin', '2025-05-08 13:03:09', '2025-05-13 01:58:27');
+(2, 1, 'MaxiCo', '478 Mortimer Ave', 'Toronto', 'ON', 'M4J 2G5', '1234567890', 'admin@example.com', 'www.restaurantfranchisesupply.com', 'company-logos/lFCONwMuMZOZJ8Y8IqA7wtRa4oQ8bjhHGCWechXX.png', '1', 'admin', '2025-05-08 13:03:09', '2025-05-13 03:37:05');
 
 -- --------------------------------------------------------
 
@@ -141,7 +141,7 @@ CREATE TABLE `franchisee_details` (
 
 INSERT INTO `franchisee_details` (`id`, `user_id`, `company_name`, `address`, `city`, `state`, `postal_code`, `contact_name`, `logo_path`, `created_at`, `updated_at`, `updated_by`) VALUES
 (2, 14, 'Max and Company eno', '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriellla', 'franchisee_logos/company_logo_14_1747101083.png', '2025-05-08 15:14:15', '2025-05-13 02:36:26', 'admin'),
-(3, 16, 'Max and Company', '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', NULL, '2025-05-08 15:28:59', '2025-05-13 01:52:40', 'admin');
+(3, 16, 'Max and Company', '922 Greenwood avenue', 'Toronto', 'ON', 'M4J 2G5', 'Max Gabriel', 'franchisee_logos/company_logo_16_1747146327.png', '2025-05-08 15:28:59', '2025-05-13 14:26:40', 'admin');
 
 -- --------------------------------------------------------
 
@@ -193,14 +193,19 @@ INSERT INTO `orders` (`id`, `user_id`, `status`, `total_amount`, `shipping_addre
 (23, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:05:10', '2025-05-10 00:41:58', NULL, NULL, NULL),
 (24, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-09 23:53:50', '2025-05-10 00:07:28', NULL, NULL, NULL),
 (25, 14, 'rejected', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 01:20:43', '2025-05-10 01:50:26', NULL, NULL, NULL),
-(26, 14, 'shipped', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:13:01', '2025-05-13 00:32:20', NULL, 'QB-INV-68689', NULL),
+(26, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:13:01', '2025-05-13 04:41:12', NULL, 'QB-INV-68689', NULL),
 (27, 14, 'delivered', 64.80, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-12', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-10 02:19:51', '2025-05-13 00:11:07', NULL, 'QB-INV-57901', NULL),
 (28, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-12 23:52:10', '2025-05-13 00:48:29', NULL, NULL, NULL),
-(29, 14, 'packed', 142.56, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:14:57', '2025-05-13 01:47:26', NULL, NULL, NULL),
-(30, 14, 'packed', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:25:19', '2025-05-13 01:30:36', '2025-05-13 01:25:38', NULL, 'INV-30-202505'),
-(31, 14, 'pending', 1328.40, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:11:48', '2025-05-13 02:11:48', NULL, NULL, NULL),
-(32, 14, 'pending', 84.12, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'express', 15.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:24:06', '2025-05-13 02:24:06', NULL, NULL, NULL),
-(33, 14, 'pending', 38.88, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:27:27', '2025-05-13 02:27:27', NULL, NULL, NULL);
+(29, 14, 'delivered', 142.56, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:14:57', '2025-05-13 11:59:44', NULL, NULL, NULL),
+(30, 14, 'delivered', 12.96, '478 Mortimer Avenuea', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 01:25:19', '2025-05-13 11:59:40', '2025-05-13 01:25:38', NULL, 'INV-30-202505'),
+(31, 14, 'packed', 1328.40, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:11:48', '2025-05-13 11:59:34', '2025-05-13 02:42:31', NULL, 'INV-31-202505'),
+(32, 14, 'packed', 84.12, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'express', 15.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:24:06', '2025-05-13 11:59:08', '2025-05-13 02:42:16', NULL, 'INV-32-202505'),
+(33, 14, 'packed', 38.88, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 02:27:27', '2025-05-13 11:59:07', '2025-05-13 02:42:06', NULL, 'INV-33-202505'),
+(34, 16, 'packed', 196.44, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'express', 15.00, '', 'Default Manager', '4168560684', NULL, '2025-05-13 02:44:09', '2025-05-13 11:59:05', '2025-05-13 11:58:05', NULL, 'INV-34-202505'),
+(35, 16, 'packed', 34.56, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-13 03:08:55', '2025-05-13 11:59:04', '2025-05-13 11:57:57', NULL, 'INV-35-202505'),
+(36, 16, 'packed', 12.96, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-15', 'morning', 'standard', 0.00, '', 'Default Manager', '4168560684', NULL, '2025-05-13 03:11:52', '2025-05-13 11:59:02', '2025-05-13 11:57:48', NULL, 'INV-36-202505'),
+(37, 16, 'packed', 16007.64, '922 Greenwood', 'Toronto', 'ON', 'M4J 2G5', '2025-05-16', 'morning', 'express', 15.00, 'rear loading dock door. please call prior arrival', 'Default Manager', '4168560684', NULL, '2025-05-13 11:23:59', '2025-05-13 11:59:01', '2025-05-13 11:57:41', NULL, 'INV-37-202505'),
+(38, 14, 'packed', 16352.28, '478 Mortimer Avenue', 'Toronto', 'ON', 'M4J 2G5', '2025-05-16', 'morning', 'standard', 0.00, '', 'Default Manager', '416 8560684', NULL, '2025-05-13 11:56:46', '2025-05-13 11:58:59', '2025-05-13 11:57:13', NULL, 'INV-38-202505');
 
 -- --------------------------------------------------------
 
@@ -234,7 +239,13 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `quanti
 (33, 30, 69, NULL, 1, 12.00, '2025-05-13 01:25:19', '2025-05-13 01:25:19'),
 (34, 31, 65, NULL, 123, 10.00, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
 (35, 32, 67, NULL, 2, 32.00, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
-(36, 33, 68, NULL, 3, 12.00, '2025-05-13 02:27:27', '2025-05-13 02:27:27');
+(36, 33, 68, NULL, 3, 12.00, '2025-05-13 02:27:27', '2025-05-13 02:27:27'),
+(37, 34, 68, 21, 12, 14.00, '2025-05-13 02:44:09', '2025-05-13 02:44:09'),
+(38, 35, 67, NULL, 1, 32.00, '2025-05-13 03:08:55', '2025-05-13 03:08:55'),
+(39, 36, 68, NULL, 1, 12.00, '2025-05-13 03:11:52', '2025-05-13 03:11:52'),
+(40, 37, 70, 22, 12, 1234.00, '2025-05-13 11:23:59', '2025-05-13 11:23:59'),
+(41, 38, 70, NULL, 123, 123.00, '2025-05-13 11:56:46', '2025-05-13 11:56:46'),
+(42, 38, 69, NULL, 1, 12.00, '2025-05-13 11:56:46', '2025-05-13 11:56:46');
 
 -- --------------------------------------------------------
 
@@ -277,13 +288,78 @@ INSERT INTO `order_notifications` (`id`, `user_id`, `order_id`, `status`, `is_re
 (38, 14, 30, 'packed', 1, '2025-05-13 01:30:36', '2025-05-13 01:31:37'),
 (39, 1, 30, 'packed', 1, '2025-05-13 01:30:36', '2025-05-13 01:31:20'),
 (40, 14, 29, 'packed', 1, '2025-05-13 01:47:26', '2025-05-13 01:49:17'),
-(41, 1, 29, 'packed', 0, '2025-05-13 01:47:26', '2025-05-13 01:47:26'),
-(42, 1, 31, 'pending', 0, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
-(43, 4, 31, 'pending', 0, '2025-05-13 02:11:48', '2025-05-13 02:11:48'),
-(44, 1, 32, 'pending', 0, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
-(45, 4, 32, 'pending', 0, '2025-05-13 02:24:06', '2025-05-13 02:24:06'),
-(46, 1, 33, 'pending', 0, '2025-05-13 02:27:27', '2025-05-13 02:27:27'),
-(47, 4, 33, 'pending', 0, '2025-05-13 02:27:27', '2025-05-13 02:27:27');
+(41, 1, 29, 'packed', 1, '2025-05-13 01:47:26', '2025-05-13 02:43:21'),
+(42, 1, 31, 'pending', 1, '2025-05-13 02:11:48', '2025-05-13 02:43:21'),
+(43, 4, 31, 'pending', 1, '2025-05-13 02:11:48', '2025-05-13 03:39:07'),
+(44, 1, 32, 'pending', 1, '2025-05-13 02:24:06', '2025-05-13 02:43:21'),
+(45, 4, 32, 'pending', 1, '2025-05-13 02:24:06', '2025-05-13 03:39:07'),
+(46, 1, 33, 'pending', 1, '2025-05-13 02:27:27', '2025-05-13 02:43:21'),
+(47, 4, 33, 'pending', 1, '2025-05-13 02:27:27', '2025-05-13 03:39:07'),
+(48, 14, 33, 'approved', 1, '2025-05-13 02:42:06', '2025-05-13 11:56:36'),
+(49, 4, 33, 'approved', 1, '2025-05-13 02:42:06', '2025-05-13 03:39:07'),
+(50, 14, 32, 'approved', 1, '2025-05-13 02:42:16', '2025-05-13 11:56:36'),
+(51, 4, 32, 'approved', 1, '2025-05-13 02:42:16', '2025-05-13 03:39:07'),
+(52, 14, 31, 'approved', 1, '2025-05-13 02:42:31', '2025-05-13 11:56:36'),
+(53, 4, 31, 'approved', 1, '2025-05-13 02:42:31', '2025-05-13 03:39:07'),
+(54, 1, 34, 'pending', 1, '2025-05-13 02:44:09', '2025-05-13 11:58:10'),
+(55, 4, 34, 'pending', 1, '2025-05-13 02:44:09', '2025-05-13 03:39:07'),
+(56, 16, 34, 'Order placed', 1, '2025-05-13 02:44:09', '2025-05-13 02:44:15'),
+(57, 1, 34, 'New order requires attention', 1, '2025-05-13 02:44:09', '2025-05-13 11:58:10'),
+(58, 4, 34, 'New order needs processing', 1, '2025-05-13 02:44:09', '2025-05-13 03:39:07'),
+(59, 1, 35, 'pending', 1, '2025-05-13 03:08:55', '2025-05-13 11:58:10'),
+(60, 4, 35, 'pending', 1, '2025-05-13 03:08:55', '2025-05-13 03:39:07'),
+(61, 16, 35, 'Order placed', 1, '2025-05-13 03:08:59', '2025-05-13 03:11:24'),
+(62, 1, 35, 'New order requires attention', 1, '2025-05-13 03:08:59', '2025-05-13 11:58:10'),
+(63, 4, 35, 'New order needs processing', 1, '2025-05-13 03:08:59', '2025-05-13 03:39:07'),
+(64, 1, 36, 'pending', 1, '2025-05-13 03:11:52', '2025-05-13 11:58:10'),
+(65, 4, 36, 'pending', 1, '2025-05-13 03:11:52', '2025-05-13 03:39:07'),
+(66, 16, 36, 'Order placed', 1, '2025-05-13 03:11:55', '2025-05-13 11:21:42'),
+(67, 1, 36, 'New order requires attention', 1, '2025-05-13 03:11:55', '2025-05-13 11:58:10'),
+(68, 4, 36, 'New order needs processing', 1, '2025-05-13 03:11:55', '2025-05-13 03:39:07'),
+(69, 14, 30, 'shipped', 1, '2025-05-13 03:40:01', '2025-05-13 11:56:36'),
+(70, 1, 30, 'shipped', 1, '2025-05-13 03:40:01', '2025-05-13 11:58:10'),
+(71, 14, 29, 'shipped', 1, '2025-05-13 03:40:09', '2025-05-13 11:56:36'),
+(72, 1, 29, 'shipped', 1, '2025-05-13 03:40:09', '2025-05-13 11:58:10'),
+(73, 1, 37, 'pending', 1, '2025-05-13 11:23:59', '2025-05-13 11:58:10'),
+(74, 4, 37, 'pending', 0, '2025-05-13 11:23:59', '2025-05-13 11:23:59'),
+(75, 16, 37, 'Order placed', 1, '2025-05-13 11:23:59', '2025-05-13 11:24:05'),
+(76, 1, 37, 'New order requires attention', 1, '2025-05-13 11:23:59', '2025-05-13 11:58:10'),
+(77, 4, 37, 'New order needs processing', 0, '2025-05-13 11:23:59', '2025-05-13 11:23:59'),
+(78, 1, 38, 'pending', 1, '2025-05-13 11:56:46', '2025-05-13 11:58:10'),
+(79, 4, 38, 'pending', 0, '2025-05-13 11:56:46', '2025-05-13 11:56:46'),
+(80, 14, 38, 'Order placed', 1, '2025-05-13 11:56:46', '2025-05-13 11:56:50'),
+(81, 1, 38, 'New order requires attention', 1, '2025-05-13 11:56:46', '2025-05-13 11:58:10'),
+(82, 4, 38, 'New order needs processing', 0, '2025-05-13 11:56:46', '2025-05-13 11:56:46'),
+(83, 14, 38, 'approved', 0, '2025-05-13 11:57:13', '2025-05-13 11:57:13'),
+(84, 4, 38, 'approved', 0, '2025-05-13 11:57:13', '2025-05-13 11:57:13'),
+(85, 16, 37, 'approved', 0, '2025-05-13 11:57:41', '2025-05-13 11:57:41'),
+(86, 4, 37, 'approved', 0, '2025-05-13 11:57:41', '2025-05-13 11:57:41'),
+(87, 16, 36, 'approved', 0, '2025-05-13 11:57:48', '2025-05-13 11:57:48'),
+(88, 4, 36, 'approved', 0, '2025-05-13 11:57:48', '2025-05-13 11:57:48'),
+(89, 16, 35, 'approved', 0, '2025-05-13 11:57:57', '2025-05-13 11:57:57'),
+(90, 4, 35, 'approved', 0, '2025-05-13 11:57:57', '2025-05-13 11:57:57'),
+(91, 16, 34, 'approved', 0, '2025-05-13 11:58:05', '2025-05-13 11:58:05'),
+(92, 4, 34, 'approved', 0, '2025-05-13 11:58:05', '2025-05-13 11:58:05'),
+(93, 14, 38, 'packed', 0, '2025-05-13 11:58:59', '2025-05-13 11:58:59'),
+(94, 1, 38, 'packed', 1, '2025-05-13 11:58:59', '2025-05-13 14:26:12'),
+(95, 16, 37, 'packed', 0, '2025-05-13 11:59:01', '2025-05-13 11:59:01'),
+(96, 1, 37, 'packed', 1, '2025-05-13 11:59:01', '2025-05-13 14:26:12'),
+(97, 16, 36, 'packed', 0, '2025-05-13 11:59:02', '2025-05-13 11:59:02'),
+(98, 1, 36, 'packed', 1, '2025-05-13 11:59:02', '2025-05-13 14:26:12'),
+(99, 16, 35, 'packed', 0, '2025-05-13 11:59:04', '2025-05-13 11:59:04'),
+(100, 1, 35, 'packed', 1, '2025-05-13 11:59:04', '2025-05-13 14:26:12'),
+(101, 16, 34, 'packed', 0, '2025-05-13 11:59:05', '2025-05-13 11:59:05'),
+(102, 1, 34, 'packed', 1, '2025-05-13 11:59:05', '2025-05-13 14:26:12'),
+(103, 14, 33, 'packed', 0, '2025-05-13 11:59:07', '2025-05-13 11:59:07'),
+(104, 1, 33, 'packed', 1, '2025-05-13 11:59:07', '2025-05-13 14:26:12'),
+(105, 14, 32, 'packed', 0, '2025-05-13 11:59:08', '2025-05-13 11:59:08'),
+(106, 1, 32, 'packed', 1, '2025-05-13 11:59:08', '2025-05-13 14:26:12'),
+(107, 14, 31, 'packed', 0, '2025-05-13 11:59:34', '2025-05-13 11:59:34'),
+(108, 1, 31, 'packed', 1, '2025-05-13 11:59:34', '2025-05-13 14:26:12'),
+(109, 14, 30, 'delivered', 0, '2025-05-13 11:59:40', '2025-05-13 11:59:40'),
+(110, 1, 30, 'delivered', 1, '2025-05-13 11:59:40', '2025-05-13 14:26:12'),
+(111, 14, 29, 'delivered', 0, '2025-05-13 11:59:44', '2025-05-13 11:59:44'),
+(112, 1, 29, 'delivered', 1, '2025-05-13 11:59:44', '2025-05-13 14:26:12');
 
 -- --------------------------------------------------------
 
@@ -339,9 +415,10 @@ CREATE TABLE `products` (
 INSERT INTO `products` (`id`, `name`, `description`, `base_price`, `category_id`, `inventory_count`, `created_at`, `updated_at`) VALUES
 (65, 'checken', 'organic, free run', 10.00, 6, 125, '2025-05-07 16:28:21', '2025-05-13 02:11:48'),
 (66, 'ground beef', 'canadian farm direct supplier (pack of 1kg)', 14.00, 7, 42, '2025-05-07 16:30:25', '2025-05-11 13:43:46'),
-(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 118, '2025-05-07 16:32:13', '2025-05-13 02:24:06'),
-(68, 'chicken wings', 'Bulk (Min order 1kg)', 12.00, 6, 48, '2025-05-08 23:45:21', '2025-05-13 02:27:27'),
-(69, 'wheet flour', '3 kg pck', 12.00, 10, 0, '2025-05-10 14:45:56', '2025-05-13 01:25:19');
+(67, 'whole pepper mix', 'mix of whole pepper (white, red, black, green) pack of 400gr', 32.00, 8, 117, '2025-05-07 16:32:13', '2025-05-13 03:08:55'),
+(68, 'chicken wings', 'Bulk (Min order 1kg)', 12.00, 6, 47, '2025-05-08 23:45:21', '2025-05-13 03:11:52'),
+(69, 'wheet flour', '3 kg pck', 12.00, 10, 122, '2025-05-10 14:45:56', '2025-05-13 11:56:46'),
+(70, 'piano', NULL, 123.00, 7, 123, '2025-05-13 03:56:42', '2025-05-13 12:00:21');
 
 -- --------------------------------------------------------
 
@@ -360,7 +437,8 @@ CREATE TABLE `product_favorites` (
 --
 
 INSERT INTO `product_favorites` (`id`, `user_id`, `product_id`) VALUES
-(11, 14, 67);
+(11, 14, 67),
+(12, 16, 70);
 
 -- --------------------------------------------------------
 
@@ -382,12 +460,15 @@ INSERT INTO `product_images` (`id`, `product_id`, `image_url`) VALUES
 (63, 65, 'product-images/681b51e530662_1746620901.png'),
 (64, 66, 'product-images/681b526136824_1746621025.png'),
 (65, 67, 'product-images/681b52cd1eb0f_1746621133.png'),
-(66, 67, 'product-images/681be0e0e0f29_1746657504.png'),
 (67, 66, 'product-images/OYygNJL8g41h97MWY5aquBgdHehGliijoVhtVghq.svg'),
 (68, 65, 'product-images/DxO7pnvhujNyJtOj5SUsm0AyXMe5mPwQVV75xr9m.svg'),
 (69, 67, 'product-images/681cd7117aef4_1746720529.JPG'),
 (70, 68, 'product-images/681d4211c2ec1_1746747921.png'),
-(71, 69, 'product-images/681f66a400f0a_1746888356.png');
+(72, 69, 'product-images/6822c18f8cd46_1747108239.png'),
+(74, 69, 'product-images/6822c3458b5c0_1747108677.png'),
+(75, 69, 'product-images/6822c3479fd29_1747108679.png'),
+(78, 70, 'product-images/6822c597c4890_1747109271.png'),
+(97, 70, 'product-images/682334559a69b_1747137621.jpg');
 
 -- --------------------------------------------------------
 
@@ -414,7 +495,9 @@ INSERT INTO `product_variants` (`id`, `product_id`, `name`, `price_adjustment`, 
 (18, 66, '2kg', 22.00, 92, '2025-05-07 16:30:25', '2025-05-11 13:43:54'),
 (19, 66, '5kg', 45.00, 3, '2025-05-07 16:30:25', '2025-05-10 16:38:20'),
 (20, 67, 'pack of 800gr', 89.00, 20, '2025-05-07 16:32:13', '2025-05-09 02:26:57'),
-(21, 68, 'chicken wings (packed/vacuum). 3kg/pkg', 14.00, 15, '2025-05-08 23:45:21', '2025-05-11 13:43:35');
+(21, 68, 'chicken wings (packed/vacuum). 3kg/pkg', 14.00, 323, '2025-05-08 23:45:21', '2025-05-13 03:50:04'),
+(22, 70, 'box of 10', 1234.00, 123, '2025-05-13 03:56:42', '2025-05-13 12:00:21'),
+(23, 69, 'well', 123.00, 123, '2025-05-13 03:57:56', '2025-05-13 03:57:56');
 
 -- --------------------------------------------------------
 
@@ -457,7 +540,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('wEwFKGweA0bEVrvj2UvHc2wXo3QlbvJUkwT3cXSN', 1, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YToxMTp7czo2OiJfdG9rZW4iO3M6NDA6IkU5RmQ5UkhoQjlyUGY4ZFpySVgyMFU4YnFoaVdxRThGYkhWVW1mTWwiO3M6OToiX3ByZXZpb3VzIjthOjE6e3M6MzoidXJsIjtzOjQ0OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvYWRtaW4vb3JkZXJzL2NoZWNrLW5ldyI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjE7czoxMjoid2VsY29tZV9iYWNrIjtiOjE7czo5OiJ1c2VyX25hbWUiO3M6NToiYWRtaW4iO3M6MTU6Imxvd19zdG9ja19pdGVtcyI7aTowO3M6MTg6Im91dF9vZl9zdG9ja19pdGVtcyI7aToxO3M6MzoidXJsIjthOjE6e3M6ODoiaW50ZW5kZWQiO3M6Mjg6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9sb2dvdXQiO31zOjE3OiJoYXNfb3JkZXJfdXBkYXRlcyI7YjoxO3M6MTI6ImhpZGVfd2VsY29tZSI7YjowO30=', 1747103998);
+('FH5QyuM1cCEXOqQ5Hs0el9HjdvjXjpxARM77gqQa', 1, '127.0.0.1', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36', 'YTo5OntzOjY6Il90b2tlbiI7czo0MDoiS002MjlUdXg4RDhYaG5qcVliYjBnTEkxMjFlb1FwaVo5ME95bEhOUiI7czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6NDg6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9ub3RpZmljYXRpb25zL3VucmVhZC1jb3VudCI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtpOjE7czoxMjoid2VsY29tZV9iYWNrIjtiOjE7czo5OiJ1c2VyX25hbWUiO3M6NToiYWRtaW4iO3M6MTc6Imhhc19vcmRlcl91cGRhdGVzIjtiOjE7czoxMjoiaGlkZV93ZWxjb21lIjtiOjA7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyODoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2xvZ291dCI7fX0=', 1747150770);
 
 -- --------------------------------------------------------
 
@@ -483,10 +566,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password_hash`, `email`, `phone`, `role_id`, `created_at`, `updated_at`, `updated_by`, `status`) VALUES
-(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'maxgabrielua@gmail.com', '1234567890', 1, '2025-05-02 22:22:44', '2025-05-13 02:04:24', 'admin', 1),
+(1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@example.com', '1234567890', 1, '2025-05-02 22:22:44', '2025-05-13 03:37:05', 'admin', 1),
 (4, 'maximUSCan', '$2y$12$hd15.smpVHhhq0.yRNu3YeW9kSOBVomoDVJ5/VmzeGBkrJJvu3gyi', 'maxim.don.mg@gmail.com', '4168560684', 2, '2025-05-04 23:09:20', '2025-05-11 14:34:24', 'adminMax', 1),
 (14, 'user1', '$2y$12$wEfP8y4N0eRt2X/deuIxpuUQQr4fI.SP5kM0U4hjzetQ.JF8jLzcy', 'user@franche.com', '416 8560684', 3, '2025-05-07 18:21:40', '2025-05-13 02:36:26', 'admin', 1),
-(16, 'gabriel max', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-13 01:52:40', 'admin', 1);
+(16, 'gabriel max', '$2y$12$.mz8V4c8I.XXcnnGqgCUZOQyU94S/fYmeRip9PiC3AbEb2wVNyuH.', 'maxim.don.mg@gmail.com1', '4168560684', 3, '2025-05-08 15:28:59', '2025-05-13 14:38:33', 'admin', 1);
 
 -- --------------------------------------------------------
 
@@ -511,8 +594,11 @@ INSERT INTO `variant_images` (`id`, `variant_id`, `image_url`) VALUES
 (46, 18, 'variant-images/681be13bdc36f_1746657595.jpg'),
 (47, 19, 'variant-images/681be13be5223_1746657595.png'),
 (48, 17, 'variant-images/681be1572337d_1746657623.png'),
-(54, 20, 'variant-images/681bfa0379056_1746663939.png'),
-(55, 21, 'variant-images/681d4211bea9b_1746747921.png');
+(55, 21, 'variant-images/681d4211bea9b_1746747921.png'),
+(57, 23, 'variant-images/6822c34486427_1747108676.png'),
+(61, 22, 'variant-images/vnEVCjoo4DV5taZ0jf61iw3JR0Y7Ga0jwjw8dsEN.svg'),
+(62, 22, 'variant-images/6822c59796464_1747109271.png'),
+(63, 22, 'variant-images/6822c597a12ba_1747109271.png');
 
 --
 -- Indexes for dumped tables
@@ -673,7 +759,7 @@ ALTER TABLE `carts`
 -- AUTO_INCREMENT for table `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -697,19 +783,19 @@ ALTER TABLE `migrations`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `order_notifications`
 --
 ALTER TABLE `order_notifications`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=113;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -721,25 +807,25 @@ ALTER TABLE `personal_access_tokens`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=71;
 
 --
 -- AUTO_INCREMENT for table `product_favorites`
 --
 ALTER TABLE `product_favorites`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=98;
 
 --
 -- AUTO_INCREMENT for table `product_variants`
 --
 ALTER TABLE `product_variants`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `roles`
@@ -757,7 +843,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `variant_images`
 --
 ALTER TABLE `variant_images`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
 -- Constraints for dumped tables
