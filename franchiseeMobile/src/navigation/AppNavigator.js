@@ -12,8 +12,6 @@ import CartScreen from '../screens/CartScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import TestScreen from '../screens/TestScreen';
-import ApiTestScreen from '../screens/ApiTestScreen';
 
 // Create the navigators
 const Stack = createStackNavigator();
@@ -92,6 +90,17 @@ const AppTabs = () => {
   );
 };
 
+// Header options that match the web app style
+const headerOptions = {
+  headerStyle: {
+    backgroundColor: '#0066cc',
+  },
+  headerTintColor: '#fff',
+  headerTitleStyle: {
+    fontWeight: 'bold',
+  },
+};
+
 // Stack navigator for Dashboard section
 const DashboardStack = () => (
   <Stack.Navigator>
@@ -100,13 +109,7 @@ const DashboardStack = () => (
       component={DashboardScreen} 
       options={{ 
         title: 'Dashboard',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
     <Stack.Screen 
@@ -114,13 +117,7 @@ const DashboardStack = () => (
       component={OrderDetailsScreen}
       options={{ 
         title: 'Order Details',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
     <Stack.Screen 
@@ -128,13 +125,7 @@ const DashboardStack = () => (
       component={OrderHistoryScreen}
       options={{ 
         title: 'Order History',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
   </Stack.Navigator>
@@ -148,13 +139,7 @@ const CatalogStack = () => (
       component={CatalogScreen}
       options={{ 
         title: 'Product Catalog',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
   </Stack.Navigator>
@@ -168,13 +153,7 @@ const CartStack = () => (
       component={CartScreen}
       options={{ 
         title: 'Shopping Cart',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
   </Stack.Navigator>
@@ -188,13 +167,7 @@ const OrdersStack = () => (
       component={OrderHistoryScreen}
       options={{ 
         title: 'Order History',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
     <Stack.Screen 
@@ -202,13 +175,7 @@ const OrdersStack = () => (
       component={OrderDetailsScreen}
       options={{ 
         title: 'Order Details',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
   </Stack.Navigator>
@@ -222,13 +189,7 @@ const ProfileStack = () => (
       component={ProfileScreen}
       options={{ 
         title: 'My Profile',
-        headerStyle: {
-          backgroundColor: '#0066cc',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        ...headerOptions
       }}
     />
   </Stack.Navigator>
@@ -271,8 +232,9 @@ const AppNavigator = () => {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading...</Text>
       </View>
     );
   }
@@ -281,31 +243,7 @@ const AppNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {userToken == null ? (
         // No token found, user isn't signed in
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen 
-            name="TestAPI" 
-            component={TestScreen} 
-            options={{ 
-              headerShown: true,
-              title: 'Simple API Test',
-              headerStyle: { backgroundColor: '#0066cc' },
-              headerTintColor: '#fff',
-              headerTitleStyle: { fontWeight: 'bold' },
-            }}
-          />
-          <Stack.Screen 
-            name="ComprehensiveAPITest" 
-            component={ApiTestScreen} 
-            options={{ 
-              headerShown: true,
-              title: 'Comprehensive API Test',
-              headerStyle: { backgroundColor: '#0066cc' },
-              headerTintColor: '#fff',
-              headerTitleStyle: { fontWeight: 'bold' },
-            }}
-          />
-        </>
+        <Stack.Screen name="Login" component={LoginScreen} />
       ) : (
         // User is signed in
         <Stack.Screen name="Main" component={AppTabs} />

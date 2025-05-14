@@ -1,26 +1,26 @@
 {
-  "root": "/Users/maximus/Desktop/franchiseeMobile",
-  "reactNativePath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native",
+  "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile",
+  "reactNativePath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native",
   "reactNativeVersion": "0.79",
   "dependencies": {
     "@react-native-async-storage/async-storage": {
-      "root": "/Users/maximus/Desktop/franchiseeMobile/node_modules/@react-native-async-storage/async-storage",
+      "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/@react-native-async-storage/async-storage",
       "name": "@react-native-async-storage/async-storage",
       "platforms": {
         "ios": {
-          "podspecPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/RNCAsyncStorage.podspec",
+          "podspecPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/RNCAsyncStorage.podspec",
           "version": "2.1.2",
           "configurations": [],
           "scriptPhases": []
         },
         "android": {
-          "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/android",
+          "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/android",
           "packageImportPath": "import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;",
           "packageInstance": "new AsyncStoragePackage()",
           "buildTypes": [],
           "libraryName": "rnasyncstorage",
           "componentDescriptors": [],
-          "cmakeListsPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cmakeListsPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,
@@ -29,17 +29,17 @@
       }
     },
     "react-native-gesture-handler": {
-      "root": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-gesture-handler",
+      "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-gesture-handler",
       "name": "react-native-gesture-handler",
       "platforms": {
         "ios": {
-          "podspecPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-gesture-handler/RNGestureHandler.podspec",
+          "podspecPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-gesture-handler/RNGestureHandler.podspec",
           "version": "2.25.0",
           "configurations": [],
           "scriptPhases": []
         },
         "android": {
-          "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-gesture-handler/android",
+          "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-gesture-handler/android",
           "packageImportPath": "import com.swmansion.gesturehandler.RNGestureHandlerPackage;",
           "packageInstance": "new RNGestureHandlerPackage()",
           "buildTypes": [],
@@ -48,7 +48,7 @@
             "RNGestureHandlerButtonComponentDescriptor",
             "RNGestureHandlerRootViewComponentDescriptor"
           ],
-          "cmakeListsPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cmakeListsPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,
@@ -57,23 +57,23 @@
       }
     },
     "react-native-reanimated": {
-      "root": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-reanimated",
+      "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-reanimated",
       "name": "react-native-reanimated",
       "platforms": {
         "ios": {
-          "podspecPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-reanimated/RNReanimated.podspec",
+          "podspecPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-reanimated/RNReanimated.podspec",
           "version": "3.17.5",
           "configurations": [],
           "scriptPhases": []
         },
         "android": {
-          "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-reanimated/android",
+          "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-reanimated/android",
           "packageImportPath": "import com.swmansion.reanimated.ReanimatedPackage;",
           "packageInstance": "new ReanimatedPackage()",
           "buildTypes": [],
           "libraryName": "rnreanimated",
           "componentDescriptors": [],
-          "cmakeListsPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-reanimated/android/build/generated/source/codegen/jni/CMakeLists.txt",
+          "cmakeListsPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-reanimated/android/build/generated/source/codegen/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,
@@ -82,17 +82,17 @@
       }
     },
     "react-native-safe-area-context": {
-      "root": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-safe-area-context",
+      "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-safe-area-context",
       "name": "react-native-safe-area-context",
       "platforms": {
         "ios": {
-          "podspecPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-safe-area-context/react-native-safe-area-context.podspec",
+          "podspecPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-safe-area-context/react-native-safe-area-context.podspec",
           "version": "5.4.0",
           "configurations": [],
           "scriptPhases": []
         },
         "android": {
-          "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-safe-area-context/android",
+          "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-safe-area-context/android",
           "packageImportPath": "import com.th3rdwave.safeareacontext.SafeAreaContextPackage;",
           "packageInstance": "new SafeAreaContextPackage()",
           "buildTypes": [],
@@ -101,7 +101,7 @@
             "RNCSafeAreaProviderComponentDescriptor",
             "RNCSafeAreaViewComponentDescriptor"
           ],
-          "cmakeListsPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+          "cmakeListsPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,
@@ -110,17 +110,17 @@
       }
     },
     "react-native-screens": {
-      "root": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-screens",
+      "root": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-screens",
       "name": "react-native-screens",
       "platforms": {
         "ios": {
-          "podspecPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-screens/RNScreens.podspec",
+          "podspecPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-screens/RNScreens.podspec",
           "version": "4.10.0",
           "configurations": [],
           "scriptPhases": []
         },
         "android": {
-          "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-screens/android",
+          "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-screens/android",
           "packageImportPath": "import com.swmansion.rnscreens.RNScreensPackage;",
           "packageInstance": "new RNScreensPackage()",
           "buildTypes": [],
@@ -138,7 +138,7 @@
             "RNSScreenContentWrapperComponentDescriptor",
             "RNSModalScreenComponentDescriptor"
           ],
-          "cmakeListsPath": "/Users/maximus/Desktop/franchiseeMobile/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+          "cmakeListsPath": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
           "cxxModuleCMakeListsModuleName": null,
           "cxxModuleCMakeListsPath": null,
           "cxxModuleHeaderName": null,
@@ -309,7 +309,7 @@
         {
           "name": "--path <path>",
           "description": "Path to the React Native project root.",
-          "default": "/Users/maximus/Desktop/franchiseeMobile"
+          "default": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile"
         },
         {
           "name": "--platform <string>",
@@ -599,7 +599,7 @@
   "assets": [],
   "project": {
     "ios": {
-      "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/ios",
+      "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/ios",
       "xcodeProject": {
         "name": "franchiseeMobile.xcworkspace",
         "path": ".",
@@ -608,7 +608,7 @@
       "assets": []
     },
     "android": {
-      "sourceDir": "/Users/maximus/Desktop/franchiseeMobile/android",
+      "sourceDir": "/Applications/XAMPP/xamppfiles/htdocs/Restaurant-_Franchise_Supply_Platform/franchiseeMobile/android",
       "appName": "app",
       "packageName": "com.franchiseemobile",
       "applicationId": "com.franchiseemobile",
