@@ -172,6 +172,23 @@ class CatalogController extends Controller
         // Get total products count
         $total_products = Product::count();
         
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'products' => $products,
+                'categories' => $categories,
+                'total_products' => $total_products,
+                'pagination' => [
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                    'per_page' => $products->perPage(),
+                    'total' => $products->total()
+                ]
+            ]);
+        }
+        
+        // Web response
         return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
     }
     
@@ -319,6 +336,13 @@ class CatalogController extends Controller
         return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
     }
 
+    /**
+     * Toggle favorite status for a product.
+     * This method handles both web and API requests.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function toggleFavorite(Request $request)
     {
         $productId = $request->input('product_id');

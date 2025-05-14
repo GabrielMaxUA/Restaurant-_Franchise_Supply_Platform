@@ -241,16 +241,19 @@ class OrderController extends Controller
     
     /**
      * Display pending orders with optional status filtering.
+     * Supports both web and API requests.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
     public function pendingOrders(Request $request)
     {
         $user = Auth::user();
         
-        // Clear order updates notification when viewing orders
-        session(['has_order_updates' => false]);
+        // Clear order updates notification when viewing orders (only for web requests)
+        if (!$request->expectsJson() && !$request->wantsJson()) {
+            session(['has_order_updates' => false]);
+        }
         
         // Build the base query
         $query = Order::where('user_id', $user->id);
@@ -280,6 +283,22 @@ class OrderController extends Controller
             'rejected' => Order::where('user_id', $user->id)->where('status', 'rejected')->count(),
         ];
         
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'orders' => $orders->items(),
+                'order_counts' => $order_counts,
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'last_page' => $orders->lastPage(),
+                    'per_page' => $orders->perPage(),
+                    'total' => $orders->total()
+                ]
+            ]);
+        }
+        
+        // Web response
         return view('franchisee.pending_orders', compact('orders', 'order_counts'));
     }
     
@@ -421,16 +440,20 @@ class OrderController extends Controller
     
     /**
      * Display order details.
+     * Supports both web and API requests.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
-    public function orderDetails($id)
+    public function orderDetails(Request $request, $id)
     {
         $user = Auth::user();
         
-        // Clear order updates notification when viewing order details
-        session(['has_order_updates' => false]);
+        // Clear order updates notification when viewing order details (web only)
+        if (!$request->expectsJson() && !$request->wantsJson()) {
+            session(['has_order_updates' => false]);
+        }
         
         $order = Order::where('user_id', $user->id)
             ->with(['items.product', 'items.variant'])
@@ -445,6 +468,62 @@ class OrderController extends Controller
             $order->estimated_delivery = $order->created_at->addDays(7);
         }
         
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            // For API responses, format the order items to include only necessary data
+            $items = [];
+            foreach ($order->items as $item) {
+                $itemData = [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'variant_id' => $item->variant_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'subtotal' => $item->price * $item->quantity
+                ];
+                
+                // Add product details
+                if ($item->product) {
+                    $itemData['product'] = [
+                        'id' => $item->product->id,
+                        'name' => $item->product->name,
+                        'description' => $item->product->description,
+                        'image_url' => $item->product->images->isNotEmpty() ? $item->product->images->first()->image_url : null
+                    ];
+                }
+                
+                // Add variant details if applicable
+                if ($item->variant) {
+                    $itemData['variant'] = [
+                        'id' => $item->variant->id,
+                        'name' => $item->variant->name,
+                        'price_adjustment' => $item->variant->price_adjustment
+                    ];
+                }
+                
+                $items[] = $itemData;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'order' => [
+                    'id' => $order->id,
+                    'status' => $order->status,
+                    'total_amount' => $order->total_amount,
+                    'shipping_address' => $order->shipping_address,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                    'delivery_date' => $order->delivery_date,
+                    'delivery_time' => $order->delivery_time,
+                    'delivery_preference' => $order->delivery_preference,
+                    'estimated_delivery' => $order->estimated_delivery,
+                    'items_count' => $order->items_count,
+                    'items' => $items
+                ]
+            ]);
+        }
+        
+        // Web response
         return view('franchisee.order_details', compact('order'));
     }
     
@@ -491,91 +570,169 @@ class OrderController extends Controller
         
         // Find the order and ensure it belongs to the user
         $order = Order::where('user_id', $user->id)
-            ->with('items')
+            ->with(['items.product', 'items.variant'])
             ->findOrFail($id);
-            
-        // Get current cart
-        $cart = session('cart', []);
+        
+        // Get or create the user's cart 
+        $cart = new \App\Models\Cart();
+        if (\App\Models\Cart::where('user_id', $user->id)->exists()) {
+            $cart = \App\Models\Cart::where('user_id', $user->id)->first();
+        } else {
+            $cart->user_id = $user->id;
+            $cart->save();
+        }
         
         // Track inventory issues
         $inventoryIssues = [];
         $itemsAdded = false;
+        $inventoryService = new \App\Services\InventoryService();
         
-        // Add items from the order to the cart
-        foreach ($order->items as $item) {
-            // Check if product exists
-            $product = Product::find($item->product_id);
-            
-            if (!$product) {
-                $inventoryIssues[] = "Product '{$item->product_name}' is no longer available.";
-                continue; // Skip if product doesn't exist anymore
+        // Begin transaction for database operations
+        DB::beginTransaction();
+        
+        try {
+            // Add items from the order to the cart
+            foreach ($order->items as $item) {
+                // Get the product with eager loaded relationships
+                $product = $item->product;
+                
+                if (!$product) {
+                    $inventoryIssues[] = "Product ID {$item->product_id} is no longer available.";
+                    continue; // Skip if product doesn't exist anymore
+                }
+                
+                $productName = $product->name ?? "Product #{$item->product_id}";
+                $quantityToAdd = $item->quantity;
+                
+                if ($item->variant_id) {
+                    // Handle variant product
+                    $variant = $item->variant;
+                    if (!$variant) {
+                        $inventoryIssues[] = "Variant for '{$productName}' is no longer available.";
+                        continue; // Skip if variant doesn't exist anymore
+                    }
+                    
+                    $variantName = $variant->name ?? "Variant #{$item->variant_id}";
+                    
+                    // Check inventory availability
+                    if ($variant->inventory_count <= 0) {
+                        $inventoryIssues[] = "'{$productName} ({$variantName})' is out of stock.";
+                        continue; // Skip if out of stock
+                    }
+                    
+                    // Adjust quantity to match available inventory
+                    if ($variant->inventory_count < $quantityToAdd) {
+                        $inventoryIssues[] = "Only {$variant->inventory_count} units of '{$productName} ({$variantName})' are available (requested {$quantityToAdd}).";
+                        $quantityToAdd = $variant->inventory_count;
+                    }
+                    
+                    // Check if this variant is already in the cart
+                    $existingCartItem = \App\Models\CartItem::where('cart_id', $cart->id)
+                        ->where('product_id', $item->product_id)
+                        ->where('variant_id', $item->variant_id)
+                        ->first();
+                        
+                    if ($existingCartItem) {
+                        // Check if adding to existing cart item would exceed inventory
+                        $newQuantity = $existingCartItem->quantity + $quantityToAdd;
+                        if ($newQuantity > $variant->inventory_count) {
+                            $inventoryIssues[] = "Adding {$quantityToAdd} more units of '{$productName} ({$variantName})' would exceed available inventory.";
+                            $quantityToAdd = max(0, $variant->inventory_count - $existingCartItem->quantity);
+                            $newQuantity = $existingCartItem->quantity + $quantityToAdd;
+                        }
+                        
+                        if ($quantityToAdd > 0) {
+                            $existingCartItem->quantity = $newQuantity;
+                            $existingCartItem->save();
+                            $itemsAdded = true;
+                        }
+                    } else if ($quantityToAdd > 0) {
+                        // Add as new cart item
+                        \App\Models\CartItem::create([
+                            'cart_id' => $cart->id,
+                            'product_id' => $item->product_id,
+                            'variant_id' => $item->variant_id,
+                            'quantity' => $quantityToAdd
+                        ]);
+                        $itemsAdded = true;
+                    }
+                } else {
+                    // Handle main product (no variant)
+                    if ($product->inventory_count <= 0) {
+                        $inventoryIssues[] = "'{$productName}' is out of stock.";
+                        continue; // Skip if out of stock
+                    }
+                    
+                    // Adjust quantity to match available inventory
+                    if ($product->inventory_count < $quantityToAdd) {
+                        $inventoryIssues[] = "Only {$product->inventory_count} units of '{$productName}' are available (requested {$quantityToAdd}).";
+                        $quantityToAdd = $product->inventory_count;
+                    }
+                    
+                    // Check if this product is already in the cart
+                    $existingCartItem = \App\Models\CartItem::where('cart_id', $cart->id)
+                        ->where('product_id', $item->product_id)
+                        ->whereNull('variant_id')
+                        ->first();
+                        
+                    if ($existingCartItem) {
+                        // Check if adding to existing cart item would exceed inventory
+                        $newQuantity = $existingCartItem->quantity + $quantityToAdd;
+                        if ($newQuantity > $product->inventory_count) {
+                            $inventoryIssues[] = "Adding {$quantityToAdd} more units of '{$productName}' would exceed available inventory.";
+                            $quantityToAdd = max(0, $product->inventory_count - $existingCartItem->quantity);
+                            $newQuantity = $existingCartItem->quantity + $quantityToAdd;
+                        }
+                        
+                        if ($quantityToAdd > 0) {
+                            $existingCartItem->quantity = $newQuantity;
+                            $existingCartItem->save();
+                            $itemsAdded = true;
+                        }
+                    } else if ($quantityToAdd > 0) {
+                        // Add as new cart item
+                        \App\Models\CartItem::create([
+                            'cart_id' => $cart->id,
+                            'product_id' => $item->product_id,
+                            'variant_id' => null,
+                            'quantity' => $quantityToAdd
+                        ]);
+                        $itemsAdded = true;
+                    }
+                }
             }
             
-            // Create unique key for this product/variant combination
-            $itemKey = $item->product_id;
-            if ($item->variant_id) {
-                $variant = ProductVariant::find($item->variant_id);
-                if (!$variant) {
-                    $inventoryIssues[] = "Variant for '{$item->product_name}' is no longer available.";
-                    continue; // Skip if variant doesn't exist anymore
-                }
-                
-                // Check inventory
-                if ($variant->inventory_count <= 0) {
-                    $inventoryIssues[] = "'{$item->product_name} ({$variant->name})' is out of stock.";
-                    continue; // Skip if out of stock
-                }
-                
-                // Adjust quantity if needed
-                $quantity = min($item->quantity, $variant->inventory_count);
-                if ($quantity < $item->quantity) {
-                    $inventoryIssues[] = "Only {$quantity} units of '{$item->product_name} ({$variant->name})' are available.";
-                }
-                
-                $itemKey .= '_' . $item->variant_id;
-            } else {
-                // Check inventory for product without variant
-                if ($product->inventory_count <= 0) {
-                    $inventoryIssues[] = "'{$item->product_name}' is out of stock.";
-                    continue; // Skip if out of stock
-                }
-                
-                // Adjust quantity if needed
-                $quantity = min($item->quantity, $product->inventory_count);
-                if ($quantity < $item->quantity) {
-                    $inventoryIssues[] = "Only {$quantity} units of '{$item->product_name}' are available.";
-                }
+            // If no items could be added, rollback and return with error
+            if (!$itemsAdded) {
+                DB::rollBack();
+                return redirect()->route('franchisee.cart')
+                    ->with('error', 'Unable to add items from your previous order. All items are unavailable.');
             }
             
-            // Add to cart
-            if (isset($cart[$itemKey])) {
-                $cart[$itemKey]['quantity'] += $quantity;
-            } else {
-                $cart[$itemKey] = [
-                    'product_id' => $item->product_id,
-                    'variant_id' => $item->variant_id,
-                    'quantity' => $quantity
-                ];
+            // Commit the transaction
+            DB::commit();
+            
+            // Return with appropriate message
+            if (count($inventoryIssues) > 0) {
+                return redirect()->route('franchisee.cart')
+                    ->with('warning', 'Items from your previous order have been added to your cart with some modifications: ' . implode('\n', $inventoryIssues));
             }
             
-            $itemsAdded = true;
-        }
-        
-        // Save updated cart to session
-        session(['cart' => $cart]);
-        
-        if (!$itemsAdded) {
             return redirect()->route('franchisee.cart')
-                ->with('error', 'Unable to add items from your previous order. All items are unavailable.');
-        }
-        
-        if (count($inventoryIssues) > 0) {
+                ->with('success', 'Items from your previous order have been added to your cart.');
+        } catch (\Exception $e) {
+            // Rollback transaction on error
+            DB::rollBack();
+            \Log::error('Error repeating order: ' . $e->getMessage(), [
+                'order_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return redirect()->route('franchisee.cart')
-                ->with('warning', 'Items from your previous order have been added to your cart with some modifications:<br>' . implode('<br>', $inventoryIssues));
+                ->with('error', 'An error occurred while adding items to your cart: ' . $e->getMessage());
         }
-        
-        return redirect()->route('franchisee.cart')
-            ->with('success', 'Items from your previous order have been added to your cart.');
     }
     
     /**

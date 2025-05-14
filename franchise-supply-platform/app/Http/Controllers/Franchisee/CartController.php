@@ -44,9 +44,12 @@ class CartController extends Controller
     
     /**
      * Display the cart contents.
-     * UPDATED: Uses variant price_adjustment directly as the price
+     * Supports both web and API requests.
+     * 
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
         $cart = $this->getOrCreateCart();
         $cartItems = [];
@@ -63,7 +66,7 @@ class CartController extends Controller
                 // UPDATED: Use variant's price_adjustment directly as the price
                 $price = $variant->price_adjustment;
                 
-                $cartItems[] = [
+                $itemData = [
                     'id' => $item->id,
                     'product' => $product,
                     'variant' => $variant,
@@ -71,11 +74,33 @@ class CartController extends Controller
                     'price' => $price,
                     'subtotal' => $price * $item->quantity
                 ];
+                
+                // For API responses, include only necessary product and variant data
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    $itemData['product'] = [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'description' => $product->description,
+                        'base_price' => $product->base_price,
+                        'image_url' => $product->images->isNotEmpty() ? $product->images->first()->image_url : null
+                    ];
+                    
+                    if ($variant) {
+                        $itemData['variant'] = [
+                            'id' => $variant->id,
+                            'name' => $variant->name,
+                            'price_adjustment' => $variant->price_adjustment,
+                            'inventory_count' => $variant->inventory_count
+                        ];
+                    }
+                }
+                
+                $cartItems[] = $itemData;
                 $total += $price * $item->quantity;
             } else {
                 $product = $item->product;
                 if ($product) {
-                    $cartItems[] = [
+                    $itemData = [
                         'id' => $item->id,
                         'product' => $product,
                         'variant' => null,
@@ -83,16 +108,44 @@ class CartController extends Controller
                         'price' => $product->base_price,
                         'subtotal' => $product->base_price * $item->quantity
                     ];
+                    
+                    // For API responses, include only necessary product data
+                    if ($request->expectsJson() || $request->wantsJson()) {
+                        $itemData['product'] = [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'description' => $product->description,
+                            'base_price' => $product->base_price,
+                            'image_url' => $product->images->isNotEmpty() ? $product->images->first()->image_url : null
+                        ];
+                    }
+                    
+                    $cartItems[] = $itemData;
                     $total += $product->base_price * $item->quantity;
                 }
             }
         }
         
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'cart_items' => $cartItems,
+                'total' => $total,
+                'items_count' => count($cartItems)
+            ]);
+        }
+        
+        // Web response
         return view('franchisee.cart', compact('cartItems', 'total'));
     }
     
     /**
      * Add a product to the cart.
+     * Supports both web and API requests.
+     * 
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
     public function addToCart(Request $request)
     {
@@ -106,175 +159,216 @@ class CartController extends Controller
         $variantId = $request->variant_id;
         $quantity = $request->quantity;
         
-        // Load product with variants
-        $product = Product::with(['variants'])->find($productId);
-        if (!$product) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Product not found.',
-                ], 404);
-            }
-            return redirect()->back()->with('error', 'Product not found.');
-        }
-        
-        // If a variant is specified, check variant inventory
-        if ($variantId) {
-            $variant = ProductVariant::find($variantId);
-            $availableInventory = $variant ? $variant->inventory_count : 0;
+        try {
+            // Begin database transaction for inventory check
+            DB::beginTransaction();
             
-            if (!$variant || $availableInventory < $quantity) {
-                if ($request->ajax()) {
+            // Load product with variants using for update lock to prevent race conditions
+            $product = Product::with(['variants'])->lockForUpdate()->find($productId);
+            if (!$product) {
+                DB::rollBack();
+                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Selected variant is out of stock or has insufficient inventory.',
-                        'remaining_inventory' => $availableInventory,
-                        'requested_quantity' => $quantity,
-                        'product_cart_quantity' => 0
-                    ], 400);
+                        'message' => 'Product not found.',
+                    ], 404);
                 }
-                return redirect()->back()->with('error', 'Selected variant is out of stock or has insufficient inventory.');
+                return redirect()->back()->with('error', 'Product not found.');
             }
-        } else {
-            // For main product, check if it has inventory
-            $availableInventory = $product->inventory_count;
             
-            if ($availableInventory < $quantity) {
-                // Check if any variants have inventory
-                $hasInStockVariants = false;
-                $availableVariants = [];
+            // If a variant is specified, check variant inventory with locking
+            if ($variantId) {
+                $variant = ProductVariant::lockForUpdate()->find($variantId);
+                $availableInventory = $variant ? $variant->inventory_count : 0;
                 
-                foreach ($product->variants as $variant) {
-                    if ($variant->inventory_count > 0) {
-                        $hasInStockVariants = true;
-                        $availableVariants[] = [
-                            'id' => $variant->id,
-                            'name' => $variant->name,
-                            'inventory' => $variant->inventory_count
-                        ];
-                    }
-                }
-                
-                if ($hasInStockVariants) {
-                    if ($request->ajax()) {
+                if (!$variant || $availableInventory < $quantity) {
+                    DB::rollBack();
+                    if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'This product is out of stock. Please select an available variant.',
-                            'variants_available' => true,
-                            'available_variants' => $availableVariants,
-                            'product_id' => $productId
-                        ], 400);
-                    }
-                    return redirect()->back()->with('error', 'This product is out of stock. Please select a variant.');
-                } else {
-                    if ($request->ajax()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Product is out of stock.',
+                            'message' => 'Selected variant is out of stock or has insufficient inventory.',
                             'remaining_inventory' => $availableInventory,
                             'requested_quantity' => $quantity,
                             'product_cart_quantity' => 0
                         ], 400);
                     }
-                    return redirect()->back()->with('error', 'Product is out of stock.');
-                }
-            }
-        }
-        
-        // Get user's cart
-        $cart = $this->getOrCreateCart();
-        
-        // Check if this product/variant is already in the cart
-        $query = CartItem::where('cart_id', $cart->id)
-            ->where('product_id', $productId);
-            
-        if ($variantId) {
-            $query->where('variant_id', $variantId);
-        } else {
-            $query->whereNull('variant_id');
-        }
-        
-        $existingItem = $query->first();
-        $currentCartQuantity = 0;
-        
-        // If the product is already in the cart, update the quantity
-        if ($existingItem) {
-            $currentCartQuantity = $existingItem->quantity;
-            $newQuantity = $currentCartQuantity + $quantity;
-            
-            // Check if the new quantity exceeds available stock
-            if ($variantId) {
-                $variant = ProductVariant::find($variantId);
-                $availableInventory = $variant ? $variant->inventory_count : 0;
-                
-                if (!$variant || $availableInventory < $newQuantity) {
-                    if ($request->ajax()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Adding this quantity would exceed available inventory.',
-                            'remaining_inventory' => ($availableInventory - $currentCartQuantity),
-                            'requested_quantity' => $quantity,
-                            'product_cart_quantity' => $currentCartQuantity
-                        ], 400);
-                    }
-                    return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
+                    return redirect()->back()->with('error', 'Selected variant is out of stock or has insufficient inventory.');
                 }
             } else {
-                $availableInventory = $product ? $product->inventory_count : 0;
+                // For main product, check if it has inventory
+                $availableInventory = $product->inventory_count;
                 
-                if (!$product || $availableInventory < $newQuantity) {
-                    if ($request->ajax()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Adding this quantity would exceed available inventory.',
-                            'remaining_inventory' => ($availableInventory - $currentCartQuantity),
-                            'requested_quantity' => $quantity,
-                            'product_cart_quantity' => $currentCartQuantity
-                        ], 400);
+                if ($availableInventory < $quantity) {
+                    // Check if any variants have inventory
+                    $hasInStockVariants = false;
+                    $availableVariants = [];
+                    
+                    // Lock all variants for consistent inventory check
+                    $variants = ProductVariant::where('product_id', $productId)
+                        ->lockForUpdate()
+                        ->get();
+                    
+                    foreach ($variants as $variant) {
+                        if ($variant->inventory_count > 0) {
+                            $hasInStockVariants = true;
+                            $availableVariants[] = [
+                                'id' => $variant->id,
+                                'name' => $variant->name,
+                                'inventory' => $variant->inventory_count
+                            ];
+                        }
                     }
-                    return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
+                    
+                    DB::rollBack();
+                    
+                    if ($hasInStockVariants) {
+                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'This product is out of stock. Please select an available variant.',
+                                'variants_available' => true,
+                                'available_variants' => $availableVariants,
+                                'product_id' => $productId
+                            ], 400);
+                        }
+                        return redirect()->back()->with('error', 'This product is out of stock. Please select a variant.');
+                    } else {
+                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Product is out of stock.',
+                                'remaining_inventory' => $availableInventory,
+                                'requested_quantity' => $quantity,
+                                'product_cart_quantity' => 0
+                            ], 400);
+                        }
+                        return redirect()->back()->with('error', 'Product is out of stock.');
+                    }
                 }
             }
             
-            // Update the quantity
-            $existingItem->quantity = $newQuantity;
-            $existingItem->save();
-        } else {
-            // Add to cart as a new item
-            CartItem::create([
-                'cart_id' => $cart->id,
+            // Get user's cart
+            $cart = $this->getOrCreateCart();
+            
+            // Check if this product/variant is already in the cart
+            $query = CartItem::where('cart_id', $cart->id)
+                ->where('product_id', $productId);
+                
+            if ($variantId) {
+                $query->where('variant_id', $variantId);
+            } else {
+                $query->whereNull('variant_id');
+            }
+            
+            $existingItem = $query->first();
+            $currentCartQuantity = 0;
+            
+            // If the product is already in the cart, update the quantity
+            if ($existingItem) {
+                $currentCartQuantity = $existingItem->quantity;
+                $newQuantity = $currentCartQuantity + $quantity;
+                
+                // Check if the new quantity exceeds available stock
+                if ($variantId) {
+                    $variant = ProductVariant::lockForUpdate()->find($variantId);
+                    $availableInventory = $variant ? $variant->inventory_count : 0;
+                    
+                    if (!$variant || $availableInventory < $newQuantity) {
+                        DB::rollBack();
+                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Adding this quantity would exceed available inventory.',
+                                'remaining_inventory' => ($availableInventory - $currentCartQuantity),
+                                'requested_quantity' => $quantity,
+                                'product_cart_quantity' => $currentCartQuantity
+                            ], 400);
+                        }
+                        return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
+                    }
+                } else {
+                    $availableInventory = $product ? $product->inventory_count : 0;
+                    
+                    if (!$product || $availableInventory < $newQuantity) {
+                        DB::rollBack();
+                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Adding this quantity would exceed available inventory.',
+                                'remaining_inventory' => ($availableInventory - $currentCartQuantity),
+                                'requested_quantity' => $quantity,
+                                'product_cart_quantity' => $currentCartQuantity
+                            ], 400);
+                        }
+                        return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
+                    }
+                }
+                
+                // Update the quantity
+                $existingItem->quantity = $newQuantity;
+                $existingItem->save();
+            } else {
+                // Add to cart as a new item
+                CartItem::create([
+                    'cart_id' => $cart->id,
+                    'product_id' => $productId,
+                    'variant_id' => $variantId,
+                    'quantity' => $quantity
+                ]);
+            }
+            
+            // Commit the transaction after successfully adding to cart
+            DB::commit();
+            
+            // Get current cart quantity for this product
+            $finalCartQuantity = $existingItem ? $newQuantity : $quantity;
+            
+            // Calculate remaining inventory after adding to cart
+            $totalInventory = $variantId 
+                ? ($variant ? $variant->inventory_count : 0) 
+                : ($product ? $product->inventory_count : 0);
+            
+            // Calculate actual remaining inventory (total - what's in cart)
+            $remainingInventory = $totalInventory - $finalCartQuantity;
+            
+            // Get cart count
+            $cartCount = $cart->items()->count();
+            
+            // Return success response for JSON or AJAX requests
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Product added to cart successfully.',
+                    'cart_count' => $cartCount,
+                    'remaining_inventory' => $remainingInventory,
+                    'product_cart_quantity' => $finalCartQuantity
+                ]);
+            }
+            
+            return redirect()->back()->with('success', 'Product added to cart successfully.');
+        
+        } catch (\Exception $e) {
+            // Rollback transaction on error
+            DB::rollBack();
+            
+            \Log::error('Error adding to cart: ' . $e->getMessage(), [
                 'product_id' => $productId,
                 'variant_id' => $variantId,
-                'quantity' => $quantity
+                'quantity' => $quantity,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to add product to cart: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->back()->with('error', 'Failed to add product to cart: ' . $e->getMessage());
         }
-        
-        // Get current cart quantity for this product
-        $finalCartQuantity = $existingItem ? $newQuantity : $quantity;
-        
-        // Calculate remaining inventory after adding to cart
-        $totalInventory = $variantId 
-            ? ($variant ? $variant->inventory_count : 0) 
-            : ($product ? $product->inventory_count : 0);
-        
-        // Calculate actual remaining inventory (total - what's in cart)
-        $remainingInventory = $totalInventory - $finalCartQuantity;
-        
-        // Get cart count
-        $cartCount = $cart->items()->count();
-        
-        // Return success response for AJAX requests
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Product added to cart successfully.',
-                'cart_count' => $cartCount,
-                'remaining_inventory' => $remainingInventory,
-                'product_cart_quantity' => $finalCartQuantity
-            ]);
-        }
-        
-        return redirect()->back()->with('success', 'Product added to cart successfully.');
     }
     
     /**
@@ -510,11 +604,23 @@ class CartController extends Controller
         // Calculate total
         $total = 0;
         $orderItems = [];
+        $inventoryIssues = [];
         
         foreach ($items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
                 $product = $item->product;
+                
+                if (!$product || !$variant) {
+                    continue;
+                }
+                
+                // Double-check inventory availability before proceeding
+                if ($variant->inventory_count < $item->quantity) {
+                    $availableQty = $variant->inventory_count;
+                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name} ({$variant->name})' are available (requested {$item->quantity}).";
+                    continue;
+                }
                 
                 // UPDATED: Use variant's price_adjustment directly as the price
                 $price = $variant->price_adjustment;
@@ -530,18 +636,39 @@ class CartController extends Controller
                 ];
             } else {
                 $product = $item->product;
-                if ($product) {
-                    $subtotal = $product->base_price * $item->quantity;
-                    $total += $subtotal;
-                    
-                    $orderItems[] = [
-                        'product_id' => $product->id,
-                        'variant_id' => null,
-                        'quantity' => $item->quantity,
-                        'price' => $product->base_price
-                    ];
+                if (!$product) {
+                    continue;
                 }
+                
+                // Double-check inventory availability before proceeding
+                if ($product->inventory_count < $item->quantity) {
+                    $availableQty = $product->inventory_count;
+                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name}' are available (requested {$item->quantity}).";
+                    continue;
+                }
+                
+                $subtotal = $product->base_price * $item->quantity;
+                $total += $subtotal;
+                
+                $orderItems[] = [
+                    'product_id' => $product->id,
+                    'variant_id' => null,
+                    'quantity' => $item->quantity,
+                    'price' => $product->base_price
+                ];
             }
+        }
+        
+        // If inventory issues were found, redirect back with errors
+        if (!empty($inventoryIssues)) {
+            return redirect()->route('franchisee.cart')
+                ->with('error', 'There are inventory issues with your cart:<br>' . implode('<br>', $inventoryIssues));
+        }
+        
+        // If no valid items were found (due to inventory issues or missing products)
+        if (empty($orderItems)) {
+            return redirect()->route('franchisee.cart')
+                ->with('error', 'No valid items in your cart. Please add some products before checkout.');
         }
         
         // Calculate tax (8%)

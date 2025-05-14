@@ -16,22 +16,59 @@ class ProfileController extends Controller
 {
     /**
      * Display the user profile.
+     * Supports both web and API requests.
      *
-     * @return \Illuminate\Http\Response
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         $profile = $user->franchiseeProfile;
         
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            $userData = [
+                'id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'status' => $user->status,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at
+            ];
+            
+            $profileData = null;
+            if ($profile) {
+                $profileData = [
+                    'id' => $profile->id,
+                    'contact_name' => $profile->contact_name,
+                    'company_name' => $profile->company_name,
+                    'address' => $profile->address,
+                    'city' => $profile->city,
+                    'state' => $profile->state,
+                    'postal_code' => $profile->postal_code,
+                    'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
+                ];
+            }
+            
+            return response()->json([
+                'success' => true,
+                'user' => $userData,
+                'profile' => $profileData
+            ]);
+        }
+        
+        // Web response
         return view('franchisee.profile', compact('user', 'profile'));
     }
     
     /**
      * Update the user's profile.
+     * Supports both web and API requests.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
     public function update(Request $request)
     {
@@ -114,18 +151,51 @@ class ProfileController extends Controller
                 Log::info('Logo uploaded successfully: ' . $path);
             }
             
+            $logoUrl = null;
+            
             if ($profile) {
                 // Update existing profile
                 $profile->fill($profileData);
                 $profile->save();
+                
+                // Get the logo URL for the API response
+                $logoUrl = $profile->logo_path ? url('storage/' . $profile->logo_path) : null;
             } else {
                 // Create new profile
                 $profileData['user_id'] = $user->id;
-                FranchiseeProfile::create($profileData);
+                $profile = FranchiseeProfile::create($profileData);
+                
+                // Get the logo URL for the API response
+                $logoUrl = $profile && $profile->logo_path ? url('storage/' . $profile->logo_path) : null;
             }
             
             DB::commit();
             
+            // Check if this is an API request
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Profile updated successfully',
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $user->username,
+                        'email' => $user->email,
+                        'phone' => $user->phone
+                    ],
+                    'profile' => [
+                        'id' => $profile->id,
+                        'contact_name' => $profile->contact_name,
+                        'company_name' => $profile->company_name,
+                        'address' => $profile->address,
+                        'city' => $profile->city,
+                        'state' => $profile->state,
+                        'postal_code' => $profile->postal_code,
+                        'logo_url' => $logoUrl
+                    ]
+                ]);
+            }
+            
+            // Web response
             return redirect()->route('franchisee.profile')
                 ->with('success', 'Profile updated successfully');
         } catch (\Exception $e) {
@@ -133,6 +203,15 @@ class ProfileController extends Controller
             Log::error('Profile Update Error: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
+            // Check if this is an API request
+            if ($request->expectsJson() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update profile: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            // Web response
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to update profile: ' . $e->getMessage());
@@ -204,10 +283,12 @@ class ProfileController extends Controller
     
     /**
      * Get the franchisee's address details for use in checkout.
+     * This method is already API-friendly.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getAddress()
+    public function getAddress(Request $request)
     {
         $user = Auth::user();
         
@@ -223,6 +304,9 @@ class ProfileController extends Controller
                     'city' => $profile->city,
                     'state' => $profile->state,
                     'postal_code' => $profile->postal_code,
+                    'company_name' => $profile->company_name,
+                    'contact_name' => $profile->contact_name,
+                    'phone' => $user->phone,
                 ]);
             }
         }

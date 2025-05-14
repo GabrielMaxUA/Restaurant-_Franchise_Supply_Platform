@@ -131,26 +131,29 @@ Route::group(['middleware' => ['auth:api']], function () {
     // Franchisee routes
     Route::group(['prefix' => 'franchisee', 'middleware' => ['role:franchisee']], function () {
         // Profile
-        Route::get('profile', [App\Http\Controllers\Api\Franchisee\ProfileController::class, 'show']);
-        Route::put('profile', [App\Http\Controllers\Api\Franchisee\ProfileController::class, 'update']);
+        Route::get('profile', [App\Http\Controllers\Franchisee\ProfileController::class, 'index']);
+        Route::put('profile', [App\Http\Controllers\Franchisee\ProfileController::class, 'update']);
+        Route::get('address', [App\Http\Controllers\Franchisee\ProfileController::class, 'getAddress']);
         
         // Catalog
-        Route::get('catalog', [App\Http\Controllers\Api\Franchisee\CatalogController::class, 'index']);
-        Route::post('toggle-favorite/{product}', [App\Http\Controllers\Api\Franchisee\CatalogController::class, 'toggleFavorite']);
+        Route::get('catalog', [App\Http\Controllers\Franchisee\CatalogController::class, 'index']);
+        Route::post('toggle-favorite', [App\Http\Controllers\Franchisee\CatalogController::class, 'toggleFavorite']);
         
         // Cart
-        Route::get('cart', [App\Http\Controllers\Api\Franchisee\CartController::class, 'index']);
-        Route::post('cart', [App\Http\Controllers\Api\Franchisee\CartController::class, 'addToCart']);
-        Route::put('cart', [App\Http\Controllers\Api\Franchisee\CartController::class, 'updateCart']);
-        Route::delete('cart/{item}', [App\Http\Controllers\Api\Franchisee\CartController::class, 'removeFromCart']);
-        Route::delete('cart', [App\Http\Controllers\Api\Franchisee\CartController::class, 'clearCart']);
-        Route::post('cart/checkout', [App\Http\Controllers\Api\Franchisee\CartController::class, 'checkout']);
+        Route::get('cart', [App\Http\Controllers\Franchisee\CartController::class, 'index']);
+        Route::post('cart/add', [App\Http\Controllers\Franchisee\CartController::class, 'addToCart']);
+        Route::post('cart/update', [App\Http\Controllers\Franchisee\CartController::class, 'updateCart']);
+        Route::post('cart/remove', [App\Http\Controllers\Franchisee\CartController::class, 'removeFromCart']);
+        Route::get('cart/clear', [App\Http\Controllers\Franchisee\CartController::class, 'clearCart']);
+        Route::get('cart/checkout', [App\Http\Controllers\Franchisee\CartController::class, 'checkout']);
+        Route::post('cart/place-order', [App\Http\Controllers\Franchisee\CartController::class, 'placeOrder']);
         
         // Orders
-        Route::get('orders', [App\Http\Controllers\Api\Franchisee\OrderController::class, 'index']);
-        Route::get('orders/{order}', [App\Http\Controllers\Api\Franchisee\OrderController::class, 'show']);
-        Route::get('orders/{order}/invoice', [App\Http\Controllers\Api\Franchisee\OrderController::class, 'invoice']);
-        Route::post('orders/{order}/repeat', [App\Http\Controllers\Api\Franchisee\OrderController::class, 'repeatOrder']);
+        Route::get('orders/pending', [App\Http\Controllers\Franchisee\OrderController::class, 'pendingOrders']);
+        Route::get('orders/history', [App\Http\Controllers\Franchisee\OrderController::class, 'orderHistory']);
+        Route::get('orders/{order}/details', [App\Http\Controllers\Franchisee\OrderController::class, 'orderDetails']);
+        Route::get('orders/{order}/repeat', [App\Http\Controllers\Franchisee\OrderController::class, 'repeatOrder']);
+        Route::get('orders/{order}/invoice', [App\Http\Controllers\Franchisee\OrderController::class, 'generateInvoice']);
     });
 });
 

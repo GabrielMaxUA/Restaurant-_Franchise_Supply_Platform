@@ -44,7 +44,7 @@ class AuthController extends Controller
             ];
             
             if (!$token = auth('api')->attempt($credentials)) {
-                return response()->json(['error' => 'Invalid credentials'], 401);
+                return response()->json(['success' => false, 'error' => 'Invalid credentials'], 401);
             }
             
             $user = auth('api')->user();
@@ -55,23 +55,48 @@ class AuthController extends Controller
             // Check if user is blocked
             if (isset($user->status) && (int)$user->status === 0) {
                 auth('api')->logout();
-                return response()->json(['error' => 'Your account has been blocked'], 403);
+                return response()->json(['success' => false, 'error' => 'Your account has been blocked'], 403);
+            }
+            
+            // Check if user is a franchisee
+            if (!$user->role || $user->role->name !== 'franchisee') {
+                auth('api')->logout();
+                return response()->json(['success' => false, 'error' => 'Mobile app access is only available for franchisees'], 403);
+            }
+            
+            // Load additional franchisee profile data
+            $user->load('franchiseeProfile');
+            
+            // Get profile data for response
+            $profileData = null;
+            if ($user->franchiseeProfile) {
+                $profile = $user->franchiseeProfile;
+                $profileData = [
+                    'company_name' => $profile->company_name,
+                    'contact_name' => $profile->contact_name,
+                    'address' => $profile->address,
+                    'city' => $profile->city,
+                    'state' => $profile->state,
+                    'postal_code' => $profile->postal_code,
+                    'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
+                ];
             }
             
             return response()->json([
-              'token' => $token,
-              'token_type' => 'bearer',
-              'expires_in' => auth('api')->factory()->getTTL() * 60,
-              'user' => [
-                  'id' => $user->id,
-                  'email' => $user->email,
-                  'username' => $user->username,
-                  'role' => $user->role ? $user->role->name : null,
-                  'status' => $user->isActive() ? 'active' : 'blocked',
-                  'company_name' => $user->getCompanyNameAttribute(),
-                  'full_address' => $user->getFullAddressAttribute()
-              ]
-          ]);
+                'success' => true,
+                'token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'username' => $user->username,
+                    'phone' => $user->phone,
+                    'role' => $user->role ? $user->role->name : null,
+                    'status' => $user->isActive() ? 'active' : 'blocked',
+                    'profile' => $profileData
+                ]
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -90,7 +115,10 @@ class AuthController extends Controller
     {
         auth('api')->logout();
         
-        return response()->json(['message' => 'Successfully logged out']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully logged out'
+        ]);
     }
     
     /**
@@ -100,7 +128,78 @@ class AuthController extends Controller
      */
     public function refresh()
     {
-        return $this->respondWithToken(auth('api')->refresh());
+        try {
+            $token = auth('api')->refresh();
+            $user = auth('api')->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'User not found'
+                ], 404);
+            }
+            
+            // Load required relationships
+            $user->load('role');
+            
+            // For franchisee users, load additional profile data
+            if ($user->role && $user->role->name === 'franchisee') {
+                $user->load('franchiseeProfile');
+                
+                // Check if the user is a franchisee
+                if (!$user->role || $user->role->name !== 'franchisee') {
+                    auth('api')->logout();
+                    return response()->json([
+                        'success' => false, 
+                        'error' => 'Mobile app access is only available for franchisees'
+                    ], 403);
+                }
+                
+                // Prepare profile data
+                $profileData = null;
+                if ($user->franchiseeProfile) {
+                    $profile = $user->franchiseeProfile;
+                    $profileData = [
+                        'company_name' => $profile->company_name,
+                        'contact_name' => $profile->contact_name,
+                        'address' => $profile->address,
+                        'city' => $profile->city,
+                        'state' => $profile->state,
+                        'postal_code' => $profile->postal_code,
+                        'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
+                    ];
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'token' => $token,
+                    'token_type' => 'bearer',
+                    'expires_in' => auth('api')->factory()->getTTL() * 60,
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'username' => $user->username,
+                        'phone' => $user->phone,
+                        'role' => $user->role ? $user->role->name : null,
+                        'status' => $user->isActive() ? 'active' : 'blocked',
+                        'profile' => $profileData
+                    ]
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60,
+                'user' => $user
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to refresh token: ' . $e->getMessage()
+            ], 401);
+        }
     }
     
     /**
@@ -112,12 +211,55 @@ class AuthController extends Controller
     {
         $user = auth('api')->user();
         
-        // Load user role to include in response
-        if ($user) {
-            $user->load('role');
+        // If no user is authenticated, return error
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unauthenticated'
+            ], 401);
         }
         
-        return response()->json($user);
+        // Load user role and profile data
+        $user->load('role');
+        
+        // For franchisee users, load additional profile data 
+        if ($user->role && $user->role->name === 'franchisee') {
+            $user->load('franchiseeProfile');
+            
+            // Prepare profile data
+            $profileData = null;
+            if ($user->franchiseeProfile) {
+                $profile = $user->franchiseeProfile;
+                $profileData = [
+                    'company_name' => $profile->company_name,
+                    'contact_name' => $profile->contact_name,
+                    'address' => $profile->address,
+                    'city' => $profile->city,
+                    'state' => $profile->state,
+                    'postal_code' => $profile->postal_code,
+                    'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
+                ];
+            }
+            
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'username' => $user->username,
+                    'phone' => $user->phone,
+                    'role' => $user->role ? $user->role->name : null,
+                    'status' => $user->isActive() ? 'active' : 'blocked',
+                    'profile' => $profileData
+                ]
+            ]);
+        }
+        
+        // For non-franchisee users, return basic user data
+        return response()->json([
+            'success' => true,
+            'user' => $user
+        ]);
     }
     
     /**
