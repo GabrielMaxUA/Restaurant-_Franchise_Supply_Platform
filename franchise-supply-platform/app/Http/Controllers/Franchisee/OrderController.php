@@ -308,89 +308,168 @@ class OrderController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
+    // public function orderHistory(Request $request)
+    // {
+    //     $user = Auth::user();
+    
+    //     // Clear order updates notification
+    //     session(['has_order_updates' => false]);
+    
+    //     // Base query - now includes rejected orders along with pending and delivered
+    //     $query = Order::where('user_id', $user->id)
+    //                   ->whereIn('status', [ 'delivered', 'rejected']);
+    
+    //     // Apply optional filters
+    //     if ($request->filled('date_from')) {
+    //         $query->whereDate('created_at', '>=', $request->date_from);
+    //     }
+    
+    //     if ($request->filled('date_to')) {
+    //         $query->whereDate('created_at', '<=', $request->date_to);
+    //     }
+    
+    //     // Optional: filter within allowed statuses - now includes rejected
+    //     if ($request->filled('status') && in_array($request->status, [ 'delivered', 'rejected'])) {
+    //         $query->where('status', $request->status);
+    //     }
+    
+    //     // Sorting logic
+    //     if ($request->filled('sort_by')) {
+    //         switch ($request->sort_by) {
+    //             case 'date_asc':
+    //                 $query->orderBy('created_at', 'asc');
+    //                 break;
+    //             case 'date_desc':
+    //                 $query->orderBy('created_at', 'desc');
+    //                 break;
+    //             case 'total_asc':
+    //                 $query->orderBy('total_amount', 'asc');
+    //                 break;
+    //             case 'total_desc':
+    //                 $query->orderBy('total_amount', 'desc');
+    //                 break;
+    //             default:
+    //                 $query->orderBy('created_at', 'desc');
+    //         }
+    //     } else {
+    //         $query->orderBy('created_at', 'desc');
+    //     }
+    
+    //     // Eager load items
+    //     $query->with(['items.product.images', 'items.variant']);
+    
+    //     // Debug log
+    //     logger()->info('Order filters:', [
+    //         'user_id' => $user->id,
+    //         'date_from' => $request->date_from,
+    //         'date_to' => $request->date_to,
+    //         'status' => $request->status,
+    //         'sort_by' => $request->sort_by,
+    //         'matching_rows' => $query->count()
+    //     ]);
+    
+    //     // Paginated results
+    //     $orders = $query->paginate(15);
+    
+    //     // Stats based only on delivered orders
+    //     $deliveredQuery = Order::where('user_id', $user->id)->where('status', 'delivered');
+    
+    //     $stats = [
+    //         'total_orders' => $query->count(),
+    //         'total_spent' => $deliveredQuery->sum('total_amount'),
+    //         'total_items' => OrderItem::whereHas('order', function ($q) use ($user) {
+    //             $q->where('user_id', $user->id)->where('status', 'delivered');
+    //         })->sum('quantity'),
+    //         'avg_order_value' => 0
+    //     ];
+    
+    //     $deliveredOrdersCount = $deliveredQuery->count();
+    //     if ($deliveredOrdersCount > 0) {
+    //         $stats['avg_order_value'] = $stats['total_spent'] / $deliveredOrdersCount;
+    //     }
+    
+    //     return view('franchisee.order_history', compact('orders', 'stats'));
+    // }
     public function orderHistory(Request $request)
-    {
-        $user = Auth::user();
-    
-        // Clear order updates notification
-        session(['has_order_updates' => false]);
-    
-        // Base query - now includes rejected orders along with pending and delivered
-        $query = Order::where('user_id', $user->id)
-                      ->whereIn('status', [ 'delivered', 'rejected']);
-    
-        // Apply optional filters
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-    
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-    
-        // Optional: filter within allowed statuses - now includes rejected
-        if ($request->filled('status') && in_array($request->status, [ 'delivered', 'rejected'])) {
-            $query->where('status', $request->status);
-        }
-    
-        // Sorting logic
-        if ($request->filled('sort_by')) {
-            switch ($request->sort_by) {
-                case 'date_asc':
-                    $query->orderBy('created_at', 'asc');
-                    break;
-                case 'date_desc':
-                    $query->orderBy('created_at', 'desc');
-                    break;
-                case 'total_asc':
-                    $query->orderBy('total_amount', 'asc');
-                    break;
-                case 'total_desc':
-                    $query->orderBy('total_amount', 'desc');
-                    break;
-                default:
-                    $query->orderBy('created_at', 'desc');
-            }
-        } else {
-            $query->orderBy('created_at', 'desc');
-        }
-    
-        // Eager load items
-        $query->with(['items.product.images', 'items.variant']);
-    
-        // Debug log
-        logger()->info('Order filters:', [
-            'user_id' => $user->id,
-            'date_from' => $request->date_from,
-            'date_to' => $request->date_to,
-            'status' => $request->status,
-            'sort_by' => $request->sort_by,
-            'matching_rows' => $query->count()
-        ]);
-    
-        // Paginated results
-        $orders = $query->paginate(15);
-    
-        // Stats based only on delivered orders
-        $deliveredQuery = Order::where('user_id', $user->id)->where('status', 'delivered');
-    
-        $stats = [
-            'total_orders' => $query->count(),
-            'total_spent' => $deliveredQuery->sum('total_amount'),
-            'total_items' => OrderItem::whereHas('order', function ($q) use ($user) {
-                $q->where('user_id', $user->id)->where('status', 'delivered');
-            })->sum('quantity'),
-            'avg_order_value' => 0
-        ];
-    
-        $deliveredOrdersCount = $deliveredQuery->count();
-        if ($deliveredOrdersCount > 0) {
-            $stats['avg_order_value'] = $stats['total_spent'] / $deliveredOrdersCount;
-        }
-    
-        return view('franchisee.order_history', compact('orders', 'stats'));
+{
+    $user = Auth::user();
+
+    session(['has_order_updates' => false]);
+
+    $query = Order::where('user_id', $user->id)
+                  ->whereIn('status', ['delivered', 'rejected']);
+
+    if ($request->filled('date_from')) {
+        $query->whereDate('created_at', '>=', $request->date_from);
     }
-    
+
+    if ($request->filled('date_to')) {
+        $query->whereDate('created_at', '<=', $request->date_to);
+    }
+
+    if ($request->filled('status') && in_array($request->status, ['delivered', 'rejected'])) {
+        $query->where('status', $request->status);
+    }
+
+    if ($request->filled('sort_by')) {
+        switch ($request->sort_by) {
+            case 'date_asc':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'date_desc':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'total_asc':
+                $query->orderBy('total_amount', 'asc');
+                break;
+            case 'total_desc':
+                $query->orderBy('total_amount', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc');
+        }
+    } else {
+        $query->orderBy('created_at', 'desc');
+    }
+
+    $query->with(['items.product.images', 'items.variant']);
+    $orders = $query->paginate(15);
+
+    $deliveredQuery = Order::where('user_id', $user->id)->where('status', 'delivered');
+
+    $stats = [
+        'total_orders' => $query->count(),
+        'total_spent' => $deliveredQuery->sum('total_amount'),
+        'total_items' => OrderItem::whereHas('order', function ($q) use ($user) {
+            $q->where('user_id', $user->id)->where('status', 'delivered');
+        })->sum('quantity'),
+        'avg_order_value' => 0
+    ];
+
+    $deliveredOrdersCount = $deliveredQuery->count();
+    if ($deliveredOrdersCount > 0) {
+        $stats['avg_order_value'] = $stats['total_spent'] / $deliveredOrdersCount;
+    }
+
+    // ✅ Return JSON if API call
+    if ($request->expectsJson() || $request->wantsJson()) {
+        return response()->json([
+            'success' => true,
+            'orders' => $orders->items(),
+            'stats' => $stats,
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total()
+            ]
+        ]);
+    }
+
+    // Web response
+    return view('franchisee.order_history', compact('orders', 'stats'));
+}
+
     
     /**
      * Update order status and manage inventory accordingly

@@ -111,7 +111,14 @@ const LoginScreen = ({ navigation }) => {
           style={styles.testApiButton}
           onPress={() => navigation.navigate('TestAPI')}
         >
-          <Text style={styles.testApiButtonText}>Test API Connection</Text>
+          <Text style={styles.testApiButtonText}>Simple API Test</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.testApiButton, styles.comprehensiveButton]}
+          onPress={() => navigation.navigate('ComprehensiveAPITest')}
+        >
+          <Text style={styles.testApiButtonText}>Comprehensive API Test</Text>
         </TouchableOpacity>
       </View>
 
@@ -195,6 +202,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderWidth: 1,
     borderColor: '#0066cc',
+  },
+  comprehensiveButton: {
+    backgroundColor: '#e8f4fc',
+    marginTop: 5,
   },
   testApiButtonText: {
     color: '#0066cc',

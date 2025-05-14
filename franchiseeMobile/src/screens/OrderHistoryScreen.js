@@ -53,6 +53,24 @@ const OrderHistoryScreen = ({ navigation }) => {
       const orderHistoryResponse = await getOrderHistory(userToken);
       console.log('Order history response (full):', JSON.stringify(orderHistoryResponse));
       
+      // Check if we received a raw response (HTML or non-JSON)
+      if (orderHistoryResponse.rawResponse) {
+        console.warn('HTML or non-JSON response detected for order history');
+        
+        // Set a more detailed error message
+        const contentType = orderHistoryResponse.contentType || 'unknown';
+        let errorMessage = `Received non-JSON response (${contentType})`;
+        
+        // If we have an HTML title, include it in the error message
+        if (orderHistoryResponse.htmlTitle) {
+          errorMessage += `: ${orderHistoryResponse.htmlTitle}`;
+        }
+        
+        setError(`${errorMessage}. Pull down to refresh or try again later.`);
+        setOrders([]);
+        return;
+      }
+      
       // Adapt response format if needed (for Laravel standard responses)
       let processedResponse = { ...orderHistoryResponse };
       
@@ -181,6 +199,14 @@ const OrderHistoryScreen = ({ navigation }) => {
       {error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
+          {error.includes('non-JSON') && (
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={onRefresh}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
       
@@ -242,12 +268,24 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     margin: 15,
-    padding: 10,
+    padding: 15,
     backgroundColor: '#ffebee',
     borderRadius: 5,
   },
   errorText: {
     color: '#c62828',
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: '#e53935',
+    padding: 8,
+    borderRadius: 5,
+    alignSelf: 'flex-end',
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
   },
   ordersList: {
     padding: 15,

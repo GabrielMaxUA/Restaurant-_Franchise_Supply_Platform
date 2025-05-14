@@ -13,6 +13,7 @@ import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TestScreen from '../screens/TestScreen';
+import ApiTestScreen from '../screens/ApiTestScreen';
 
 // Create the navigators
 const Stack = createStackNavigator();
@@ -287,7 +288,18 @@ const AppNavigator = () => {
             component={TestScreen} 
             options={{ 
               headerShown: true,
-              title: 'API Test',
+              title: 'Simple API Test',
+              headerStyle: { backgroundColor: '#0066cc' },
+              headerTintColor: '#fff',
+              headerTitleStyle: { fontWeight: 'bold' },
+            }}
+          />
+          <Stack.Screen 
+            name="ComprehensiveAPITest" 
+            component={ApiTestScreen} 
+            options={{ 
+              headerShown: true,
+              title: 'Comprehensive API Test',
               headerStyle: { backgroundColor: '#0066cc' },
               headerTintColor: '#fff',
               headerTitleStyle: { fontWeight: 'bold' },
