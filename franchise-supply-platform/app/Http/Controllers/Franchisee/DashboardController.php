@@ -214,4 +214,110 @@ class DashboardController extends Controller
             'products'
         ));
     }
+
+    public function apiDashboard()
+{
+    $user = Auth::user();
+
+    // (Copy shared logic from index() here — summarized)
+    $now = Carbon::now();
+    $startOfWeek = $now->copy()->startOfWeek();
+    $endOfWeek = $now->copy()->endOfWeek();
+    $startOfMonth = $now->copy()->startOfMonth();
+    $endOfMonth = $now->copy()->endOfMonth();
+    $lastMonth = $now->copy()->subMonth();
+    $startOfLastMonth = $lastMonth->copy()->startOfMonth();
+    $endOfLastMonth = $lastMonth->copy()->endOfMonth();
+
+    $excludedStatuses = ['cancelled', 'rejected'];
+    $activeStatuses = ['pending', 'processing', 'shipped', 'out_for_delivery'];
+
+    $monthlySpending = Order::where('user_id', $user->id)
+        ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+        ->whereNotIn('status', $excludedStatuses)
+        ->sum('total_amount');
+
+    $lastMonthSpending = Order::where('user_id', $user->id)
+        ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
+        ->whereNotIn('status', $excludedStatuses)
+        ->sum('total_amount');
+
+    $spendingChange = $lastMonthSpending > 0
+        ? round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100)
+        : 0;
+
+    $stats = [
+        'pending_orders' => Order::where('user_id', $user->id)
+            ->whereIn('status', $activeStatuses)->count(),
+        'monthly_spending' => $monthlySpending,
+        'spending_change' => $spendingChange,
+        'low_stock_items' => 0,
+        'incoming_deliveries' => Order::where('user_id', $user->id)
+            ->whereIn('status', ['shipped', 'out_for_delivery'])->count(),
+    ];
+
+    $weeklySpending = [];
+    $weeklyOrders = [];
+    for ($i = 0; $i < 7; $i++) {
+        $day = $startOfWeek->copy()->addDays($i);
+        $orders = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$day->startOfDay(), $day->endOfDay()])
+            ->whereNotIn('status', $excludedStatuses)->get();
+        $weeklySpending[] = $orders->sum('total_amount');
+        $weeklyOrders[] = $orders->count();
+    }
+
+    $monthlySpendingData = [];
+    $monthlyOrdersData = [];
+    $currentYear = Carbon::now()->startOfYear();
+    for ($i = 0; $i < 12; $i++) {
+        $month = $currentYear->copy()->addMonths($i);
+        $orders = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$month->startOfMonth(), $month->endOfMonth()])
+            ->whereNotIn('status', $excludedStatuses)->get();
+        $monthlySpendingData[] = $orders->sum('total_amount');
+        $monthlyOrdersData[] = $orders->count();
+    }
+
+    $recent_orders = Order::where('user_id', $user->id)
+        ->orderBy('created_at', 'desc')
+        ->take(5)->get()->map(function ($order) {
+            $order->items_count = OrderItem::where('order_id', $order->id)->sum('quantity');
+            return $order;
+        });
+
+    $popular_products = Product::withCount(['orderItems' => function($query) use ($user, $excludedStatuses) {
+        $query->whereHas('order', function($q) use ($user, $excludedStatuses) {
+            $q->where('user_id', $user->id)
+              ->whereNotIn('status', $excludedStatuses);
+        });
+    }])
+    ->orderBy('order_items_count', 'desc')
+    ->take(6)
+    ->get()
+    ->map(function ($product) {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'price' => $product->base_price ?? $product->price,
+            'unit_size' => $product->unit_size,
+            'unit_type' => $product->unit_type,
+            'image_url' => $product->images->first()->image_url ?? null,
+            'in_stock' => $product->variants()->where('inventory_count', '>', 0)->exists(),
+        ];
+    });
+
+    return response()->json([
+        'stats' => $stats,
+        'charts' => [
+            'weekly_orders' => $weeklyOrders,
+            'weekly_spending' => $weeklySpending,
+            'monthly_orders' => $monthlyOrdersData,
+            'monthly_spending' => $monthlySpendingData,
+        ],
+        'recent_orders' => $recent_orders,
+        'popular_products' => $popular_products,
+    ]);
+}
+
 }
