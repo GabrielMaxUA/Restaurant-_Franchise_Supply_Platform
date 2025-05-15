@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../services/api';
+import { CommonActions } from '@react-navigation/native';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -42,14 +43,55 @@ const LoginScreen = ({ navigation }) => {
       }
 
       // Store authentication token in AsyncStorage
+      console.log('🔑 Login successful - Token received:', response.token ? 'YES' : 'NO');
+      console.log('👤 User data received:', response.user ? 'YES' : 'NO');
+      
+      // Make sure we have a token before proceeding
+      if (!response.token) {
+        setError('No authentication token received from server.');
+        setIsLoading(false);
+        return;
+      }
+      
       await AsyncStorage.setItem('userToken', response.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(response.user));
       
-      console.log('Login successful, storing auth token:', response.token);
+      if (response.user) {
+        await AsyncStorage.setItem('userData', JSON.stringify(response.user));
+      }
       
-      // Simply navigate to Main if successful
-      // The authentication state will be picked up by the navigator's interval check
+      console.log('💾 Login successful, token stored in AsyncStorage');
+      console.log('🚀 Navigating to Dashboard...');
       
+      // Force navigation to Dashboard screen
+      console.log('🔄 Attempting navigation to Dashboard...');
+      setIsLoading(false);
+      
+      try {
+        // Use CommonActions for more reliable navigation
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              { name: 'Dashboard' },
+            ],
+          })
+        );
+        
+        // As a fallback, also try regular navigation
+        setTimeout(() => {
+          try {
+            console.log('🔄 Attempting fallback navigation...');
+            if (navigation.canGoBack()) {
+              navigation.popToTop();
+            }
+            navigation.navigate('Dashboard');
+          } catch (navError) {
+            console.error('⚠️ Fallback navigation failed:', navError);
+          }
+        }, 500);
+      } catch (navError) {
+        console.error('⚠️ Navigation error:', navError);
+      }
     } catch (error) {
       setError('Network error. Please try again.');
       console.error('Login error:', error);

@@ -13,7 +13,7 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from '@react-navigation/drawer';
-import { FontAwesome5 } from 'react-native-vector-icons';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { AuthContext } from '../contexts/AuthContext';
 
 const CustomDrawer = (props) => {

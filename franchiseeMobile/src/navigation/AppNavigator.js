@@ -280,43 +280,134 @@ import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-//import CartScreen from '../screens/CartScreen'; // Make sure this path is correct
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import { View, Text, ActivityIndicator } from 'react-native';
+import IconTester from '../components/IconTester';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  // Default to not authenticated until we check
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  const checkToken = async () => {
+    try {
+      console.log('⚡ Checking authentication token...');
+      const token = await AsyncStorage.getItem('userToken');
+      console.log('🔑 Token exists:', !!token);
+      if (token) {
+        console.log('🔑 Token value (first 10 chars):', token.substring(0, 10) + '...');
+        setIsAuthenticated(true);
+      } else {
+        console.log('⚠️ No auth token found');
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking token:', error);
+      setIsAuthenticated(false);
+    }
+  };
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Function to check authentication 
+  const checkAuthentication = async () => {
+    try {
+      console.log('⚡ Checking authentication status...');
+      const token = await AsyncStorage.getItem('userToken');
+      
+      if (token) {
+        console.log('✅ Valid token found, setting authenticated state');
+        setIsAuthenticated(true);
+      } else {
+        console.log('❌ No valid token found, setting unauthenticated state');
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('❌ Error checking authentication:', error);
+      setIsAuthenticated(false);
+    } finally {
+      // Always finish loading regardless of result
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const checkToken = async () => {
-      console.log('Checking token...');
-      const token = await AsyncStorage.getItem('userToken');
-      console.log('Token:', token);
-      setIsAuthenticated(!!token);
+    // Initial authentication check
+    const initAuth = async () => {
+      try {
+        // Clear token on startup (can be removed in production)
+        console.log('🧹 Clearing auth tokens on app start...');
+        await AsyncStorage.removeItem('userToken');
+        console.log('✅ Token cleared successfully');
+        
+        // Set initial state
+        setIsAuthenticated(false);
+        
+        // Brief delay to ensure UI renders properly
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
+      } catch (error) {
+        console.error('❌ Error during initialization:', error);
+        // Ensure we still finish loading even on error
+        setIsLoading(false);
+      }
     };
-
-    checkToken();
+    
+    // Run the initialization
+    initAuth();
+    
+    // Instead of using a storage listener (which is not available in all versions),
+    // use a regular interval check but with a much longer interval to avoid performance issues
+    const checkIntervalId = setInterval(() => {
+      // Check for auth token changes without constantly refreshing
+      checkAuthentication();
+    }, 10000); // Check every 10 seconds
+    
+    // Clean up interval on unmount
+    return () => {
+      clearInterval(checkIntervalId);
+    };
   }, []);
 
-  if (isAuthenticated === null) {
-    console.log('Auth check in progress...');
-    return null; // Splash screen or loading indicator
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    console.log('🔄 Auth check in progress...');
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+        <ActivityIndicator size="large" color="#0066cc" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading...</Text>
+      </View>
+    );
   }
 
-  console.log('Rendering Navigator, Authenticated:', isAuthenticated);
+  console.log('🚀 Rendering Navigator, Authenticated:', isAuthenticated);
 
+  // Simplify our navigation structure to be more predictable
   return (
     <NavigationContainer>
-      <Stack.Screen name="Cart" component={CartScreen} />
-
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        ) : (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
+      <Stack.Navigator 
+        initialRouteName="Login"
+        screenOptions={{ headerShown: false }}
+      >
+        {/* Always include both screens in the navigator */}
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen} 
+        />
+        <Stack.Screen 
+          name="Dashboard" 
+          component={DashboardScreen} 
+        />
+        
+        <Stack.Screen 
+          name="IconTester" 
+          component={IconTester} 
+        />
+        
+        {/* You can add more authenticated screens here */}
       </Stack.Navigator>
     </NavigationContainer>
   );
