@@ -8,7 +8,7 @@ const FranchiseeLayout = ({ title, children }) => {
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.navigate('Cart')} style={styles.iconButton}>
           <Ionicons name="cart-outline" size={24} color="#fff" />
           <View style={styles.badge}>
@@ -21,7 +21,7 @@ const FranchiseeLayout = ({ title, children }) => {
         <TouchableOpacity onPress={() => navigation.openDrawer?.()} style={styles.iconButton}>
           <MaterialIcons name="menu" size={26} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <View style={styles.content}>{children}</View>
     </View>
