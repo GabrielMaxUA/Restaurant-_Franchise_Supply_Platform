@@ -1,277 +1,120 @@
+// src/navigation/AppNavigator.js
 import React from 'react';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Screens
-import LoginScreen from '../screens/LoginScreen';
+import { FontAwesome5 } from 'react-native-vector-icons'; // Add this import for icons
+import CustomDrawer from '../components/CustomDrawer';
 import DashboardScreen from '../screens/DashboardScreen';
 import CatalogScreen from '../screens/CatalogScreen';
 import CartScreen from '../screens/CartScreen';
+import PendingOrdersScreen from '../screens/PendingOrdersScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
-import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-
-// Create the navigators
+import OrderDetailsScreen from '../screens/OrderDetailsScreen';
+import ProductDetailsScreen from '../screens/ProductDetailsScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
+import ApiTestScreen from '../screens/ApiTestScreen';
+const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
 
-// Custom tab bar icon component
-const TabBarIcon = ({ focused, name }) => (
-  <View style={styles.tabIconContainer}>
-    <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-      {name === 'Home' ? '🏠' : 
-       name === 'Catalog' ? '📋' : 
-       name === 'Cart' ? '🛒' : 
-       name === 'Orders' ? '📦' : 
-       name === 'Profile' ? '👤' : '⚙️'}
-    </Text>
-    <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
-      {name}
-    </Text>
-  </View>
-);
-
-// Tab Navigator (Main App)
-const AppTabs = () => {
+// Main stack for screens that aren't in the drawer
+const MainStack = () => {
   return (
-    <Tab.Navigator
+    <Stack.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#0066cc',
-        tabBarInactiveTintColor: '#999',
-        tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#eee',
-          height: 60,
-          paddingBottom: 5,
-          paddingTop: 5,
-        },
         headerShown: false,
       }}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={DashboardStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} name="Home" />,
-        }}
-      />
-      <Tab.Screen 
-        name="Catalog" 
-        component={CatalogStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} name="Catalog" />,
-        }}
-      />
-      <Tab.Screen 
-        name="Cart" 
-        component={CartStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} name="Cart" />,
-        }}
-      />
-      <Tab.Screen 
-        name="Orders" 
-        component={OrdersStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} name="Orders" />,
-        }}
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileStack}
-        options={{
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} name="Profile" />,
-        }}
-      />
-    </Tab.Navigator>
-  );
-};
-
-// Header options that match the web app style
-const headerOptions = {
-  headerStyle: {
-    backgroundColor: '#0066cc',
-  },
-  headerTintColor: '#fff',
-  headerTitleStyle: {
-    fontWeight: 'bold',
-  },
-};
-
-// Stack navigator for Dashboard section
-const DashboardStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="DashboardScreen" 
-      component={DashboardScreen} 
-      options={{ 
-        title: 'Dashboard',
-        ...headerOptions
-      }}
-    />
-    <Stack.Screen 
-      name="OrderDetails" 
-      component={OrderDetailsScreen}
-      options={{ 
-        title: 'Order Details',
-        ...headerOptions
-      }}
-    />
-    <Stack.Screen 
-      name="OrderHistory" 
-      component={OrderHistoryScreen}
-      options={{ 
-        title: 'Order History',
-        ...headerOptions
-      }}
-    />
-  </Stack.Navigator>
-);
-
-// Stack navigator for Catalog section
-const CatalogStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="CatalogScreen" 
-      component={CatalogScreen}
-      options={{ 
-        title: 'Product Catalog',
-        ...headerOptions
-      }}
-    />
-  </Stack.Navigator>
-);
-
-// Stack navigator for Cart section
-const CartStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="CartScreen" 
-      component={CartScreen}
-      options={{ 
-        title: 'Shopping Cart',
-        ...headerOptions
-      }}
-    />
-  </Stack.Navigator>
-);
-
-// Stack navigator for Orders section
-const OrdersStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="OrderHistoryScreen" 
-      component={OrderHistoryScreen}
-      options={{ 
-        title: 'Order History',
-        ...headerOptions
-      }}
-    />
-    <Stack.Screen 
-      name="OrderDetails" 
-      component={OrderDetailsScreen}
-      options={{ 
-        title: 'Order Details',
-        ...headerOptions
-      }}
-    />
-  </Stack.Navigator>
-);
-
-// Stack navigator for Profile section
-const ProfileStack = () => (
-  <Stack.Navigator>
-    <Stack.Screen 
-      name="ProfileScreen" 
-      component={ProfileScreen}
-      options={{ 
-        title: 'My Profile',
-        ...headerOptions
-      }}
-    />
-  </Stack.Navigator>
-);
-
-// Root navigator
-const AppNavigator = () => {
-  const [userToken, setUserToken] = React.useState(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  // Check authentication state on component mount
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        setUserToken(token);
-      } catch (e) {
-        console.error('Failed to get token from storage:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  // Subscribe to auth state changes
-  React.useEffect(() => {
-    const checkAuthInterval = setInterval(async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        setUserToken(token);
-      } catch (e) {
-        console.error('Failed to get token from storage:', e);
-      }
-    }, 2000); // Check every 2 seconds
-
-    return () => clearInterval(checkAuthInterval);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
-        <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={{ marginTop: 10, color: '#666' }}>Loading...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {userToken == null ? (
-        // No token found, user isn't signed in
-        <Stack.Screen name="Login" component={LoginScreen} />
-      ) : (
-        // User is signed in
-        <Stack.Screen name="Main" component={AppTabs} />
-      )}
+      
+      <Stack.Screen name="ApiTest" component={ApiTestScreen} />
+      <Stack.Screen name="DrawerScreens" component={DrawerScreens} />
+      <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+      <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} />
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
     </Stack.Navigator>
   );
 };
 
-const styles = StyleSheet.create({
-  tabIconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-  },
-  tabIconFocused: {
-    color: '#0066cc',
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: '#999',
-  },
-  tabLabelFocused: {
-    color: '#0066cc',
-    fontWeight: 'bold',
-  },
-});
+// Drawer navigator for main app sections
+const DrawerScreens = () => {
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <CustomDrawer {...props} />}
+      screenOptions={{
+        headerShown: false,
+        drawerStyle: {
+          backgroundColor: '#343a40',
+          width: 280,
+        },
+        drawerActiveTintColor: '#fff',
+        drawerInactiveTintColor: 'rgba(255, 255, 255, 0.8)',
+        drawerLabelStyle: {
+          marginLeft: -20, // To align with icons better
+        },
+      }}
+    >
+      <Drawer.Screen 
+        name="Dashboard" 
+        component={DashboardScreen} 
+        options={{
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="tachometer-alt" size={16} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Catalog" 
+        component={CatalogScreen} 
+        options={{
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="box" size={16} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Cart" 
+        component={CartScreen} 
+        options={{
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="shopping-basket" size={16} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="PendingOrders" 
+        component={PendingOrdersScreen} 
+        options={{
+          title: "Pending Orders",
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="clock" size={16} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="OrderHistory" 
+        component={OrderHistoryScreen} 
+        options={{
+          title: "Order History",
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="history" size={16} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{
+          drawerIcon: ({color}) => (
+            <FontAwesome5 name="user" size={16} color={color} />
+          ),
+        }}
+      />
+    </Drawer.Navigator>
+  );
+};
+
+const AppNavigator = () => {
+  return <MainStack />;
+};
 
 export default AppNavigator;

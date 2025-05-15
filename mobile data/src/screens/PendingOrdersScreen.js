@@ -1,11 +1,11 @@
+// src/screens/PendingOrdersScreen.js
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
-const SplashScreen = () => {
+const PendingOrdersScreen = () => {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#4e73df" />
-      <Text style={styles.text}>Loading...</Text>
+      <Text style={styles.text}>Pending Orders Screen</Text>
     </View>
   );
 };
@@ -18,10 +18,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fc',
   },
   text: {
-    marginTop: 10,
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
   },
 });
 
-export default SplashScreen;
+export default PendingOrdersScreen;
