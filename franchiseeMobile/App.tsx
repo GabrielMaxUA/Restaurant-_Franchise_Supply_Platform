@@ -38,7 +38,7 @@ function App(): React.JSX.Element {
   };
 
   // Make this function available globally
-  global.checkAuthState = checkAuthState;
+  globalThis.checkAuthState = checkAuthState;
 
   useEffect(() => {
     // Check if user is already logged in when app starts
