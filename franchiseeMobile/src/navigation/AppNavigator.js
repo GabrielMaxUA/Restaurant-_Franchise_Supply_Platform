@@ -283,7 +283,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import { View, Text, ActivityIndicator } from 'react-native';
-import IconTester from '../components/IconTester';
 
 const Stack = createNativeStackNavigator();
 
@@ -400,11 +399,6 @@ const AppNavigator = () => {
         <Stack.Screen 
           name="Dashboard" 
           component={DashboardScreen} 
-        />
-        
-        <Stack.Screen 
-          name="IconTester" 
-          component={IconTester} 
         />
         
         {/* You can add more authenticated screens here */}

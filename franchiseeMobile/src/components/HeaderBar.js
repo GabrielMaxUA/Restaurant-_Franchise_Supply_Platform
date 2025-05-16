@@ -6,16 +6,37 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 const HeaderBar = ({ title, onCartPress, onMenuPress }) => {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onCartPress}>
-        <FontAwesome5 name="shopping-cart" size={24} color="#000" />
-      </TouchableOpacity>
-
-      <Text style={styles.title}>{title}</Text>
-
-      <TouchableOpacity onPress={onMenuPress}>
-        <FontAwesome5 name="bars" size={22} color="#333" />
-      </TouchableOpacity>
-    </View>
+        {/* Cart icon on left - now using dynamic cartCount */}
+        <TouchableOpacity 
+          style={styles.iconButton}
+          onPress={() => navigation.navigate('Cart')}
+        >
+          <View style={styles.cartContainer}>
+            <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
+            {/* Only show badge if cart has items */}
+            {cartCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+        
+        {/* Title in center */}
+        <Text style={styles.title}>{title || 'Franchisee Portal'}</Text>
+        
+        {/* Menu/user icon on right */}
+        <View style={styles.rightContainer}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={handleLogout}
+          >
+            <FallbackIcon name="logout" iconType="AntDesign" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
   );
 };
 

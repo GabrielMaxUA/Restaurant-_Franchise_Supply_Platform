@@ -9,259 +9,166 @@ import {
   RefreshControl
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import FranchiseeLayout from '../components/FranchiseeLayout';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDashboardData, logout } from '../services/api';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
-import Card from '../screens/Card';
-import IconTest from '../components/IconTest';
-import IconButton from '../components/IconButton';
-import DirectIconTest from '../components/DirectIconTest';
+import FranchiseeLayout from '../components/FranchiseeLayout';
+import Card from './Card';
 import FallbackIcon from '../components/FallbackIcon';
 
-const screenWidth = Dimensions.get('window').width;
-
 const DashboardScreen = () => {
-  const [showWelcome, setShowWelcome] = useState(false);
+  // State for dashboard data
   const [user, setUser] = useState(null);
-  // Initialize with mock data to ensure display even if API fails
   const [stats, setStats] = useState({
-    pending_orders: 3,
-    monthly_spending: 4250.75,
-    spending_change: 12,
-    low_stock_items: 5,
-    incoming_deliveries: 2
+    pending_orders: 0,
+    monthly_spending: 0,
+    spending_change: 0,
+    low_stock_items: 0,
+    incoming_deliveries: 0,
+    pending_orders_change: 0
   });
   
-  // Default empty arrays for chart data - the API will populate these
-  const defaultChartData = {
-    weekly_spending: [0, 0, 0, 0, 0, 0, 0], // 7 days of the week
-    monthly_spending: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 12 months of the year
-  };
+  // Chart data state
+  const [charts, setCharts] = useState({
+    weekly_spending: Array(7).fill(0),
+    monthly_spending: Array(12).fill(0),
+    weekly_orders: Array(7).fill(0),
+    monthly_orders: Array(12).fill(0)
+  });
   
-  const [charts, setCharts] = useState(defaultChartData);
-  
-  const [recentOrders, setRecentOrders] = useState([
-    {id: 1, order_number: 'ORD-001', total: 450.75, created_at: '2023-05-10', status: 'delivered', items_count: 5},
-    {id: 2, order_number: 'ORD-002', total: 325.50, created_at: '2023-05-08', status: 'shipped', items_count: 3},
-    {id: 3, order_number: 'ORD-003', total: 180.25, created_at: '2023-05-05', status: 'processing', items_count: 2}
-  ]);
-  
-  const [popularProducts, setPopularProducts] = useState([
-    {id: 1, name: 'Premium Coffee Beans', price: 24.99, unit_size: '1', unit_type: 'kg', inventory_count: 45, has_in_stock_variants: true},
-    {id: 2, name: 'Organic Sugar', price: 8.99, unit_size: '2', unit_type: 'lb', inventory_count: 32, has_in_stock_variants: true},
-    {id: 3, name: 'Vanilla Syrup', price: 12.50, unit_size: '750', unit_type: 'ml', inventory_count: 18, has_in_stock_variants: true}
-  ]);
+  // Other state
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [popularProducts, setPopularProducts] = useState([]);
   const [currentView, setCurrentView] = useState('weekly');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  
+  // Cart state
+  const [cartCount, setCartCount] = useState(0);
+  
   const navigation = useNavigation();
 
+  // Function to fetch dashboard data from API
   const fetchData = async () => {
     setLoading(true);
     try {
       console.log('📊 Dashboard - Fetching data...');
       const result = await getDashboardData();
-      console.log('📊 Dashboard - API result:', result);
+      console.log('📊 Dashboard - API result:', result?.success);
       
       if (result && result.success && result.data) {
         console.log('📊 Dashboard - Success! Updating state with data');
         
         // Process stats data
         if (result.data.stats) {
-          console.log('📊 Stats found in response:', result.data.stats);
+          console.log('📊 Stats found in response');
           setStats(result.data.stats);
-        } else {
-          console.log('📊 No stats in response, using defaults');
         }
         
-        // Process charts data exactly as it comes from API
+        // Process charts data
         if (result.data.charts) {
-          console.log('📊 Charts found in response:', result.data.charts);
-          
-          // Make sure the weekly_spending and monthly_spending arrays exist
-          const apiChartData = {
-            weekly_spending: result.data.charts.weekly_spending || defaultChartData.weekly_spending,
-            monthly_spending: result.data.charts.monthly_spending || defaultChartData.monthly_spending
-          };
-          
-          // Log the actual data we're using
-          console.log('📊 Setting charts data with actual values:', 
-            'Weekly:', apiChartData.weekly_spending, 
-            'Monthly:', apiChartData.monthly_spending
-          );
-          
-          setCharts(apiChartData);
-        } else {
-          console.log('📊 No charts in response, using empty data');
-          setCharts(defaultChartData);
+          console.log('📊 Charts found in response');
+          setCharts(result.data.charts);
         }
         
+        // Process recent orders
         if (result.data.recent_orders && result.data.recent_orders.length > 0) {
           console.log('📊 Orders found in response:', result.data.recent_orders.length);
           setRecentOrders(result.data.recent_orders);
-        } else {
-          console.log('📊 Using default orders (no orders in response)');
         }
         
+        // Process popular products
         if (result.data.popular_products && result.data.popular_products.length > 0) {
           console.log('📊 Products found in response:', result.data.popular_products.length);
           setPopularProducts(result.data.popular_products);
-        } else {
-          console.log('📊 Using default products (no products in response)');
         }
         
+        // Process cart data
+        if (result.data.cart) {
+          console.log('🛒 Cart found in response - items:', result.data.cart.items_count);
+          // Set cart count for badge
+          setCartCount(result.data.cart.items_count);
+          
+          // Store cart data in AsyncStorage for other screens
+          await AsyncStorage.setItem('cartData', JSON.stringify(result.data.cart));
+        } else {
+          console.log('🛒 No cart in response');
+          setCartCount(0);
+        }
+        
+        // Process user data
         if (result.data.user) {
-          console.log('📊 User data found in response');
-          setUser(result.data.user); 
-        } else {
-          console.log('📊 Using default user (no user in response)');
-          setUser({ id: 1, name: 'Franchisee User' });
+          console.log('👤 User data found in response');
+          setUser(result.data.user);
         }
         
+        // Show welcome banner on first login
         const alreadyWelcomed = await AsyncStorage.getItem('welcomed');
         if (!alreadyWelcomed) {
           setShowWelcome(true);
           await AsyncStorage.setItem('welcomed', 'yes');
         }
       } else {
-        // Log the specific error
-        if (!result) {
-          console.error('📊 Dashboard - API error: No result returned');
-        } else if (!result.success) {
-          console.error('📊 Dashboard - API error:', result.error || 'Unknown error');
-        } else if (!result.data) {
-          console.error('📊 Dashboard - API error: No data in response');
-        }
-        
-        // Set default user if not already set
-        if (!user) {
-          setUser({ id: 1, name: 'Franchisee User' });
-        }
-        
-        // Note: we're already initializing with mock data in the state, 
-        // so we don't need to set it again here
+        // Handle error
+        console.error('📊 Dashboard - API error:', result?.error || 'Unknown error');
+        alert('Error loading dashboard data. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
-      // Make sure user is set even on error
-      if (!user) {
-        setUser({ id: 1, name: 'Franchisee User' });
-      }
+      alert('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // Load data on component mount
   useEffect(() => {
-    console.log('🔄 Dashboard - Component mounted, fetching data...');
     fetchData();
     
-    // Log the current chart data for debugging
-    console.log('📊 Initial chart data:', {
-      weekly: charts.weekly_spending,
-      monthly: charts.monthly_spending,
-      currentView,
-      totalSpending: getTotalSpending()
-    });
-    
-    // Removed automatic periodic refresh to prevent constant reloading
-    
-    // Return empty cleanup function
-    return () => {
-      console.log('🧹 Dashboard - Cleaning up component...');
-    };
-  }, []);
-  
-  // Add an effect that logs chart data when currentView or charts data changes
-  useEffect(() => {
-    console.log('📊 View changed to:', currentView);
-    console.log('📊 Current chart data:', {
-      data: currentView === 'weekly' ? charts.weekly_spending : charts.monthly_spending,
-      totalSpending: getTotalSpending()
-    });
-  }, [currentView, charts]);
-  
-  // Add an effect to log when charts data changes
-  useEffect(() => {
-    console.log('📊 Charts data updated:', charts);
-    // Check if the data is valid
-    const hasWeeklyData = charts && 
-                         Array.isArray(charts.weekly_spending) && 
-                         charts.weekly_spending.some(v => v > 0); // Check if any value is > 0
-                         
-    const hasMonthlyData = charts && 
-                          Array.isArray(charts.monthly_spending) && 
-                          charts.monthly_spending.some(v => v > 0); // Check if any value is > 0
-                          
-    console.log('📊 Has valid weekly data:', hasWeeklyData);
-    console.log('📊 Has valid monthly data:', hasMonthlyData);
-    
-    // Only force a re-render if we don't have data in the currently selected view
-    const currentViewHasData = currentView === 'weekly' ? hasWeeklyData : hasMonthlyData;
-    
-    if (!currentViewHasData) {
-      console.log('⚠️ No valid chart data found for current view, using defaults');
-      // If no valid data for the current view, set that view's data to defaults
-      if (currentView === 'weekly' && !hasWeeklyData) {
-        setCharts(prev => ({
-          ...prev,
-          weekly_spending: [230, 450, 280, 390, 520, 450, 300]
-        }));
-      } else if (currentView === 'monthly' && !hasMonthlyData) {
-        setCharts(prev => ({
-          ...prev,
-          monthly_spending: [2800, 3200, 3500, 2900, 3100, 3600, 3300, 2700, 3200, 3800, 4100, 4250]
-        }));
-      }
-    }
-  }, [charts, currentView]);
-
-  // Add a second effect to check for token expiration
-  useEffect(() => {
-    const checkForExpiredToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (!token) {
-          console.log('⚠️ No auth token found in Dashboard - should redirect to login');
-          // Could navigate to login here if needed
+    // Listen for cart updates from other screens
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check for updated cart count when screen is focused
+      const checkCartUpdate = async () => {
+        try {
+          const cartDataString = await AsyncStorage.getItem('cartData');
+          if (cartDataString) {
+            const cartData = JSON.parse(cartDataString);
+            setCartCount(cartData.items_count || 0);
+          }
+        } catch (error) {
+          console.error('Error checking cart updates:', error);
         }
-      } catch (error) {
-        console.error('❌ Error checking token in Dashboard:', error);
-      }
-    };
+      };
+      
+      checkCartUpdate();
+    });
     
-    checkForExpiredToken();
-  }, []);
+    return unsubscribe;
+  }, [navigation]);
 
+  // Pull to refresh
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
   };
 
+  // Calculate total spending for charts
   const calculateTotalSpending = (data) => {
     if (!data || data.length === 0) return 0;
     
     // Filter out any non-numeric values and sum the remaining ones
     const validData = data.filter(val => typeof val === 'number' && !isNaN(val));
     
-    console.log('🧮 calculateTotalSpending - valid data:', validData);
-    
     if (validData.length === 0) {
-      // Log warning if no valid data found
-      console.warn('⚠️ No valid numeric data found in:', data);
       return 0;
     }
     
     const total = validData.reduce((total, value) => total + value, 0);
-    console.log('🧮 Total calculated:', total);
     return total;
   };
 
+  // Format currency values
   const formatCurrency = (value) => {
     // Ensure value is a number
     const numValue = typeof value === 'number' ? value : parseFloat(value || 0);
@@ -269,68 +176,21 @@ const DashboardScreen = () => {
     return '$' + numValue.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
   };
 
-  const getChartData = () => {
-    if (!charts) return null;
-    
-    const labels = currentView === 'weekly' 
-      ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
-    const datasets = [{
-      data: currentView === 'weekly' 
-        ? (charts.weekly_spending || [0, 0, 0, 0, 0, 0, 0])
-        : (charts.monthly_spending || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-      color: () => 'rgba(40, 167, 69, 0.6)',
-      strokeWidth: 2
-    }];
-    
-    return {
-      labels,
-      datasets
-    };
-  };
-
+  // Get total spending for current view
   const getTotalSpending = () => {
-    console.log('📊 getTotalSpending called for view:', currentView);
-    console.log('📊 Current charts data:', charts);
-    
-    // Get appropriate spending data with additional validation
     let spendingData;
+    
     if (currentView === 'weekly') {
-      // Get weekly data with validation
-      if (charts && Array.isArray(charts.weekly_spending)) {
-        spendingData = charts.weekly_spending;
-        console.log('📊 Using weekly_spending data:', spendingData);
-      } else {
-        console.warn('⚠️ Weekly spending data not valid:', charts?.weekly_spending);
-        spendingData = [];
-      }
+      spendingData = charts.weekly_spending;
     } else {
-      // Get monthly data with validation
-      if (charts && Array.isArray(charts.monthly_spending)) {
-        spendingData = charts.monthly_spending;
-        console.log('📊 Using monthly_spending data:', spendingData);
-      } else {
-        console.warn('⚠️ Monthly spending data not valid:', charts?.monthly_spending);
-        spendingData = [];
-      }
+      spendingData = charts.monthly_spending;
     }
     
-    // Calculate total spending with more detailed logging
-    console.log('📊 Calculating total from:', spendingData);
     const total = calculateTotalSpending(spendingData);
-    console.log('📊 Calculated total spending:', total);
-    
-    // If all else fails, provide a fallback value
-    if (total === 0 && !spendingData.some(v => v > 0)) {
-      console.log('📊 Using fallback total spending value');
-      return formatCurrency(currentView === 'weekly' ? 2620 : 38450);
-    }
-    
-    // Format with commas for thousands and fixed decimal places
     return formatCurrency(total);
   };
 
+  // Get color for order status badge
   const getOrderStatusColor = (status) => {
     switch(status) {
       case 'pending': return '#ffc107';
@@ -344,9 +204,10 @@ const DashboardScreen = () => {
     }
   };
 
+  // Loading state
   if (loading && !refreshing) {
     return (
-      <FranchiseeLayout title="Dashboard">
+      <FranchiseeLayout title="Dashboard" cartCount={cartCount}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#28a745" />
           <Text style={styles.loadingText}>Loading dashboard...</Text>
@@ -355,47 +216,16 @@ const DashboardScreen = () => {
     );
   }
 
-  // Updated to use FranchiseeLayout with proper title
+  // Main dashboard
   return (
-    <FranchiseeLayout title="Dashboard">
+    <FranchiseeLayout title="Dashboard" cartCount={cartCount}>
       <ScrollView 
         style={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#28a745"]} />
         }
       >
-        {showWelcome && (
-          <View style={styles.welcomeBox}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <Text style={styles.welcomeEmoji}>👋</Text>
-              <Text style={styles.welcomeText}>Welcome back, {user?.name || 'Franchisee'}!</Text>
-            </View>
-            <TouchableOpacity onPress={() => setShowWelcome(false)}>
-              <FallbackIcon name="close" iconType="AntDesign" size={20} color="#555" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Display a row of AntDesign icons */}
-        <View style={styles.fallbackIconRow}>
-          <View style={styles.fallbackIconItem}>
-            <FallbackIcon name="home" iconType="AntDesign" size={30} color="#0066cc" />
-            <Text style={styles.fallbackLabel}>Home</Text>
-          </View>
-          <View style={styles.fallbackIconItem}>
-            <FallbackIcon name="shoppingcart" iconType="AntDesign" size={30} color="#28a745" />
-            <Text style={styles.fallbackLabel}>Cart</Text>
-          </View>
-          <View style={styles.fallbackIconItem}>
-            <FallbackIcon name="user" iconType="AntDesign" size={30} color="#dc3545" />
-            <Text style={styles.fallbackLabel}>User</Text>
-          </View>
-          <View style={styles.fallbackIconItem}>
-            <FallbackIcon name="setting" iconType="AntDesign" size={30} color="#6c757d" />
-            <Text style={styles.fallbackLabel}>Settings</Text>
-          </View>
-        </View>
-
+           
         {/* Order Activity Chart */}
         <Card style={styles.chartCard}>
           <View style={styles.cardHeader}>
@@ -422,77 +252,37 @@ const DashboardScreen = () => {
             <Text style={styles.totalSpendingPeriod}>{currentView === 'weekly' ? 'This week' : 'This year'}</Text>
           </View>
 
-          {/* Using a simplified chart representation instead of SVG */}
+          {/* Chart visualization */}
           <View style={styles.simpleChartContainer}>
             <Text style={styles.chartTitle}>
               {currentView === 'weekly' ? 'Weekly' : 'Monthly'} Spending Overview
             </Text>
             
             <View style={styles.barChartContainer}>
-              {/* Weekdays start from Monday (index 0) in the API response */}
               {(currentView === 'weekly' ? 
                 ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : 
                 ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
               ).map((label, index) => {
-                // No default data - we only use what comes from the API
-                
-                // Always use the actual data from the API with more robust validation
-                let values;
-                
-                if (currentView === 'weekly') {
-                  // Get weekly data
-                  if (charts && charts.weekly_spending && Array.isArray(charts.weekly_spending)) {
-                    values = charts.weekly_spending;
-                    // Make sure we have data for all 7 days
-                    if (values.length < 7) {
-                      console.log('📊 Padding weekly data to 7 days');
-                      values = [...values, ...Array(7 - values.length).fill(0)];
-                    }
-                  } else {
-                    console.warn('⚠️ Weekly data not valid, using defaults');
-                    values = [230, 450, 280, 390, 520, 450, 300]; // Fallback weekly data for display
-                  }
-                } else {
-                  // Get monthly data
-                  if (charts && charts.monthly_spending && Array.isArray(charts.monthly_spending)) {
-                    values = charts.monthly_spending;
-                    // Make sure we have data for all 12 months
-                    if (values.length < 12) {
-                      console.log('📊 Padding monthly data to 12 months');
-                      values = [...values, ...Array(12 - values.length).fill(0)];
-                    }
-                  } else {
-                    console.warn('⚠️ Monthly data not valid, using defaults');
-                    values = [2800, 3200, 3500, 2900, 3100, 3600, 3300, 2700, 3200, 3800, 4100, 4250]; // Fallback monthly data
-                  }
-                }
-                  
-                // Log chart data for debugging
-                if (index === 0) {
-                  console.log('📊 Chart data:', {
-                    view: currentView,
-                    hasData: Array.isArray(values) && values.length > 0,
-                    values
-                  });
-                }
+                // Get values based on current view
+                let values = currentView === 'weekly' 
+                  ? charts.weekly_spending 
+                  : charts.monthly_spending;
                 
                 // Ensure value exists for this index
                 const value = values && index < values.length ? values[index] : 0;
-                // Find the maximum value, defaulting to 1 if all values are 0
+                
+                // Find the maximum value for scaling
                 const maxValue = values && values.length > 0 ? Math.max(...values, 1) : 1;
-                // Calculate bar height, using a minimum percentage of max height for better visualization
-                // Use a base height of 150px, but ensure small values are still visible
+                
+                // Calculate bar height with better visualization for small values
                 const barHeight = value > 0 
                   ? Math.max((value / maxValue) * 150, value > (maxValue * 0.1) ? 20 : 5) 
                   : 0;
                 
-                // Determine threshold for showing value inside vs above - show inside for bars taller than 45px
-                const valueInsideThreshold = 45;
-                
                 return (
                   <View key={label} style={styles.barColumn}>
                     <View style={styles.barValueContainer}>
-                      {/* Always show value above the bar, with consistent width */}
+                      {/* Value above the bar */}
                       <View style={styles.barValueWrapper}>
                         {value > 0 ? (
                           <Text style={styles.barValueAbove}>${value.toFixed(0)}</Text>
@@ -501,11 +291,12 @@ const DashboardScreen = () => {
                         )}
                       </View>
                       
+                      {/* The bar itself */}
                       <View style={[
                         styles.bar, 
                         { 
                           height: barHeight,
-                          backgroundColor: value > 0 ? '#28a745' : '#f0f0f0' // Show a light color for zero values
+                          backgroundColor: value > 0 ? '#28a745' : '#f0f0f0'
                         }
                       ]} />
                     </View>
@@ -527,7 +318,7 @@ const DashboardScreen = () => {
             <Text style={styles.statTitle}>Monthly Spending</Text>
             <View style={styles.statValueRow}>
               <Text style={styles.statValue}>${parseFloat(stats?.monthly_spending || 0).toFixed(2)}</Text>
-              {stats?.spending_change && (
+              {stats?.spending_change !== undefined && (
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
                   <FallbackIcon 
                     name={stats.spending_change > 0 ? 'arrowup' : 'arrowdown'} 
@@ -552,7 +343,7 @@ const DashboardScreen = () => {
             <Text style={styles.statTitle}>Pending Orders</Text>
             <View style={styles.statValueRow}>
               <Text style={styles.statValue}>{stats?.pending_orders || 0}</Text>
-              {stats?.pending_orders_change && (
+              {stats?.pending_orders_change !== undefined && (
                 <View style={{flexDirection: 'row', alignItems: 'center'}}>
                   <FallbackIcon 
                     name={stats.pending_orders_change > 0 ? 'arrowup' : 'arrowdown'} 
@@ -577,19 +368,6 @@ const DashboardScreen = () => {
             <Text style={styles.statTitle}>Low Stock Items</Text>
             <View style={styles.statValueRow}>
               <Text style={styles.statValue}>{stats?.low_stock_items || 0}</Text>
-              {stats?.low_stock_change && (
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <FallbackIcon 
-                    name={stats.low_stock_change > 0 ? 'arrowup' : 'arrowdown'} 
-                    iconType="AntDesign"
-                    size={12}
-                    color={stats.low_stock_change > 0 ? '#dc3545' : '#28a745'} 
-                  />
-                  <Text style={stats.low_stock_change > 0 ? styles.statNegative : styles.statPositive}>
-                    {' '}{Math.abs(stats.low_stock_change)}%
-                  </Text>
-                </View>
-              )}
             </View>
             <Text style={styles.statCaption}>Items needing reorder</Text>
           </Card>
@@ -605,7 +383,7 @@ const DashboardScreen = () => {
           </Card>
         </View>
 
-        {/* Quick Actions */}
+        {/* Quick Actions
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
@@ -622,13 +400,6 @@ const DashboardScreen = () => {
             >
               <FallbackIcon name="car" iconType="AntDesign" size={24} color="#17a2b8" />
               <Text style={styles.quickActionText}>Track Orders</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickAction}
-              onPress={() => navigation.navigate('IconTester')}
-            >
-              <FallbackIcon name="setting" iconType="AntDesign" size={24} color="#6c757d" />
-              <Text style={styles.quickActionText}>Icon Tester</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.quickAction, styles.logoutAction]}
@@ -650,7 +421,7 @@ const DashboardScreen = () => {
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           </View>
-        </Card>
+        </Card> */}
 
         {/* Recent Orders */}
         <Card style={styles.section}>
@@ -713,7 +484,9 @@ const DashboardScreen = () => {
                     <Text style={styles.productName}>{product.name}</Text>
                     <View style={styles.productPriceContainer}>
                       <Text style={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</Text>
-                      <Text style={styles.productUnit}>{product.unit_size} {product.unit_type}</Text>
+                      <Text style={styles.productUnit}>
+                        {product.unit_size} {product.unit_type}
+                      </Text>
                     </View>
                   </View>
                   <TouchableOpacity 
@@ -722,6 +495,7 @@ const DashboardScreen = () => {
                       (!product.inventory_count && !product.has_in_stock_variants) && styles.disabledButton
                     ]}
                     disabled={!product.inventory_count && !product.has_in_stock_variants}
+                    onPress={() => navigation.navigate('ProductDetail', { productId: product.id })}
                   >
                     <FallbackIcon name="shoppingcart" iconType="AntDesign" size={14} color="#fff" />
                   </TouchableOpacity>
@@ -753,26 +527,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#555',
-  },
-  welcomeBox: {
-    backgroundColor: '#e8f5e9',
-    padding: 15,
-    borderRadius: 8,
-    marginHorizontal: 15,
-    marginTop: 15,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  welcomeEmoji: {
-    fontSize: 16,
-    color: '#2e7d32',
-    marginRight: 5,
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: '#2e7d32',
   },
   
   // Chart Card
@@ -837,10 +591,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6c757d',
   },
-  chart: {
-    borderRadius: 10,
-    marginBottom: 15,
-  },
+  
+  // Chart Visualization
   simpleChartContainer: {
     padding: 15,
     marginBottom: 15,
@@ -866,20 +618,20 @@ const styles = StyleSheet.create({
   barValueContainer: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-    height: 180, // Space for bar + value above
-    marginBottom: 5, // Add more space between value and bar
+    height: 180,
+    marginBottom: 5,
   },
   bar: {
-    width: 28, // Increased width to fit text inside
+    width: 28,
     backgroundColor: '#28a745',
     borderRadius: 6,
     minHeight: 5,
     borderWidth: 1,
     borderColor: 'rgba(40, 167, 69, 0.3)',
-    overflow: 'visible', // Allow text to overflow for better positioning
-    justifyContent: 'flex-end', // Align text to bottom of bar
+    overflow: 'visible',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    position: 'relative', // Position for absolute children
+    position: 'relative',
   },
   barLabel: {
     fontSize: 10,
@@ -887,10 +639,10 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   barValueWrapper: {
-    minWidth: 60, // Consistent width to avoid layout shifts
+    minWidth: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 20, // Fixed height for the value area
+    height: 20,
   },
   barValueAbove: {
     fontSize: 11,
@@ -898,21 +650,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
     textAlign: 'center',
-  },
-  barValueInside: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    transform: [{ rotate: '-45deg' }], // Rotate the text diagonally from bottom to top
-    width: 50, // Ensure enough width for rotated text
-    position: 'absolute', // Position the text absolutely inside the bar
-    bottom: 5, // Position from bottom
-    left: -10, // Adjust horizontal position to center
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2, // Add shadow for better visibility on green background
-    backgroundColor: 'transparent', // Ensure background is transparent
   },
   
   // Stats Grid
@@ -1018,7 +755,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   quickAction: {
-    width: '30%',
+    width: '22%',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
@@ -1153,15 +890,8 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#dee2e6',
   },
-  iconButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    padding: 15,
-    marginHorizontal: 15,
-    marginVertical: 10,
-    borderRadius: 8,
-  },
+  
+  // Icon row
   fallbackIconRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -1180,6 +910,5 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 });
-
 
 export default DashboardScreen;

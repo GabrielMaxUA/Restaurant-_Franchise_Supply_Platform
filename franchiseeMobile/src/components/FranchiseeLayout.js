@@ -2,16 +2,56 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-import { logout as apiLogout } from '../services/api';
 import FallbackIcon from './FallbackIcon';
+import { logout as apiLogout } from '../services/api';
 
-const FranchiseeLayout = ({ title, children }) => {
+// HeaderBar component to be nested within FranchiseeLayout
+const HeaderBar = ({ title, cartCount = 0, onLogout }) => {
+  const navigation = useNavigation();
+  
+  return (
+    <View style={styles.header}>
+      {/* Cart icon on left - now using dynamic cartCount */}
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={() => navigation.navigate('Cart')}
+      >
+        <View style={styles.cartContainer}>
+          <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
+          {/* Only show badge if cart has items */}
+          {cartCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {cartCount > 99 ? '99+' : cartCount}
+              </Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+      
+      {/* Title in center */}
+      <Text style={styles.title}>{title || 'Dashboard'}</Text>
+      
+      {/* Logout icon on right */}
+      <View style={styles.rightContainer}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={onLogout}
+        >
+          {/* Simple logout icon that definitely exists */}
+          <FallbackIcon name="logout" iconType="MaterialIcons" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+// Modified FranchiseeLayout with nested HeaderBar
+const FranchiseeLayout = ({ title, children, cartCount = 0 }) => {
   const navigation = useNavigation();
   const [showWelcome, setShowWelcome] = useState(true);
   const [userData, setUserData] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Get user data from AsyncStorage
   useEffect(() => {
@@ -28,6 +68,20 @@ const FranchiseeLayout = ({ title, children }) => {
     };
     
     getUserData();
+    
+    // Set initial welcome banner state
+    const checkWelcomeState = async () => {
+      try {
+        const welcomeState = await AsyncStorage.getItem('welcomeBannerClosed');
+        if (welcomeState === 'true') {
+          setShowWelcome(false);
+        }
+      } catch (error) {
+        console.error('Error checking welcome banner state:', error);
+      }
+    };
+    
+    checkWelcomeState();
   }, []);
 
   const handleLogout = async () => {
@@ -71,47 +125,70 @@ const FranchiseeLayout = ({ title, children }) => {
     }
   };
 
+  const toggleMenu = () => {
+    setShowMenu(!showMenu);
+  };
+
   return (
     <View style={styles.wrapper}>
       {/* Set status bar color to match header */}
       <StatusBar barStyle="light-content" backgroundColor="#0066cc" />
       
-      {/* Header with cart on left, title in center, menu on right */}
-      <View style={styles.header}>
-        {/* Cart icon on left */}
+      {/* Header with HeaderBar component */}
+      <View style={styles.headerContainer}>
+        <HeaderBar 
+          title={title} 
+          cartCount={cartCount} 
+          onLogout={handleLogout} 
+        />
+        
+        {/* Down arrow centered at bottom edge of header */}
         <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => navigation.navigate('Cart')}
+          style={styles.arrowContainer}
+          onPress={toggleMenu}
         >
-          <View style={styles.cartContainer}>
-            <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>3</Text>
-            </View>
+          <View style={styles.arrowBackground}>
+            <FallbackIcon 
+              name={showMenu ? "up" : "down"} 
+              iconType="AntDesign" 
+              size={20} 
+              color="#fff" 
+            />
           </View>
         </TouchableOpacity>
-        
-        {/* Title in center */}
-        <Text style={styles.title}>{title || 'Franchisee Portal'}</Text>
-        
-        {/* Menu/user icon on right */}
-        <View style={styles.rightContainer}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => {
-              // In a real app, this would open a drawer or show options
-              alert('User menu options');
-            }}
-          >
-            <FallbackIcon name="menufold" iconType="AntDesign" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
       </View>
+      
+      {/* Slide-down menu */}
+      {showMenu && (
+        <View style={styles.slideMenu}>
+          <View style={styles.menuGrid}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Profile')}>
+              <FallbackIcon name="user" iconType="AntDesign" size={24} color="#fff" />
+              <Text style={styles.menuText}>Profile</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Orders')}>
+              <FallbackIcon name="inbox" iconType="AntDesign" size={24} color="#fff" />
+              <Text style={styles.menuText}>Orders</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Catalog')}>
+              <FallbackIcon name="appstore-o" iconType="AntDesign" size={24} color="#fff" />
+              <Text style={styles.menuText}>Catalog</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Dashboard')}>
+              <FallbackIcon name="dashboard" iconType="MaterialIcons" size={24} color="#fff" />
+              <Text style={styles.menuText}>Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
-      {/* Content with welcome banner when applicable */}
+      {/* Content with conditional welcome banner */}
       <View style={styles.content}>
-        {/* Welcome banner - only show if showWelcome is true */}
-        {showWelcome && (
+        {/* Either welcome banner or spacer */}
+        {showWelcome ? (
           <View style={styles.welcomeBanner}>
             <View style={styles.welcomeContent}>
               <View style={styles.welcomeTitleContainer}>
@@ -129,11 +206,21 @@ const FranchiseeLayout = ({ title, children }) => {
             {/* Close button */}
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={() => setShowWelcome(false)}
+              onPress={async () => {
+                setShowWelcome(false);
+                // Save state to AsyncStorage
+                try {
+                  await AsyncStorage.setItem('welcomeBannerClosed', 'true');
+                } catch (error) {
+                  console.error('Error saving welcome banner state:', error);
+                }
+              }}
             >
               <FallbackIcon name="close" iconType="AntDesign" size={20} color="#888" />
             </TouchableOpacity>
           </View>
+        ) : (
+          <View style={styles.spacer} />
         )}
         
         {/* Main content */}
@@ -148,14 +235,52 @@ const styles = StyleSheet.create({
     flex: 1, 
     backgroundColor: '#f5f5f5' 
   },
+  headerContainer: {
+    backgroundColor: '#0066cc',
+    position: 'relative',
+    paddingBottom: 12, // Added space at bottom for the arrow
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0066cc',
-    paddingTop: 50, // Add extra padding for status bar on iOS
-    paddingBottom: 15,
+    paddingTop: 70, // Increased top padding to lower elements further
+    paddingBottom: 30, // Increased bottom padding to lower the content
     paddingHorizontal: 15,
     justifyContent: 'space-between',
+  },
+  arrowContainer: {
+    position: 'absolute',
+    bottom: -10, // Position the arrow to overlap the edge
+    left: '50%', // Center the arrow
+    marginLeft: -15, // Offset for the arrow width to center it
+    zIndex: 10, // Ensure arrow is on top
+  },
+  arrowBackground: {
+    backgroundColor: '#0066cc',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slideMenu: {
+    backgroundColor: '#005cb8', // Slightly darker than header
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+  },
+  menuGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  menuItem: {
+    alignItems: 'center',
+    padding: 10,
+  },
+  menuText: {
+    color: '#fff',
+    marginTop: 5,
+    fontSize: 12,
   },
   title: { 
     color: '#fff', 
@@ -210,7 +335,12 @@ const styles = StyleSheet.create({
     borderLeftColor: '#28a745',
   },
   welcomeContent: {
-    paddingRight: 25, // Space for close button if needed
+    paddingRight: 25, // Space for close button
+  },
+  spacer: {
+    height: 8, // Space between header and content when welcome banner is closed
+    marginTop: 8,
+    marginBottom: 8, // Keep consistent spacing below
   },
   welcomeTitleContainer: {
     flexDirection: 'row',
