@@ -15,6 +15,20 @@ class Kernel extends HttpKernel
      *
      * @var array<string, class-string|string>
      */
+
+     protected $middleware = [
+      // Add CorsMiddleware at the top of this array
+      \App\Http\Middleware\CorsMiddleware::class,
+      
+      // Your existing middleware follows
+      \Illuminate\Http\Middleware\TrustProxies::class,
+      \Illuminate\Http\Middleware\HandleCors::class,
+      \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+      \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+      \App\Http\Middleware\TrimStrings::class,
+      \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+  ];
+  
     protected $middlewareAliases = [
         'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
@@ -34,5 +48,6 @@ class Kernel extends HttpKernel
         'jwt.auth' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
         'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,
         'role.api' => \App\Http\Middleware\CheckApiRole::class,
+        
     ];
 }

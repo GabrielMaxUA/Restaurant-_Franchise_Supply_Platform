@@ -350,4 +350,288 @@ class ProfileController extends Controller
                 ->with('error', 'Failed to delete logo: ' . $e->getMessage());
         }
     }
+
+    /**
+ * API specific method to retrieve franchisee profile information.
+ * This method returns all profile data in JSON format for mobile clients.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function apiProfile()
+{
+    $user = Auth::user();
+    $profile = $user->franchiseeProfile;
+    
+    $userData = [
+        'id' => $user->id,
+        'username' => $user->username,
+        'email' => $user->email,
+        'phone' => $user->phone,
+        'status' => $user->status,
+        'created_at' => $user->created_at,
+        'updated_at' => $user->updated_at
+    ];
+    
+    $profileData = null;
+    if ($profile) {
+        $profileData = [
+            'id' => $profile->id,
+            'contact_name' => $profile->contact_name,
+            'company_name' => $profile->company_name,
+            'address' => $profile->address,
+            'city' => $profile->city,
+            'state' => $profile->state,
+            'postal_code' => $profile->postal_code,
+            'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null,
+            'updated_at' => $profile->updated_at
+        ];
+    }
+    
+    return response()->json([
+        'success' => true,
+        'user' => $userData,
+        'profile' => $profileData
+    ]);
+}
+
+/**
+ * API specific method to update franchisee profile information.
+ * This method handles profile updates from mobile clients.
+ *
+ * @param  \Illuminate\Http\Request  $request
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function apiUpdateProfile(Request $request)
+{
+    $user = Auth::user();
+    
+    // Log the request for debugging (excluding logo binary data)
+    Log::info('API Profile Update Request:', $request->except(['logo']));
+    
+    DB::beginTransaction();
+    
+    try {
+        // Validate all inputs
+        $request->validate([
+            // User table fields
+            'username' => 'required|string|max:50|unique:users,username,' . $user->id,
+            'email' => 'required|email|max:100|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            
+            // Franchisee profile fields
+            'contact_name' => 'nullable|string|max:100',
+            'company_name' => 'required|string|max:100',
+            'address' => 'required|string',
+            'city' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:20',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'remove_logo' => 'nullable|boolean',
+        ]);
+        
+        // 1. Update user data
+        $user->username = $request->username;
+        $user->email = $request->email;
+        $user->phone = $request->phone;
+        $user->updated_at = now();
+        $user->updated_by = $user->username;
+        $user->save();
+        
+        // 2. Update or create franchisee profile
+        $profile = $user->franchiseeProfile;
+        
+        $profileData = [
+            'contact_name' => $request->contact_name,
+            'company_name' => $request->company_name,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'postal_code' => $request->postal_code,
+            'updated_by' => $user->username
+        ];
+        
+        // Handle remove logo checkbox
+        if ($request->has('remove_logo') && $request->remove_logo) {
+            // Delete the old logo if it exists
+            if ($profile && $profile->logo_path) {
+                Storage::disk('public')->delete($profile->logo_path);
+                Log::info('Logo removed for user #' . $user->id);
+            }
+            
+            // Set logo_path to null
+            $profileData['logo_path'] = null;
+        }
+        // Only handle logo upload if the remove checkbox is not checked
+        else if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            // Get the uploaded file
+            $logo = $request->file('logo');
+            
+            // Generate a unique filename
+            $filename = 'company_logo_' . $user->id . '_' . time() . '.' . $logo->getClientOriginalExtension();
+            
+            // Store the file in the public storage
+            $path = $logo->storeAs('franchisee_logos', $filename, 'public');
+            
+            // Delete the old logo if it exists
+            if ($profile && $profile->logo_path) {
+                Storage::disk('public')->delete($profile->logo_path);
+            }
+            
+            // Add the path to profile data
+            $profileData['logo_path'] = $path;
+            
+            Log::info('Logo uploaded successfully: ' . $path);
+        }
+        
+        $logoUrl = null;
+        
+        if ($profile) {
+            // Update existing profile
+            $profile->fill($profileData);
+            $profile->save();
+            
+            // Get the logo URL for the API response
+            $logoUrl = $profile->logo_path ? url('storage/' . $profile->logo_path) : null;
+        } else {
+            // Create new profile
+            $profileData['user_id'] = $user->id;
+            $profile = FranchiseeProfile::create($profileData);
+            
+            // Get the logo URL for the API response
+            $logoUrl = $profile && $profile->logo_path ? url('storage/' . $profile->logo_path) : null;
+        }
+        
+        DB::commit();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'updated_at' => $user->updated_at
+            ],
+            'profile' => [
+                'id' => $profile->id,
+                'contact_name' => $profile->contact_name,
+                'company_name' => $profile->company_name,
+                'address' => $profile->address,
+                'city' => $profile->city,
+                'state' => $profile->state,
+                'postal_code' => $profile->postal_code,
+                'logo_url' => $logoUrl,
+                'updated_at' => $profile->updated_at
+            ]
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('API Profile Update Error: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update profile: ' . $e->getMessage(),
+            'errors' => $e instanceof \Illuminate\Validation\ValidationException ? $e->errors() : null
+        ], $e instanceof \Illuminate\Validation\ValidationException ? 422 : 500);
+    }
+}
+
+/**
+ * API specific method to update user password.
+ *
+ * @param  \Illuminate\Http\Request  $request
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function apiUpdatePassword(Request $request)
+{
+    $user = Auth::user();
+    
+    DB::beginTransaction();
+    
+    try {
+        // Validate password inputs
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            ],
+        ], [
+            'new_password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+        ]);
+        
+        // Check current password
+        if (!Hash::check($request->current_password, $user->password_hash)) {
+            throw new \Exception('Current password is incorrect.');
+        }
+        
+        // Update password
+        $user->password_hash = Hash::make($request->new_password);
+        $user->updated_at = now();
+        $user->save();
+        
+        DB::commit();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Password updated successfully'
+        ]);
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('API Password Update Error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update password: ' . $e->getMessage(),
+            'errors' => $e instanceof \Illuminate\Validation\ValidationException ? $e->errors() : null
+        ], $e instanceof \Illuminate\Validation\ValidationException ? 422 : 500);
+    }
+}
+
+/**
+ * API specific method to delete company logo.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function apiDeleteLogo()
+{
+    $user = Auth::user();
+    $profile = $user->franchiseeProfile;
+    
+    if (!$profile || !$profile->logo_path) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No logo found to delete.'
+        ], 404);
+    }
+    
+    try {
+        // Delete the file from storage
+        Storage::disk('public')->delete($profile->logo_path);
+        
+        // Remove the path from the profile
+        $profile->logo_path = null;
+        $profile->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Company logo deleted successfully.'
+        ]);
+        
+    } catch (\Exception $e) {
+        Log::error('API Logo deletion error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete logo: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }
