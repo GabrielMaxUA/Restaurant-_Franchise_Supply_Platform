@@ -41,6 +41,8 @@
 #import "rnasyncstorageJSI.h"
 #import "rngesturehandler_codegen/rngesturehandler_codegen.h"
 #import "rngesturehandler_codegenJSI.h"
+#import "RNImagePickerSpec/RNImagePickerSpec.h"
+#import "RNImagePickerSpecJSI.h"
 #import "rnreanimated/rnreanimated.h"
 #import "rnreanimatedJSI.h"
 #import "rnscreens/rnscreens.h"

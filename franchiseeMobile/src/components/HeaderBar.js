@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 
 const HeaderBar = ({ title, onCartPress, onMenuPress }) => {

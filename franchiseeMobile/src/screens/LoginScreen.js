@@ -148,20 +148,6 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.loginButtonText}>Login</Text>
           )}
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.testApiButton}
-          onPress={() => navigation.navigate('TestAPI')}
-        >
-          <Text style={styles.testApiButtonText}>Simple API Test</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.testApiButton, styles.comprehensiveButton]}
-          onPress={() => navigation.navigate('ComprehensiveAPITest')}
-        >
-          <Text style={styles.testApiButtonText}>Comprehensive API Test</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>

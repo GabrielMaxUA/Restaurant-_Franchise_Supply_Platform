@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDashboardData, logout } from '../services/api';
 import FranchiseeLayout from '../components/FranchiseeLayout';
 import Card from './Card';
-import FallbackIcon from '../components/FallbackIcon';
+import FallbackIcon from '../components/icon/FallbackIcon';
 
 const DashboardScreen = () => {
   // State for dashboard data
@@ -207,7 +207,7 @@ const DashboardScreen = () => {
   // Loading state
   if (loading && !refreshing) {
     return (
-      <FranchiseeLayout title="Dashboard" cartCount={cartCount}>
+      <FranchiseeLayout title="Dashboard">
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#28a745" />
           <Text style={styles.loadingText}>Loading dashboard...</Text>
@@ -218,7 +218,7 @@ const DashboardScreen = () => {
 
   // Main dashboard
   return (
-    <FranchiseeLayout title="Dashboard" cartCount={cartCount}>
+    <FranchiseeLayout title="Dashboard">
       <ScrollView 
         style={styles.container}
         refreshControl={

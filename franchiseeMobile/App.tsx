@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
-import IconProvider from './src/components/IconProvider';
+import IconProvider from './src/components/icon/IconProvider';
 import { preloadIconFonts } from './src/utils/iconUtils';
 
 const App = () => {
