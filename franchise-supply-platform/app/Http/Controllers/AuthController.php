@@ -112,14 +112,24 @@ class AuthController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function logout(Request $request)
-    {
+{
+    if ($request->expectsJson() || $request->is('api/*')) {
         auth('api')->logout();
-        
         return response()->json([
             'success' => true,
             'message' => 'Successfully logged out'
         ]);
     }
+
+    // Clear session and regenerate token (important)
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+}
+
+    
     
     /**
      * Refresh a token.
@@ -129,78 +139,77 @@ class AuthController extends Controller
     public function refresh()
     {
         try {
+            // Attempt to refresh the token
             $token = auth('api')->refresh();
             $user = auth('api')->user();
-            
+    
             if (!$user) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'User not found'
+                    'message' => 'User not found'
                 ], 404);
             }
-            
-            // Load required relationships
+    
             $user->load('role');
-            
-            // For franchisee users, load additional profile data
-            if ($user->role && $user->role->name === 'franchisee') {
-                $user->load('franchiseeProfile');
-                
-                // Check if the user is a franchisee
-                if (!$user->role || $user->role->name !== 'franchisee') {
-                    auth('api')->logout();
-                    return response()->json([
-                        'success' => false, 
-                        'error' => 'Mobile app access is only available for franchisees'
-                    ], 403);
-                }
-                
-                // Prepare profile data
-                $profileData = null;
-                if ($user->franchiseeProfile) {
-                    $profile = $user->franchiseeProfile;
-                    $profileData = [
-                        'company_name' => $profile->company_name,
-                        'contact_name' => $profile->contact_name,
-                        'address' => $profile->address,
-                        'city' => $profile->city,
-                        'state' => $profile->state,
-                        'postal_code' => $profile->postal_code,
-                        'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
-                    ];
-                }
-                
+    
+            // Only franchisees are allowed
+            if (!$user->role || $user->role->name !== 'franchisee') {
+                auth('api')->logout();
+    
                 return response()->json([
-                    'success' => true,
-                    'token' => $token,
-                    'token_type' => 'bearer',
-                    'expires_in' => auth('api')->factory()->getTTL() * 60,
-                    'user' => [
-                        'id' => $user->id,
-                        'email' => $user->email,
-                        'username' => $user->username,
-                        'phone' => $user->phone,
-                        'role' => $user->role ? $user->role->name : null,
-                        'status' => $user->isActive() ? 'active' : 'blocked',
-                        'profile' => $profileData
-                    ]
-                ]);
+                    'success' => false,
+                    'message' => 'Mobile app access is restricted to franchisees only.'
+                ], 403);
             }
-            
+    
+            // Load franchisee profile
+            $user->load('franchiseeProfile');
+    
+            $profile = $user->franchiseeProfile;
+            $profileData = $profile ? [
+                'company_name' => $profile->company_name,
+                'contact_name' => $profile->contact_name,
+                'address' => $profile->address,
+                'city' => $profile->city,
+                'state' => $profile->state,
+                'postal_code' => $profile->postal_code,
+                'logo_url' => $profile->logo_path ? url('storage/' . $profile->logo_path) : null
+            ] : null;
+    
             return response()->json([
                 'success' => true,
                 'token' => $token,
                 'token_type' => 'bearer',
-                'expires_in' => auth('api')->factory()->getTTL() * 60,
-                'user' => $user
+                'expires_in' => auth('api')->factory()->getTTL() * 60, // seconds
+                'user' => [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'username' => $user->username,
+                    'phone' => $user->phone,
+                    'role' => $user->role->name,
+                    'status' => $user->isActive() ? 'active' : 'blocked',
+                    'profile' => $profileData
+                ]
             ]);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token has expired. Please log in again.'
+            ], 401);
+        } catch (\Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid token. Please log in again.'
+            ], 401);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to refresh token: ' . $e->getMessage()
-            ], 401);
+                'message' => 'Failed to refresh token.',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
+    
     
     /**
      * Get the authenticated User.
@@ -355,15 +364,5 @@ class AuthController extends Controller
             'email' => 'The provided credentials do not match our records.',
         ]);
     }
-    
-    /**
-     * Log the user out of the application.
-     *
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function webLogout()
-    {
-        Auth::logout();
-        return redirect('/login');
-    }
+  
 }

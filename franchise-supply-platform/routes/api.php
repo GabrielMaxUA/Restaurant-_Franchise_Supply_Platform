@@ -19,26 +19,26 @@ use App\Http\Controllers\AuthController;
 Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Test endpoint to check if API is accessible
-Route::get('/test', function() {
-    return response()->json([
-        'message' => 'API is working',
-        'timestamp' => now()->toDateTimeString()
-    ]);
-});
+// Route::get('/test', function() {
+//     return response()->json([
+//         'message' => 'API is working',
+//         'timestamp' => now()->toDateTimeString()
+//     ]);
+// });
 
 // In your routes/api.php for testing only - remove in production
-Route::post('/test-profile-update', function(Request $request) {
-  return response()->json([
-      'success' => true,
-      'received' => [
-          'fields' => $request->all(),
-          'files' => $request->hasFile('logo') ? 'Has logo file' : 'No logo file',
-          'method' => $request->method(),
-          'content_type' => $request->header('Content-Type'),
-          'authorization' => $request->hasHeader('Authorization') ? 'Present' : 'Missing'
-      ]
-  ]);
-});
+// Route::post('/test-profile-update', function(Request $request) {
+//   return response()->json([
+//       'success' => true,
+//       'received' => [
+//           'fields' => $request->all(),
+//           'files' => $request->hasFile('logo') ? 'Has logo file' : 'No logo file',
+//           'method' => $request->method(),
+//           'content_type' => $request->header('Content-Type'),
+//           'authorization' => $request->hasHeader('Authorization') ? 'Present' : 'Missing'
+//       ]
+//   ]);
+// });
 // Protected routes with JWT
 Route::group(['middleware' => ['auth:api']], function () {
 
@@ -65,6 +65,7 @@ Route::group(['middleware' => ['auth:api']], function () {
         Route::post('/toggle-favorite', [App\Http\Controllers\Franchisee\CatalogController::class, 'toggleFavorite']);
         
         //Cart
+        Route::get('/products/{id}/details', [\App\Http\Controllers\Franchisee\ProductController::class, 'apiGetProductDetails']);
         Route::get('/cart', [App\Http\Controllers\Franchisee\CartController::class, 'index']);
         Route::post('/cart/add', [App\Http\Controllers\Franchisee\CartController::class, 'addToCart']);
         Route::post('/cart/update', [App\Http\Controllers\Franchisee\CartController::class, 'updateCart']);

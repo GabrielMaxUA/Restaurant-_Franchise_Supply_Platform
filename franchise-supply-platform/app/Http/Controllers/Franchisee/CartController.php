@@ -82,7 +82,10 @@ class CartController extends Controller
                         'name' => $product->name,
                         'description' => $product->description,
                         'base_price' => $product->base_price,
-                        'image_url' => $product->images->isNotEmpty() ? $product->images->first()->image_url : null
+                        'image_url' => $product->images->isNotEmpty()
+                          ? asset('storage/' . $product->images->first()->image_url)
+                          : null
+
                     ];
                     
                     if ($variant) {
@@ -116,7 +119,9 @@ class CartController extends Controller
                             'name' => $product->name,
                             'description' => $product->description,
                             'base_price' => $product->base_price,
-                            'image_url' => $product->images->isNotEmpty() ? $product->images->first()->image_url : null
+                            'image_url' => $product->images->isNotEmpty()
+                              ? asset('storage/' . $product->images->first()->image_url)
+                              : null
                         ];
                     }
                     
@@ -523,59 +528,79 @@ class CartController extends Controller
      * Show the checkout form.
      * UPDATED: Uses variant price_adjustment directly as the price
      */
-    public function checkout()
-    {
+    public function checkout(Request $request)
+      {
         $cart = $this->getOrCreateCart();
         $items = $cart->items()->with(['product', 'variant', 'product.images'])->get();
-        
+    
         if ($items->isEmpty()) {
+            \Log::info('Checkout called but cart is empty for user: ' . Auth::id());
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your cart is empty. Please add some products before checkout.'
+                ], 400);
+            }
+    
             return redirect()->route('franchisee.cart')
                 ->with('error', 'Your cart is empty. Please add some products before checkout.');
         }
+    
+          $cartItems = [];
+          $total = 0;
         
-        $cartItems = [];
-        $total = 0;
-        
-        // Process cart items with updated pricing model
-        foreach ($items as $item) {
-            if ($item->variant_id) {
-                $variant = $item->variant;
-                $product = $item->product;
+          foreach ($items as $item) {
+              if ($item->variant_id) {
+                  $variant = $item->variant;
+                  $product = $item->product;
+                  $price = $variant->price_adjustment;
+              
+                  $cartItems[] = [
+                      'id' => $item->id,
+                      'product' => $product,
+                      'variant' => $variant,
+                      'quantity' => $item->quantity,
+                      'price' => $price,
+                      'subtotal' => $price * $item->quantity
+                  ];
                 
-                // UPDATED: Use variant's price_adjustment directly as the price
-                $price = $variant->price_adjustment;
-                
-                $cartItems[] = [
-                    'id' => $item->id,
-                    'product' => $product,
-                    'variant' => $variant,
-                    'quantity' => $item->quantity,
-                    'price' => $price,
-                    'subtotal' => $price * $item->quantity
-                ];
-                
-                $total += $price * $item->quantity;
-            } else {
-                $product = $item->product;
-                if ($product) {
-                    $cartItems[] = [
-                        'id' => $item->id,
-                        'product' => $product,
-                        'variant' => null,
-                        'quantity' => $item->quantity,
-                        'price' => $product->base_price,
-                        'subtotal' => $product->base_price * $item->quantity
-                    ];
-                    $total += $product->base_price * $item->quantity;
-                }
-            }
-        }
+                  $total += $price * $item->quantity;
+              } else {
+                  $product = $item->product;
+                  if ($product) {
+                      $cartItems[] = [
+                          'id' => $item->id,
+                          'product' => $product,
+                          'variant' => null,
+                          'quantity' => $item->quantity,
+                          'price' => $product->base_price,
+                          'subtotal' => $product->base_price * $item->quantity
+                      ];
+                      $total += $product->base_price * $item->quantity;
+                  }
+              }
+          }
         
-        // Get user's franchisee information
-        $franchisee = Auth::user()->franchisee;
-        
-        return view('franchisee.checkout', compact('cartItems', 'total', 'franchisee'));
-    }
+            if ($request->expectsJson()) 
+            {
+              \Log::info('Checkout API data:', [
+                  'user_id' => Auth::id(),
+                  'cart_items' => $cartItems,
+                  'total' => $total
+              ]);
+                
+              return response()->json([
+                    'success' => true,
+                    'cart_items' => $cartItems,
+                    'total' => $total
+                ]);
+              }
+          
+          $franchisee = Auth::user()->franchisee;
+          return view('franchisee.checkout', compact('cartItems', 'total', 'franchisee'));
+  }
+    
     
     /**
      * Process the order.
@@ -583,7 +608,8 @@ class CartController extends Controller
      */
     public function placeOrder(Request $request)
     {
-        // Validate the request
+        \Log::info('placeOrder called with input:', $request->all());
+    
         $request->validate([
             'shipping_address' => 'required|string|max:255',
             'shipping_city' => 'required|string|max:100',
@@ -591,43 +617,43 @@ class CartController extends Controller
             'shipping_zip' => 'required|string|max:20',
             'delivery_preference' => 'required|string',
         ]);
-
-        // Get cart items
+    
         $cart = $this->getOrCreateCart();
         $items = $cart->items()->with(['product', 'variant'])->get();
-        
+    
         if ($items->isEmpty()) {
+            \Log::info('Cart is empty at placeOrder for user: ' . Auth::id());
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cart is empty.'
+                ], 400);
+            }
+    
             return redirect()->route('franchisee.cart')
                 ->with('error', 'Your cart is empty. Please add some products before checkout.');
         }
-        
-        // Calculate total
+    
         $total = 0;
         $orderItems = [];
         $inventoryIssues = [];
-        
+    
         foreach ($items as $item) {
             if ($item->variant_id) {
                 $variant = $item->variant;
                 $product = $item->product;
-                
-                if (!$product || !$variant) {
+    
+                if (!$product || !$variant || $variant->inventory_count < $item->quantity) {
+                    $availableQty = $variant ? $variant->inventory_count : 0;
+                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name} ({$variant->name})' available.";
                     continue;
                 }
-                
-                // Double-check inventory availability before proceeding
-                if ($variant->inventory_count < $item->quantity) {
-                    $availableQty = $variant->inventory_count;
-                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name} ({$variant->name})' are available (requested {$item->quantity}).";
-                    continue;
-                }
-                
-                // UPDATED: Use variant's price_adjustment directly as the price
+    
                 $price = $variant->price_adjustment;
-                
                 $subtotal = $price * $item->quantity;
                 $total += $subtotal;
-                
+    
                 $orderItems[] = [
                     'product_id' => $product->id,
                     'variant_id' => $variant->id,
@@ -636,20 +662,16 @@ class CartController extends Controller
                 ];
             } else {
                 $product = $item->product;
-                if (!$product) {
+    
+                if (!$product || $product->inventory_count < $item->quantity) {
+                    $availableQty = $product ? $product->inventory_count : 0;
+                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name}' available.";
                     continue;
                 }
-                
-                // Double-check inventory availability before proceeding
-                if ($product->inventory_count < $item->quantity) {
-                    $availableQty = $product->inventory_count;
-                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name}' are available (requested {$item->quantity}).";
-                    continue;
-                }
-                
+    
                 $subtotal = $product->base_price * $item->quantity;
                 $total += $subtotal;
-                
+    
                 $orderItems[] = [
                     'product_id' => $product->id,
                     'variant_id' => null,
@@ -658,58 +680,61 @@ class CartController extends Controller
                 ];
             }
         }
-        
-        // If inventory issues were found, redirect back with errors
+    
         if (!empty($inventoryIssues)) {
+            \Log::warning('Inventory issues at placeOrder:', $inventoryIssues);
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Inventory issue(s) occurred.',
+                    'details' => $inventoryIssues
+                ], 400);
+            }
+    
             return redirect()->route('franchisee.cart')
-                ->with('error', 'There are inventory issues with your cart:<br>' . implode('<br>', $inventoryIssues));
+                ->with('error', implode('<br>', $inventoryIssues));
         }
-        
-        // If no valid items were found (due to inventory issues or missing products)
+    
         if (empty($orderItems)) {
+            \Log::warning('No valid orderItems found');
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid items in your cart.'
+                ], 400);
+            }
+    
             return redirect()->route('franchisee.cart')
-                ->with('error', 'No valid items in your cart. Please add some products before checkout.');
+                ->with('error', 'No valid items in your cart.');
         }
-        
-        // Calculate tax (8%)
+    
         $tax = $total * 0.08;
-        
-        // Add shipping cost if express delivery
-        $shippingCost = 0;
-        if ($request->delivery_preference === 'express') {
-            $shippingCost = 15.00;
-        }
-        
-        // Calculate final total
+        $shippingCost = $request->delivery_preference === 'express' ? 15.00 : 0;
         $finalTotal = $total + $tax + $shippingCost;
-        
-        // Start transaction
+    
         DB::beginTransaction();
-        
+    
         try {
-            // Create the order
-            $order = new Order();
-            $order->user_id = Auth::id();
-            $order->status = 'pending';
-            $order->total_amount = $finalTotal;
-            $order->shipping_address = $request->shipping_address;
-            $order->shipping_city = $request->shipping_city;
-            $order->shipping_state = $request->shipping_state;
-            $order->shipping_zip = $request->shipping_zip;
-            
-            // Default values for required fields
-            $order->delivery_date = $request->delivery_date ?? date('Y-m-d', strtotime('+3 days'));
-            $order->delivery_time = $request->input('delivery_time', 'morning');
-            $order->delivery_preference = $request->delivery_preference;
-            $order->shipping_cost = $shippingCost;
-            $order->notes = $request->notes ?? '';
-            $order->manager_name = $request->input('manager_name', 'Default Manager');
-            $order->contact_phone = $request->input('contact_phone', Auth::user()->phone ?? 'No contact provided');
-            
-            // Save the order
+            $order = new Order([
+                'user_id' => Auth::id(),
+                'status' => 'pending',
+                'total_amount' => $finalTotal,
+                'shipping_address' => $request->shipping_address,
+                'shipping_city' => $request->shipping_city,
+                'shipping_state' => $request->shipping_state,
+                'shipping_zip' => $request->shipping_zip,
+                'delivery_date' => $request->delivery_date ?? now()->addDays(3)->toDateString(),
+                'delivery_time' => $request->input('delivery_time', 'morning'),
+                'delivery_preference' => $request->delivery_preference,
+                'shipping_cost' => $shippingCost,
+                'notes' => $request->notes ?? '',
+                'manager_name' => $request->input('manager_name', 'Default Manager'),
+                'contact_phone' => $request->input('contact_phone', Auth::user()->phone ?? 'N/A'),
+            ]);
             $order->save();
-            
-            // Create order items and update inventory
+    
             foreach ($orderItems as $item) {
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -718,159 +743,53 @@ class CartController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $item['price']
                 ]);
-                
-                // Update inventory using the InventoryService
-                $inventoryResult = $this->inventoryService->decreaseInventory(
+    
+                $this->inventoryService->decreaseInventory(
                     $item['product_id'],
                     $item['quantity'],
                     $item['variant_id']
                 );
-                
-                if (!$inventoryResult) {
-                    throw new \Exception('Failed to update inventory for product #' . $item['product_id']);
-                }
             }
-            
-            // Clear the cart after successfully placing the order
+    
             $cart->items()->delete();
-
-            // Commit the transaction
             DB::commit();
-
-            // Handle notifications using our services
-            if (config('company.notifications_enabled', true)) {
-                try {
-                    \Log::info('Starting order notification process for Order #' . $order->id);
-
-                    // Initialize the email notification service
-                    $emailService = new \App\Services\EmailNotificationService();
-
-                    // Send admin notifications
-                    $adminEmailSent = $emailService->sendAdminOrderNotification($order);
-                    \Log::info('Admin email notification ' . ($adminEmailSent ? 'sent successfully' : 'failed'));
-
-                    // Send warehouse notifications
-                    $warehouseEmailSent = $emailService->sendWarehouseOrderNotification($order);
-                    \Log::info('Warehouse email notification ' . ($warehouseEmailSent ? 'sent successfully' : 'failed'));
-
-                    // Send customer confirmation if enabled
-                    if (config('company.send_customer_confirmation', true)) {
-                        $customerEmailSent = $emailService->sendCustomerOrderConfirmation($order);
-                        \Log::info('Customer email confirmation ' . ($customerEmailSent ? 'sent successfully' : 'failed'));
-                    }
-
-                    // Send WhatsApp notifications if enabled
-                    if (config('services.twilio.enabled', false) &&
-                        config('ENABLE_WHATSAPP_NOTIFICATIONS', false)) {
-                        // Initialize the WhatsApp notification service
-                        $whatsappService = new \App\Services\WhatsAppNotificationService();
-
-                        // Send admin WhatsApp notification
-                        $adminWhatsappSent = $whatsappService->sendAdminOrderNotification($order);
-                        \Log::info('Admin WhatsApp notification ' . ($adminWhatsappSent ? 'sent successfully' : 'failed or disabled'));
-
-                        // Send customer WhatsApp notification
-                        if (config('company.send_customer_confirmation', true)) {
-                            $customerWhatsappSent = $whatsappService->sendCustomerOrderConfirmation($order);
-                            \Log::info('Customer WhatsApp notification ' . ($customerWhatsappSent ? 'sent successfully' : 'failed or disabled'));
-                        }
-                    }
-
-                    // Create notification record for the user who placed the order
-                    OrderNotification::createOrderPlacedNotification($order);
-
-                    // Create notifications for admin users
-                    $adminUsers = User::whereHas('role', function($query) {
-                        $query->where('name', 'admin');
-                    })->pluck('id')->toArray();
-
-                    if (!empty($adminUsers)) {
-                        OrderNotification::createForUsers($order, $adminUsers, 'New order requires attention');
-                    }
-
-                    // Create notifications for warehouse users
-                    $warehouseUsers = User::whereHas('role', function($query) {
-                        $query->where('name', 'warehouse');
-                    })->pluck('id')->toArray();
-
-                    if (!empty($warehouseUsers)) {
-                        OrderNotification::createForUsers($order, $warehouseUsers, 'New order needs processing');
-                    }
-
-                    // Log notification creation success
-                    \Log::info('Order notifications created in database for order #' . $order->id, [
-                        'order_id' => $order->id,
-                        'admin_notifications' => count($adminUsers),
-                        'warehouse_notifications' => count($warehouseUsers)
-                    ]);
-
-                } catch (\Exception $e) {
-                    // Don't let notification failures stop the order process, just log them
-                    \Log::error('Failed to send notifications: ' . $e->getMessage());
-                    \Log::error('Notification error trace: ' . $e->getTraceAsString());
-                }
-            } else {
-                \Log::info('Notifications are disabled in config');
+    
+            \Log::info("Order #{$order->id} placed successfully by user #" . Auth::id());
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order placed successfully.',
+                    'order_id' => $order->id,
+                    'total' => $finalTotal
+                ]);
             }
-
-            // Redirect to order details page
+    
             return redirect()->route('franchisee.orders.details', $order->id)
                 ->with('success', 'Your order has been placed successfully!');
-                
+    
         } catch (\Exception $e) {
-            // Rollback the transaction
             DB::rollBack();
-            
-            // Log error
-            \Log::error('Order placement failed: ' . $e->getMessage(), [
-                'exception' => $e,
+            \Log::error('Order placement failed:', [
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request' => $request->all()
             ]);
-            
-            // Redirect back with error
+    
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to place order.',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+    
             return redirect()->back()
-                ->with('error', 'There was a problem processing your order. Please try again: ' . $e->getMessage())
-                ->withInput();
+                ->with('error', 'There was a problem processing your order. Please try again.');
         }
     }
     
-    /**
-     * Debug method to check price calculations
-     */
-    public function debugCartPrices()
-    {
-        // Only allow in local or development environment
-        if (!app()->environment(['local', 'development'])) {
-            abort(404);
-        }
-        
-        $cart = $this->getOrCreateCart();
-        $items = $cart->items()->with(['product', 'variant'])->get();
-        
-        $debug = [];
-        foreach ($items as $item) {
-            $debug[] = [
-                'item_id' => $item->id,
-                'product_id' => $item->product_id,
-                'product_name' => $item->product ? $item->product->name : 'No product',
-                'product_base_price' => $item->product ? $item->product->base_price : 'N/A',
-                'variant_id' => $item->variant_id,
-                'variant_name' => $item->variant ? $item->variant->name : 'No variant',
-                'variant_price_adjustment' => $item->variant ? $item->variant->price_adjustment : 'N/A',
-                'used_price' => $item->variant_id 
-                    ? ($item->variant ? $item->variant->price_adjustment : 'Variant not found')
-                    : ($item->product ? $item->product->base_price : 'Product not found'),
-                'quantity' => $item->quantity,
-                'subtotal' => $item->variant_id 
-                    ? ($item->variant ? $item->variant->price_adjustment * $item->quantity : 'Cannot calculate')
-                    : ($item->product ? $item->product->base_price * $item->quantity : 'Cannot calculate')
-            ];
-        }
-        
-        return response()->json([
-            'cart_items' => $debug
-        ]);
-    }
+    
+  
 }

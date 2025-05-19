@@ -143,6 +143,29 @@
     </style>
     
     @yield('styles')
+  <script>
+        // === Inactivity timer config ===
+        let inactivityLimit = 15 * 60 * 1000; // 1 minute (60 seconds) for testing
+        let inactivityTimer;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                // Show alert and redirect
+                alert("Sorry, you were gone too long. Please log in.");
+                window.location.href = "{{ url('/logout') }}"; // or route('login')
+            }, inactivityLimit);
+        }
+      
+        // Reset timer on common user activity
+        ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, resetInactivityTimer, false);
+        });
+      
+        // Start the timer initially
+        resetInactivityTimer();
+  </script>
+
 </head>
 <body>
     <div class="container-fluid">
@@ -174,13 +197,14 @@
                                 Cart
                                 @php
                                     $cart = Auth::user()->cart ?? null;
-                                    // Count DISTINCT product_ids, not cart items
+                                    // Count distinct product/variant combinations, not just products
                                     $distinctProductCount = 0;
                                     if ($cart) {
+                                        // Count distinct combinations of product_id and variant_id
                                         $distinctProductCount = DB::table('cart_items')
                                             ->where('cart_id', $cart->id)
-                                            ->distinct('product_id')
-                                            ->count('product_id');
+                                            ->distinct()
+                                            ->count(DB::raw('CONCAT(product_id, IFNULL(variant_id, 0))'));
                                     }
                                 @endphp
                                 @if($distinctProductCount > 0)

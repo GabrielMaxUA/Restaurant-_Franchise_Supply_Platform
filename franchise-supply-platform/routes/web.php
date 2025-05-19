@@ -27,174 +27,179 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
-Route::get('/test-status', function() {
-  return "Status middleware is working!";
-})
-->middleware([CheckUserStatus::class]);
+// Route::get('/test-status', function() {
+//   return "Status middleware is working!";
+// })
+// ->middleware([CheckUserStatus::class]);
 
-// Test route
-Route::get('/web-test', function () {
-    return "Web routes are working!";
-});
+// // Test route
+// Route::get('/web-test', function () {
+//     return "Web routes are working!";
+// });
 
-// Order notification test route (only accessible in development environment)
-Route::get('/test-order-notification', function () {
-    if (!app()->environment(['local', 'development'])) {
-        abort(404);
-    }
+// // Order notification test route (only accessible in development environment)
+// Route::get('/test-order-notification', function () {
+//     if (!app()->environment(['local', 'development'])) {
+//         abort(404);
+//     }
 
-    try {
-        // Get an example order (most recent)
-        $order = \App\Models\Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
-            ->latest()
-            ->first();
+//     try {
+//         // Get an example order (most recent)
+//         $order = \App\Models\Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
+//             ->latest()
+//             ->first();
 
-        if (!$order) {
-            return "No orders found to test notification with.";
-        }
+//         if (!$order) {
+//             return "No orders found to test notification with.";
+//         }
 
-        // Using our EmailNotificationService
-        $notificationService = new \App\Services\EmailNotificationService();
+//         // Using our EmailNotificationService
+//         $notificationService = new \App\Services\EmailNotificationService();
 
-        // Record results
-        $adminSent = $notificationService->sendAdminOrderNotification($order);
-        $warehouseSent = $notificationService->sendWarehouseOrderNotification($order);
-        $customerSent = $notificationService->sendCustomerOrderConfirmation($order);
+//         // Record results
+//         $adminSent = $notificationService->sendAdminOrderNotification($order);
+//         $warehouseSent = $notificationService->sendWarehouseOrderNotification($order);
+//         $customerSent = $notificationService->sendCustomerOrderConfirmation($order);
 
-        // Get email addresses for display
-        $adminEmails = \App\Models\User::getAdminEmails();
-        if (empty($adminEmails) || !in_array('maxgabrielua@gmail.com', $adminEmails)) {
-            $adminEmails[] = 'maxgabrielua@gmail.com';
-        }
+//         // Get email addresses for display
+//         $adminEmails = \App\Models\User::getAdminEmails();
+//         if (empty($adminEmails) || !in_array('maxgabrielua@gmail.com', $adminEmails)) {
+//             $adminEmails[] = 'maxgabrielua@gmail.com';
+//         }
 
-        $warehouseEmails = \App\Models\User::getWarehouseEmails();
-        if (empty($warehouseEmails)) {
-            $warehouseEmails[] = config('company.warehouse_notification_email', 'warehouse@restaurantfranchisesupply.com');
-        }
+//         $warehouseEmails = \App\Models\User::getWarehouseEmails();
+//         if (empty($warehouseEmails)) {
+//             $warehouseEmails[] = config('company.warehouse_notification_email', 'warehouse@restaurantfranchisesupply.com');
+//         }
 
-        $adminEmails = array_unique(array_filter($adminEmails, function($email) {
-            return filter_var($email, FILTER_VALIDATE_EMAIL);
-        }));
+//         $adminEmails = array_unique(array_filter($adminEmails, function($email) {
+//             return filter_var($email, FILTER_VALIDATE_EMAIL);
+//         }));
 
-        $warehouseEmails = array_unique(array_filter($warehouseEmails, function($email) {
-            return filter_var($email, FILTER_VALIDATE_EMAIL);
-        }));
+//         $warehouseEmails = array_unique(array_filter($warehouseEmails, function($email) {
+//             return filter_var($email, FILTER_VALIDATE_EMAIL);
+//         }));
 
-        $customerEmail = $order->user->email;
+//         $customerEmail = $order->user->email;
 
-        // Check if we're using the log driver
-        $isLogDriver = config('mail.mailer') === 'log';
-        $logMessage = '';
+//         // Check if we're using the log driver
+//         $isLogDriver = config('mail.mailer') === 'log';
+//         $logMessage = '';
 
-        if ($isLogDriver) {
-            $logPath = storage_path('logs/laravel.log');
-            $logMessage = "<br><br>Emails were logged to: {$logPath}";
+//         if ($isLogDriver) {
+//             $logPath = storage_path('logs/laravel.log');
+//             $logMessage = "<br><br>Emails were logged to: {$logPath}";
 
-            // Get the last few lines of the log file to show the logged emails
-            if (file_exists($logPath)) {
-                $logContent = shell_exec("tail -n 50 {$logPath}");
-                $logMessage .= "<br><br><strong>Recent Log Entries:</strong><br><pre>{$logContent}</pre>";
-            }
-        }
+//             // Get the last few lines of the log file to show the logged emails
+//             if (file_exists($logPath)) {
+//                 $logContent = shell_exec("tail -n 50 {$logPath}");
+//                 $logMessage .= "<br><br><strong>Recent Log Entries:</strong><br><pre>{$logContent}</pre>";
+//             }
+//         }
 
-        return "Test order notifications sent!<br><br>
-                <strong>Admin Emails:</strong> " . implode(', ', $adminEmails) . " (" . ($adminSent ? 'Sent' : 'Failed') . ")<br>
-                <strong>Warehouse Emails:</strong> " . implode(', ', $warehouseEmails) . " (" . ($warehouseSent ? 'Sent' : 'Failed') . ")<br>
-                <strong>Customer Email:</strong> " . ($customerEmail ?: 'None') . " (" . ($customerSent ? 'Sent' : 'Failed') . ")<br><br>
-                <strong>Order ID:</strong> " . $order->id .
-                ($isLogDriver ? $logMessage : "<br><br>Using real email sending - check your inbox.");
-    } catch (\Exception $e) {
-        return "Error sending test order notifications: " . $e->getMessage() . "<br><br>
-                <strong>Trace:</strong><br>
-                " . nl2br($e->getTraceAsString());
-    }
-});
+//         return "Test order notifications sent!<br><br>
+//                 <strong>Admin Emails:</strong> " . implode(', ', $adminEmails) . " (" . ($adminSent ? 'Sent' : 'Failed') . ")<br>
+//                 <strong>Warehouse Emails:</strong> " . implode(', ', $warehouseEmails) . " (" . ($warehouseSent ? 'Sent' : 'Failed') . ")<br>
+//                 <strong>Customer Email:</strong> " . ($customerEmail ?: 'None') . " (" . ($customerSent ? 'Sent' : 'Failed') . ")<br><br>
+//                 <strong>Order ID:</strong> " . $order->id .
+//                 ($isLogDriver ? $logMessage : "<br><br>Using real email sending - check your inbox.");
+//     } catch (\Exception $e) {
+//         return "Error sending test order notifications: " . $e->getMessage() . "<br><br>
+//                 <strong>Trace:</strong><br>
+//                 " . nl2br($e->getTraceAsString());
+//     }
+// });
 
-// Test WhatsApp notification route (only accessible in development environment)
-Route::get('/test-whatsapp', function () {
-    if (!app()->environment(['local', 'development'])) {
-        abort(404);
-    }
+// // Test WhatsApp notification route (only accessible in development environment)
+// Route::get('/test-whatsapp', function () {
+//     if (!app()->environment(['local', 'development'])) {
+//         abort(404);
+//     }
 
-    try {
-        // Check if Twilio is enabled
-        if (!config('services.twilio.enabled', false)) {
-            return "Twilio WhatsApp integration is disabled. Set TWILIO_ENABLED=true in .env to test.";
-        }
+//     try {
+//         // Check if Twilio is enabled
+//         if (!config('services.twilio.enabled', false)) {
+//             return "Twilio WhatsApp integration is disabled. Set TWILIO_ENABLED=true in .env to test.";
+//         }
         
-        $whatsappService = new \App\Services\WhatsAppNotificationService();
+//         $whatsappService = new \App\Services\WhatsAppNotificationService();
         
-        // Get the most recent order for testing
-        $order = \App\Models\Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
-            ->latest()
-            ->first();
+//         // Get the most recent order for testing
+//         $order = \App\Models\Order::with(['items.product', 'items.variant', 'user.franchiseeProfile'])
+//             ->latest()
+//             ->first();
             
-        if (!$order) {
-            return "No orders found to test with.";
-        }
+//         if (!$order) {
+//             return "No orders found to test with.";
+//         }
         
-        // Testing admin WhatsApp notification
-        $adminResult = $whatsappService->sendAdminOrderNotification($order);
+//         // Testing admin WhatsApp notification
+//         $adminResult = $whatsappService->sendAdminOrderNotification($order);
         
-        // Testing customer WhatsApp notification
-        $customerResult = $whatsappService->sendCustomerOrderConfirmation($order);
+//         // Testing customer WhatsApp notification
+//         $customerResult = $whatsappService->sendCustomerOrderConfirmation($order);
         
-        return "WhatsApp test completed:<br><br>
-                Admin WhatsApp: " . ($adminResult ? 'Sent' : 'Failed') . "<br>
-                Customer WhatsApp: " . ($customerResult ? 'Sent' : 'Failed') . "<br><br>
-                <strong>Note:</strong> Check logs for detailed information.";
-    } catch (\Exception $e) {
-        return "Error during WhatsApp test: " . $e->getMessage() . "<br><br>
-                <strong>Trace:</strong><br>
-                " . nl2br($e->getTraceAsString());
-    }
-});
+//         return "WhatsApp test completed:<br><br>
+//                 Admin WhatsApp: " . ($adminResult ? 'Sent' : 'Failed') . "<br>
+//                 Customer WhatsApp: " . ($customerResult ? 'Sent' : 'Failed') . "<br><br>
+//                 <strong>Note:</strong> Check logs for detailed information.";
+//     } catch (\Exception $e) {
+//         return "Error during WhatsApp test: " . $e->getMessage() . "<br><br>
+//                 <strong>Trace:</strong><br>
+//                 " . nl2br($e->getTraceAsString());
+//     }
+// });
 
-// Email test route (only accessible in development environment)
-Route::get('/mail-test', function () {
-    if (!app()->environment(['local', 'development'])) {
-        abort(404);
-    }
+// // Email test route (only accessible in development environment)
+// Route::get('/mail-test', function () {
+//     if (!app()->environment(['local', 'development'])) {
+//         abort(404);
+//     }
 
-    try {
-        $recipient = request('email') ?? 'maxgabrielua@gmail.com';
+//     try {
+//         $recipient = request('email') ?? 'maxgabrielua@gmail.com';
 
-        // Send a test email with our custom TestEmail mailable
-        \Mail::to($recipient)->send(new \App\Mail\TestEmail());
+//         // Send a test email with our custom TestEmail mailable
+//         \Mail::to($recipient)->send(new \App\Mail\TestEmail());
 
-        // Check if we're using the log driver
-        $isLogDriver = config('mail.mailer') === 'log';
-        $logMessage = '';
+//         // Check if we're using the log driver
+//         $isLogDriver = config('mail.mailer') === 'log';
+//         $logMessage = '';
 
-        if ($isLogDriver) {
-            $logPath = storage_path('logs/laravel.log');
-            $logMessage = "Email was logged to: {$logPath}";
+//         if ($isLogDriver) {
+//             $logPath = storage_path('logs/laravel.log');
+//             $logMessage = "Email was logged to: {$logPath}";
 
-            // Get the last few lines of the log file to show the logged email
-            if (file_exists($logPath)) {
-                $logContent = shell_exec("tail -n 30 {$logPath}");
-                $logMessage .= "<br><br><strong>Recent Log Entries:</strong><br><pre>{$logContent}</pre>";
-            }
-        }
+//             // Get the last few lines of the log file to show the logged email
+//             if (file_exists($logPath)) {
+//                 $logContent = shell_exec("tail -n 30 {$logPath}");
+//                 $logMessage .= "<br><br><strong>Recent Log Entries:</strong><br><pre>{$logContent}</pre>";
+//             }
+//         }
 
-        return "Test email sent to {$recipient}!<br><br>" .
-               ($isLogDriver ? "Using LOG driver - check Laravel logs for the email content.<br>{$logMessage}" : "Check your inbox for the email.") .
-               "<br><br><strong>Mail Configuration:</strong><br>" .
-               "Driver: " . config('mail.default') . "<br>" .
-               "Mailer: " . config('mail.mailer') . "<br>" .
-               "From: " . config('mail.from.address') . "<br>" .
-               "Notifications Enabled: " . (config('company.notifications_enabled', true) ? 'Yes' : 'No');
-    } catch (\Exception $e) {
-        return "Error sending test email: " . $e->getMessage() . "<br><br>
-                <strong>Trace:</strong><br>
-                " . nl2br($e->getTraceAsString());
-    }
-});
+//         return "Test email sent to {$recipient}!<br><br>" .
+//                ($isLogDriver ? "Using LOG driver - check Laravel logs for the email content.<br>{$logMessage}" : "Check your inbox for the email.") .
+//                "<br><br><strong>Mail Configuration:</strong><br>" .
+//                "Driver: " . config('mail.default') . "<br>" .
+//                "Mailer: " . config('mail.mailer') . "<br>" .
+//                "From: " . config('mail.from.address') . "<br>" .
+//                "Notifications Enabled: " . (config('company.notifications_enabled', true) ? 'Yes' : 'No');
+//     } catch (\Exception $e) {
+//         return "Error sending test email: " . $e->getMessage() . "<br><br>
+//                 <strong>Trace:</strong><br>
+//                 " . nl2br($e->getTraceAsString());
+//     }
+// });
 
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'webLogin'])->name('login.submit');
-Route::get('/logout', [AuthController::class, 'webLogout'])->name('logout');
+Route::get('/logout', function () {
+  Auth::logout();
+  Session::flush(); // clear session data
+  return redirect('/login');
+})->name('logout');
+;
 
 // Debug route to see all defined routes
 Route::get('/routes', function () {

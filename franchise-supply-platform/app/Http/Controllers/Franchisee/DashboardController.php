@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Cart;
 use App\Models\CartItem;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -216,176 +217,178 @@ class DashboardController extends Controller
             'products'
         ));
     }
+
+
 public function apiDashboard()
-{
-    $user = Auth::user();
+  {
+      $user = Auth::user();
 
-    // Date calculations for reporting periods
-    $now = Carbon::now();
-    $startOfWeek = $now->copy()->startOfWeek();
-    $endOfWeek = $now->copy()->endOfWeek();
-    $startOfMonth = $now->copy()->startOfMonth();
-    $endOfMonth = $now->copy()->endOfMonth();
-    $lastMonth = $now->copy()->subMonth();
-    $startOfLastMonth = $lastMonth->copy()->startOfMonth();
-    $endOfLastMonth = $lastMonth->copy()->endOfMonth();
+      // Date calculations for reporting periods
+      $now = Carbon::now();
+      $startOfWeek = $now->copy()->startOfWeek();
+      $endOfWeek = $now->copy()->endOfWeek();
+      $startOfMonth = $now->copy()->startOfMonth();
+      $endOfMonth = $now->copy()->endOfMonth();
+      $lastMonth = $now->copy()->subMonth();
+      $startOfLastMonth = $lastMonth->copy()->startOfMonth();
+      $endOfLastMonth = $lastMonth->copy()->endOfMonth();
 
-    // Define status groups
-    $excludedStatuses = ['cancelled', 'rejected'];
-    $activeStatuses = ['pending', 'processing', 'shipped', 'out_for_delivery'];
+      // Define status groups
+      $excludedStatuses = ['cancelled', 'rejected'];
+      $activeStatuses = ['pending', 'processing', 'shipped', 'out_for_delivery'];
 
-    // Calculate spending metrics
-    $monthlySpending = Order::where('user_id', $user->id)
-        ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-        ->whereNotIn('status', $excludedStatuses)
-        ->sum('total_amount');
+      // Calculate spending metrics
+      $monthlySpending = Order::where('user_id', $user->id)
+          ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+          ->whereNotIn('status', $excludedStatuses)
+          ->sum('total_amount');
 
-    $lastMonthSpending = Order::where('user_id', $user->id)
-        ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
-        ->whereNotIn('status', $excludedStatuses)
-        ->sum('total_amount');
+      $lastMonthSpending = Order::where('user_id', $user->id)
+          ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
+          ->whereNotIn('status', $excludedStatuses)
+          ->sum('total_amount');
 
-    // Calculate spending change percentage
-    $spendingChange = 0;
-    if ($lastMonthSpending > 0) {
-        $spendingChange = round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100);
-    }
+      // Calculate spending change percentage
+      $spendingChange = 0;
+      if ($lastMonthSpending > 0) {
+          $spendingChange = round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100);
+      }
 
-    // Calculate pending orders metrics
-    $pendingOrders = Order::where('user_id', $user->id)
-        ->whereIn('status', $activeStatuses)
-        ->count();
-        
-    $lastMonthPendingOrders = Order::where('user_id', $user->id)
-        ->whereIn('status', $activeStatuses)
-        ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
-        ->count();
-    
-    // Calculate pending orders change percentage
-    $pendingOrdersChange = 0;
-    if ($lastMonthPendingOrders > 0) {
-        $pendingOrdersChange = round((($pendingOrders - $lastMonthPendingOrders) / $lastMonthPendingOrders) * 100);
-    }
+      // Calculate pending orders metrics
+      $pendingOrders = Order::where('user_id', $user->id)
+          ->whereIn('status', $activeStatuses)
+          ->count();
 
-    // Collect all stats in one array
-    $stats = [
-        'pending_orders' => $pendingOrders,
-        'monthly_spending' => number_format($monthlySpending, 2, '.', ''),
-        'spending_change' => $spendingChange,
-        'low_stock_items' => 0,  // This appears to be a placeholder in the original code
-        'incoming_deliveries' => Order::where('user_id', $user->id)
-            ->whereIn('status', ['shipped', 'out_for_delivery'])
-            ->count(),
-        'pending_orders_change' => $pendingOrdersChange,
-    ];
+      $lastMonthPendingOrders = Order::where('user_id', $user->id)
+          ->whereIn('status', $activeStatuses)
+          ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
+          ->count();
 
-    // Generate weekly chart data with proper date ranges
-    $weeklySpending = [];
-    $weeklyOrders = [];
-    
-    for ($i = 0; $i < 7; $i++) {
-        $day = $startOfWeek->copy()->addDays($i);
-        $dayStart = $day->copy()->startOfDay();
-        $dayEnd = $day->copy()->endOfDay();
-        
-        // Get orders for this day with proper filters
-        $dayOrders = Order::where('user_id', $user->id)
-            ->whereNotIn('status', $excludedStatuses)
-            ->whereBetween('created_at', [$dayStart, $dayEnd])
-            ->get();
-        
-        // Calculate spending and count for this day
-        $daySpending = $dayOrders->sum('total_amount');
-        
-        $weeklySpending[] = (float)$daySpending;
-        $weeklyOrders[] = $dayOrders->count();
-    }
+      // Calculate pending orders change percentage
+      $pendingOrdersChange = 0;
+      if ($lastMonthPendingOrders > 0) {
+          $pendingOrdersChange = round((($pendingOrders - $lastMonthPendingOrders) / $lastMonthPendingOrders) * 100);
+      }
 
-    // Generate monthly chart data
-    $monthlySpendingData = [];
-    $monthlyOrdersData = [];
-    $currentYear = Carbon::now()->startOfYear();
-    
-    for ($i = 0; $i < 12; $i++) {
-        $month = $currentYear->copy()->addMonths($i);
-        $monthStart = $month->copy()->startOfMonth();
-        $monthEnd = $month->copy()->endOfMonth();
-        
-        // Get orders for this month
-        $monthOrders = Order::where('user_id', $user->id)
-            ->whereNotIn('status', $excludedStatuses)
-            ->whereBetween('created_at', [$monthStart, $monthEnd])
-            ->get();
-        
-        // Calculate spending and count for this month
-        $monthSpending = $monthOrders->sum('total_amount');
-        
-        $monthlySpendingData[] = (float)$monthSpending;
-        $monthlyOrdersData[] = $monthOrders->count();
-    }
+      // Collect all stats in one array
+      $stats = [
+          'pending_orders' => $pendingOrders,
+          'monthly_spending' => number_format($monthlySpending, 2, '.', ''),
+          'spending_change' => $spendingChange,
+          'low_stock_items' => 0,  // This appears to be a placeholder in the original code
+          'incoming_deliveries' => Order::where('user_id', $user->id)
+              ->whereIn('status', ['shipped', 'out_for_delivery'])
+              ->count(),
+          'pending_orders_change' => $pendingOrdersChange,
+      ];
 
-    // Get recent orders with properly formatted fields
-    $recent_orders = Order::where('user_id', $user->id)
-        ->orderBy('created_at', 'desc')
-        ->take(5)
-        ->get()
-        ->map(function ($order) {
-            // Count items for this order
-            $itemsCount = OrderItem::where('order_id', $order->id)->sum('quantity');
-            
-            // Format the created_at date for display
-            $createdAt = Carbon::parse($order->created_at)->format('Y-m-d');
-            
-            // Create an order_number field from invoice or ID
-            $orderNumber = $order->invoice_number ?? 'ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
-            
-            return [
-                'id' => $order->id,
-                'order_number' => $orderNumber,
-                'status' => $order->status,
-                'total' => (float)$order->total_amount,
-                'total_amount' => (float)$order->total_amount, // Keep both for compatibility
-                'shipping_address' => $order->shipping_address,
-                'shipping_city' => $order->shipping_city,
-                'shipping_state' => $order->shipping_state,
-                'shipping_zip' => $order->shipping_zip,
-                'delivery_date' => $order->delivery_date,
-                'delivery_time' => $order->delivery_time,
-                'delivery_preference' => $order->delivery_preference,
-                'shipping_cost' => (float)$order->shipping_cost,
-                'notes' => $order->notes,
-                'manager_name' => $order->manager_name,
-                'contact_phone' => $order->contact_phone,
-                'purchase_order' => $order->purchase_order,
-                'created_at' => $createdAt,
-                'updated_at' => Carbon::parse($order->updated_at)->format('Y-m-d H:i:s'),
-                'approved_at' => $order->approved_at,
-                'invoice_number' => $order->invoice_number,
-                'items_count' => (string)$itemsCount, // Cast to string for consistency with API
-            ];
-        });
+      // Generate weekly chart data with proper date ranges
+      $weeklySpending = [];
+      $weeklyOrders = [];
 
-    // Get popular products with properly formatted fields and images
-    $popular_products = Product::withCount(['orderItems' => function($query) use ($user, $excludedStatuses) {
+      for ($i = 0; $i < 7; $i++) {
+          $day = $startOfWeek->copy()->addDays($i);
+          $dayStart = $day->copy()->startOfDay();
+          $dayEnd = $day->copy()->endOfDay();
+
+          // Get orders for this day with proper filters
+          $dayOrders = Order::where('user_id', $user->id)
+              ->whereNotIn('status', $excludedStatuses)
+              ->whereBetween('created_at', [$dayStart, $dayEnd])
+              ->get();
+
+          // Calculate spending and count for this day
+          $daySpending = $dayOrders->sum('total_amount');
+
+          $weeklySpending[] = (float)$daySpending;
+          $weeklyOrders[] = $dayOrders->count();
+      }
+
+      // Generate monthly chart data
+      $monthlySpendingData = [];
+      $monthlyOrdersData = [];
+      $currentYear = Carbon::now()->startOfYear();
+
+      for ($i = 0; $i < 12; $i++) {
+          $month = $currentYear->copy()->addMonths($i);
+          $monthStart = $month->copy()->startOfMonth();
+          $monthEnd = $month->copy()->endOfMonth();
+
+          // Get orders for this month
+          $monthOrders = Order::where('user_id', $user->id)
+              ->whereNotIn('status', $excludedStatuses)
+              ->whereBetween('created_at', [$monthStart, $monthEnd])
+              ->get();
+
+          // Calculate spending and count for this month
+          $monthSpending = $monthOrders->sum('total_amount');
+
+          $monthlySpendingData[] = (float)$monthSpending;
+          $monthlyOrdersData[] = $monthOrders->count();
+      }
+
+      // Get recent orders with properly formatted fields
+      $recent_orders = Order::where('user_id', $user->id)
+          ->orderBy('created_at', 'desc')
+          ->take(5)
+          ->get()
+          ->map(function ($order) {
+              // Count items for this order
+              $itemsCount = OrderItem::where('order_id', $order->id)->sum('quantity');
+
+              // Format the created_at date for display
+              $createdAt = Carbon::parse($order->created_at)->format('Y-m-d');
+
+              // Create an order_number field from invoice or ID
+              $orderNumber = $order->invoice_number ?? 'ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
+
+              return [
+                  'id' => $order->id,
+                  'order_number' => $orderNumber,
+                  'status' => $order->status,
+                  'total' => (float)$order->total_amount,
+                  'total_amount' => (float)$order->total_amount, // Keep both for compatibility
+                  'shipping_address' => $order->shipping_address,
+                  'shipping_city' => $order->shipping_city,
+                  'shipping_state' => $order->shipping_state,
+                  'shipping_zip' => $order->shipping_zip,
+                  'delivery_date' => $order->delivery_date,
+                  'delivery_time' => $order->delivery_time,
+                  'delivery_preference' => $order->delivery_preference,
+                  'shipping_cost' => (float)$order->shipping_cost,
+                  'notes' => $order->notes,
+                  'manager_name' => $order->manager_name,
+                  'contact_phone' => $order->contact_phone,
+                  'purchase_order' => $order->purchase_order,
+                  'created_at' => $createdAt,
+                  'updated_at' => Carbon::parse($order->updated_at)->format('Y-m-d H:i:s'),
+                  'approved_at' => $order->approved_at,
+                  'invoice_number' => $order->invoice_number,
+                  'items_count' => (string)$itemsCount, // Cast to string for consistency with API
+              ];
+          });
+
+      // Get popular products with properly formatted fields and images
+      $popular_products = Product::withCount(['orderItems' => function($query) use ($user, $excludedStatuses) {
         $query->whereHas('order', function($q) use ($user, $excludedStatuses) {
             $q->where('user_id', $user->id)
               ->whereNotIn('status', $excludedStatuses);
         });
-      }])
+    }])
     ->orderBy('order_items_count', 'desc')
     ->take(6)
     ->get()
     ->map(function ($product) {
-        // Handle image URL
         $imageUrl = null;
+    
         if ($product->images && $product->images->isNotEmpty()) {
-            $imageUrl = $product->images->first()->image_url;
-            // Ensure image URL has full path if it's a relative URL
-            if ($imageUrl && !str_starts_with($imageUrl, 'http')) {
-                $imageUrl = url($imageUrl);
-            }
+            $relativePath = $product->images->first()->image_url;
+    
+            // ✅ Convert to full public URL: /storage/product-images/... ➜ http://your-app/storage/product-images/...
+            $imageUrl = asset('storage/' . ltrim($relativePath, '/'));
+
         }
-        
+    
         return [
             'id' => $product->id,
             'name' => $product->name,
@@ -394,67 +397,80 @@ public function apiDashboard()
             'unit_type' => $product->unit_type,
             'image_url' => $imageUrl,
             'in_stock' => (bool)$product->variants()->where('inventory_count', '>', 0)->exists(),
-            'inventory_count' => (int)$product->variants()->sum('inventory_count'), // Add inventory count
+            'inventory_count' => (int)$product->variants()->sum('inventory_count'),
         ];
     });
+    
 
 
-try {
-    // Get cart data for the current user
-    $cart = Cart::where('user_id', $user->id)
-        ->with(['items' => function($query) {
-            $query->with('product'); // Include product details
-        }])
-        ->first();
+      try {
+          // Get cart data for the current user
+          $cart = Cart::where('user_id', $user->id)
+              ->with(['items' => function($query) {
+                  $query->with('product'); // Include product details
+              }])
+              ->first() ;
 
-    // Process cart data for the response
-    $cartData = null;
-    if ($cart) {
-        // Count unique items (number of different products)
-        $uniqueProductsCount = $cart->items->count();
-        
-        // Calculate total quantity (sum of all items)
-        $totalQuantity = $cart->items->sum('quantity');
-        
-        // Calculate total price
-        $cartTotal = $cart->items->sum(function($item) {
-            return $item->quantity * $item->price;
-        });
+          // Process cart data for the response
+          $cartData = null;
+        if (  $cart) {
+              // Count unique items (number of different products)
+              $uniqueProductsCount = $cart->items->count()  ;
 
-        // Format cart items
-        $cartItems = $cart->items->map(function($item) {
-            $product = $item->product;
+              // Calculate total quantity (sum of all items)
+              $totalQuantity = $cart->items->sum('quantity')  ;
 
-            // Get image URL if available
-            $imageUrl = null;
-            if ($product && $product->images && $product->images->isNotEmpty()) {
-                $imageUrl = $product->images->first()->image_url;
-                if ($imageUrl && !str_starts_with($imageUrl, 'http')) {
-                    $imageUrl = url($imageUrl);
-                }
-            }
+              // Calculate total price
+              $cartTotal = $cart->items->sum(function($item) {
+                  return $item->quantity * $item->price;
+              })  ;
 
-            return [
-                'id' => $item->id,
-                'product_id' => $item->product_id,
-                'name' => $product ? $product->name : 'Unknown Product',
-                'quantity' => (int)$item->quantity,
-                'price' => (float)$item->price,
-                'total' => (float)($item->quantity * $item->price),
-                'image_url' => $imageUrl
+              // Format cart items
+              $cartItems = $cart->items->map(function($item) {
+                  $product = $item->product ;
+
+                  // Get image URL if available
+                  $imageUrl = null;
+                  if ($product && $product->images && $product->images->isNotEmpty()) {
+                      $path = $product->images->first()->image_url;
+                      $imageUrl = Storage::url($path);
+                  }
+
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'name' => $product ? $product->name : 'Unknown Product',
+                    'quantity' => (int)$item->quantity,
+                    'price' => (float)$item->price,
+                    'total' => (float)($item->quantity * $item->price),
+                    'image_url' => $imageUrl
+                ];
+            });
+
+            $cartData = [
+                'id' => $cart->id,
+                'items_count' => $uniqueProductsCount,      // Count of unique products
+                'total_quantity' => $totalQuantity,         // Sum of all quantities
+                'unique_items_count' => $uniqueProductsCount, // Explicit field for unique count 
+                'total' => (float)$cartTotal,
+                'items' => $cartItems
             ];
-        });
+        } else {
+            // Empty cart
+            $cartData = [
+                'items_count' => 0,
+                'total_quantity' => 0,
+                'unique_items_count' => 0,
+                'total' => 0,
+                'items' => []
+            ];
+        }
+    } catch (\Exception $e) {
+        // Log the error
+        \Log::error('Error getting cart data: ' . $e->getMessage());
+        \Log::error('Cart data error trace: ' . $e->getTraceAsString());
 
-        $cartData = [
-            'id' => $cart->id,
-            'items_count' => $uniqueProductsCount,      // Count of unique products
-            'total_quantity' => $totalQuantity,         // Sum of all quantities
-            'unique_items_count' => $uniqueProductsCount, // Explicit field for unique count 
-            'total' => (float)$cartTotal,
-            'items' => $cartItems
-        ];
-    } else {
-        // Empty cart
+        // Provide default empty cart data
         $cartData = [
             'items_count' => 0,
             'total_quantity' => 0,
@@ -463,46 +479,33 @@ try {
             'items' => []
         ];
     }
-} catch (\Exception $e) {
-    // Log the error
-    \Log::error('Error getting cart data: ' . $e->getMessage());
-    \Log::error('Cart data error trace: ' . $e->getTraceAsString());
-    
-    // Provide default empty cart data
-    $cartData = [
-        'items_count' => 0,
-        'total_quantity' => 0,
-        'unique_items_count' => 0,
-        'total' => 0,
-        'items' => []
-    ];
-}
-    // Build the full response with consistent data types
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'stats' => $stats,
-            'charts' => [
-                'weekly_orders' => $weeklyOrders,
-                'weekly_spending' => $weeklySpending,
-                'monthly_orders' => $monthlyOrdersData,
-                'monthly_spending' => $monthlySpendingData,
-                // Add chart configuration values
-                'step_sizes' => [
-                    'orders' => 50,   // Step size for orders axis
-                    'spending' => 10000  // Step size for spending axis
-                ]
-            ],
-            'recent_orders' => $recent_orders,
-            'popular_products' => $popular_products,
-            'cart' => $cartData, 
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ]
-    ]);
+        // Build the full response with consistent data types
+        return response()->json([
+            'success' => true,
+          'data' => [
+              'stats' => $stats,
+              'charts' => [
+                  'weekly_orders' => $weeklyOrders,
+                  'weekly_spending' => $weeklySpending,
+                  'monthly_orders' => $monthlyOrdersData,
+                  'monthly_spending' => $monthlySpendingData,
+                  // Add chart configuration values
+                  'step_sizes' => [
+                      'orders' => 50,   // Step size for orders axis
+                      'spending' => 10000  // Step size for spending axis
+                  ]
+              ],
+              'recent_orders' => $recent_orders,
+              'popular_products' => $popular_products,
+              'cart' => $cartData, 
+              'user' => [
+                  'id' => $user->id,
+                  'name' => $user->name,
+                  'email' => $user->email,
+              ],
+          ]
+      ]);
 }
 
+  
 }
