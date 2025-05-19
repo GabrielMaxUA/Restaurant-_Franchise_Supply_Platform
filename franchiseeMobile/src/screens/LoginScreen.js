@@ -59,6 +59,9 @@ const LoginScreen = ({ navigation }) => {
         await AsyncStorage.setItem('userData', JSON.stringify(response.user));
       }
       
+      // Set the welcome banner to show after each login
+      await AsyncStorage.removeItem('welcomeBannerClosed');
+      
       console.log('💾 Login successful, token stored in AsyncStorage');
       console.log('🚀 Navigating to Dashboard...');
       

@@ -6,7 +6,9 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ActivityIndicator, 
-  RefreshControl
+  RefreshControl,
+  Image, // Added Image import
+  Alert // Added Alert import for testing
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,81 +48,150 @@ const DashboardScreen = () => {
   // Cart state
   const [cartCount, setCartCount] = useState(0);
   
+  // Added image error state
+  const [imageLoadErrors, setImageLoadErrors] = useState({});
+  
   const navigation = useNavigation();
 
-  // Function to fetch dashboard data from API
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      console.log('📊 Dashboard - Fetching data...');
-      const result = await getDashboardData();
-      console.log('📊 Dashboard - API result:', result?.success);
-      
-      if (result && result.success && result.data) {
-        console.log('📊 Dashboard - Success! Updating state with data');
-        
-        // Process stats data
-        if (result.data.stats) {
-          console.log('📊 Stats found in response');
-          setStats(result.data.stats);
-        }
-        
-        // Process charts data
-        if (result.data.charts) {
-          console.log('📊 Charts found in response');
-          setCharts(result.data.charts);
-        }
-        
-        // Process recent orders
-        if (result.data.recent_orders && result.data.recent_orders.length > 0) {
-          console.log('📊 Orders found in response:', result.data.recent_orders.length);
-          setRecentOrders(result.data.recent_orders);
-        }
-        
-        // Process popular products
-        if (result.data.popular_products && result.data.popular_products.length > 0) {
-          console.log('📊 Products found in response:', result.data.popular_products.length);
-          setPopularProducts(result.data.popular_products);
-        }
-        
-        // Process cart data
-        if (result.data.cart) {
-          console.log('🛒 Cart found in response - items:', result.data.cart.items_count);
-          // Set cart count for badge
-          setCartCount(result.data.cart.items_count);
-          
-          // Store cart data in AsyncStorage for other screens
-          await AsyncStorage.setItem('cartData', JSON.stringify(result.data.cart));
-        } else {
-          console.log('🛒 No cart in response');
-          setCartCount(0);
-        }
-        
-        // Process user data
-        if (result.data.user) {
-          console.log('👤 User data found in response');
-          setUser(result.data.user);
-        }
-        
-        // Show welcome banner on first login
-        const alreadyWelcomed = await AsyncStorage.getItem('welcomed');
-        if (!alreadyWelcomed) {
-          setShowWelcome(true);
-          await AsyncStorage.setItem('welcomed', 'yes');
-        }
-      } else {
-        // Handle error
-        console.error('📊 Dashboard - API error:', result?.error || 'Unknown error');
-        alert('Error loading dashboard data. Please try again.');
-      }
-    } catch (error) {
-      console.error('❌ Error fetching dashboard data:', error);
-      alert('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  // Function to handle image errors
+  const handleImageError = (productId) => {
+    console.log(`Image loading error for product ${productId}`);
+    setImageLoadErrors(prev => ({
+      ...prev,
+      [productId]: true
+    }));
   };
+
+// Function to fetch dashboard data from API
+const fetchData = async () => {
+  setLoading(true);
+  try {
+    console.log('📊 Dashboard - Fetching data...');
+    const result = await getDashboardData();
+    console.log('📊 Dashboard - API result:', result?.success);
+    
+    if (result && result.success && result.data) {
+      console.log('📊 Dashboard - Success! Updating state with data');
+      
+      // Process stats data
+      if (result.data.stats) {
+        console.log('📊 Stats found in response');
+        setStats(result.data.stats);
+      }
+      
+      // Process charts data
+      if (result.data.charts) {
+        console.log('📊 Charts found in response');
+        setCharts(result.data.charts);
+      }
+      
+      // Process recent orders
+      if (result.data.recent_orders && result.data.recent_orders.length > 0) {
+        console.log('📊 Orders found in response:', result.data.recent_orders.length);
+        setRecentOrders(result.data.recent_orders);
+      }
+      
+      // Process popular products - UPDATED FOR IMAGE HANDLING
+   // Replace the product image handling section in your fetchData function
+
+// Process popular products - FIXED IMAGE HANDLING
+if (result.data.popular_products && result.data.popular_products.length > 0) {
+  console.log('📊 Products found in response:', result.data.popular_products.length);
+  
+  // Log all products to see their structure
+  console.log('📊 Products data structure sample:', 
+    JSON.stringify(result.data.popular_products[0], null, 2));
+  
+  // Add checking and debugging for image URLs
+  const productsWithImages = result.data.popular_products.map(product => {
+    // Log each product's image URL for debugging
+    console.log(`Product ID ${product.id} - Image URL: ${product.image_url}`);
+    
+    // Check if the image URL is valid
+    if (!product.image_url) {
+      console.log(`Product ID ${product.id} has no image URL`);
+      // Provide a default placeholder image instead of leaving it undefined
+      product.image_url = 'https://via.placeholder.com/150';
+    } else if (!product.image_url.startsWith('http')) {
+      console.log(`Product ID ${product.id} has a relative image URL: ${product.image_url}`);
+      
+      // Define your actual base URL - local XAMPP address
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      
+      // If path starts with /storage (Laravel public storage)
+      if (product.image_url.includes('/storage/') || product.image_url.includes('storage/')) {
+        let storagePath = product.image_url;
+        
+        // Clean up the path to ensure proper format
+        if (storagePath.startsWith('/')) {
+          product.image_url = `${API_BASE_URL}${storagePath}`;
+        } else {
+          product.image_url = `${API_BASE_URL}/${storagePath}`;
+        }
+      } 
+      // If path is a direct product-images path
+      else if (product.image_url.includes('product-images')) {
+        // Add the /storage/ prefix that Laravel's asset() would add
+        product.image_url = `${API_BASE_URL}/storage/${product.image_url.replace('product-images', 'product-images/')}`;
+      }
+      // For other relative URLs
+      else {
+        product.image_url = `${API_BASE_URL}/${product.image_url}`;
+      }
+      
+      console.log(`Converted to absolute URL: ${product.image_url}`);
+    }
+    
+    // Return the product with possibly updated image URL
+    return product;
+  });
+
+  
+  // Reset image errors when loading new products
+  setImageLoadErrors({});
+  
+  // Set the processed products in state
+  setPopularProducts(productsWithImages);
+}
+      
+      // Process cart data
+      if (result.data.cart) {
+        console.log('🛒 Cart found in response - items:', result.data.cart.items_count);
+        // Set cart count for badge
+        setCartCount(result.data.cart.items_count);
+        
+        // Store cart data in AsyncStorage for other screens
+        await AsyncStorage.setItem('cartData', JSON.stringify(result.data.cart));
+      } else {
+        console.log('🛒 No cart in response');
+        setCartCount(0);
+      }
+      
+      // Process user data
+      if (result.data.user) {
+        console.log('👤 User data found in response');
+        setUser(result.data.user);
+      }
+      
+      // Show welcome banner on first login
+      const alreadyWelcomed = await AsyncStorage.getItem('welcomed');
+      if (!alreadyWelcomed) {
+        setShowWelcome(true);
+        await AsyncStorage.setItem('welcomed', 'yes');
+      }
+    } else {
+      // Handle error
+      console.error('📊 Dashboard - API error:', result?.error || 'Unknown error');
+      alert('Error loading dashboard data. Please try again.');
+    }
+  } catch (error) {
+    console.error('❌ Error fetching dashboard data:', error);
+    alert('Network error. Please check your connection and try again.');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
 
   // Load data on component mount
   useEffect(() => {
@@ -152,7 +223,37 @@ const DashboardScreen = () => {
     setRefreshing(true);
     fetchData();
   };
-
+  
+  // Function to render product image with improved debugging
+  const renderProductImage = (product) => {
+    if (!product.image_url) {
+      console.log(`No image URL for product ${product.id}`);
+      return (
+        <View style={styles.productImageContainer}>
+          <FallbackIcon name="picture" iconType="AntDesign" size={24} color="#ccc" />
+        </View>
+      );
+    }
+    
+    // Log the image URL being rendered
+    console.log(`Rendering image for product ${product.id}: ${product.image_url}`);
+    
+    return (
+      <View style={styles.productImageContainer}>
+        <Image
+          source={{ uri: product.image_url }}
+          style={styles.productImage}
+          onError={() => {
+            console.log(`Image load error for ${product.id}`);
+            handleImageError(product.id);
+          }}
+          onLoad={() => console.log(`Image loaded successfully for product ${product.id}`)}
+          resizeMode="cover"
+        />
+      </View>
+    );
+  };
+  
   // Calculate total spending for charts
   const calculateTotalSpending = (data) => {
     if (!data || data.length === 0) return 0;
@@ -225,7 +326,45 @@ const DashboardScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#28a745"]} />
         }
       >
-           
+                <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={[styles.quickAction, styles.primaryAction]}
+              onPress={() => navigation.navigate('Catalog')}
+            >
+              <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
+              <Text style={styles.quickActionText}>Place Order</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.quickAction}
+              onPress={() => navigation.navigate('OrdersPending')}
+            >
+              <FallbackIcon name="car" iconType="AntDesign" size={24} color="#17a2b8" />
+              <Text style={styles.quickActionText}>Track Orders</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.quickAction, styles.logoutAction]}
+              onPress={async () => {
+                try {
+                  console.log('🚪 Logging out...');
+                  await logout();
+                  // Reset navigation to Login screen
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' }],
+                  });
+                } catch (error) {
+                  console.error('❌ Error logging out:', error);
+                }
+              }}
+            >
+              <FallbackIcon name="logout" iconType="AntDesign" size={24} color="#dc3545" />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+
         {/* Order Activity Chart */}
         <Card style={styles.chartCard}>
           <View style={styles.cardHeader}>
@@ -383,45 +522,6 @@ const DashboardScreen = () => {
           </Card>
         </View>
 
-        {/* Quick Actions
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActions}>
-            <TouchableOpacity 
-              style={[styles.quickAction, styles.primaryAction]}
-              onPress={() => navigation.navigate('Catalog')}
-            >
-              <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
-              <Text style={styles.quickActionText}>Place Order</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.quickAction}
-              onPress={() => navigation.navigate('OrdersPending')}
-            >
-              <FallbackIcon name="car" iconType="AntDesign" size={24} color="#17a2b8" />
-              <Text style={styles.quickActionText}>Track Orders</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.quickAction, styles.logoutAction]}
-              onPress={async () => {
-                try {
-                  console.log('🚪 Logging out...');
-                  await logout();
-                  // Reset navigation to Login screen
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Login' }],
-                  });
-                } catch (error) {
-                  console.error('❌ Error logging out:', error);
-                }
-              }}
-            >
-              <FallbackIcon name="logout" iconType="AntDesign" size={24} color="#dc3545" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </Card> */}
 
         {/* Recent Orders */}
         <Card style={styles.section}>
@@ -477,9 +577,18 @@ const DashboardScreen = () => {
             {popularProducts.length > 0 ? (
               popularProducts.map(product => (
                 <View key={product.id} style={styles.productItem}>
-                  <View style={styles.productImage}>
-                    <FallbackIcon name="picture" iconType="AntDesign" size={24} color="#ccc" />
-                  </View>
+                  {product.image_url ? (
+                    <Image 
+                      source={{ uri: product.image_url }} 
+                      style={styles.productImage}
+                      resizeMode="cover"
+                      onError={() => handleImageError(product.id)}
+                    />
+                  ) : (
+                    <View style={styles.productImage}>
+                      <FallbackIcon name="picture" iconType="AntDesign" size={24} color="#ccc" />
+                    </View>
+                  )}
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
                     <View style={styles.productPriceContainer}>
@@ -855,6 +964,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 4,
     marginRight: 10,
+    overflow: 'hidden', // Add this to make sure images don't overflow container
   },
   productInfo: {
     flex: 1,

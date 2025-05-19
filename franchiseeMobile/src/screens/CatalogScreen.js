@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,20 @@ import {
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
+  Alert,
+  ScrollView,
+  Dimensions,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getCatalog, toggleFavorite, addToCart } from '../services/api';
+import { getCatalog, toggleFavorite, addToCart, getCart, getProductDetails } from '../services/api'; // Add getProductDetails import
+import { cartEventEmitter } from '../components/FranchiseeLayout';
+import FallbackIcon from '../components/icon/FallbackIcon';
+import FranchiseeLayout from '../components/FranchiseeLayout';
+
+
+const { width } = Dimensions.get('window');
+const cardWidth = (width / 2) - 15; // 2 cards per row with spacing
 
 const CatalogScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -24,6 +35,16 @@ const CatalogScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState('');
   const [userToken, setUserToken] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortOption, setSortOption] = useState('newest');
+  const [showSortModal, setShowSortModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  
+  // Add to cart modal state
+  const [addToCartModalVisible, setAddToCartModalVisible] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   useEffect(() => {
     const getTokenFromStorage = async () => {
@@ -47,11 +68,11 @@ const CatalogScreen = ({ navigation }) => {
     if (userToken) {
       loadCatalog();
     }
-  }, [userToken]);
+  }, [userToken, selectedCategory, sortOption, favoritesOnly]);
 
   useEffect(() => {
     filterProducts();
-  }, [searchQuery, selectedCategory, products]);
+  }, [searchQuery, products]);
 
   const loadCatalog = async () => {
     if (!userToken) return;
@@ -60,56 +81,117 @@ const CatalogScreen = ({ navigation }) => {
       setLoading(true);
       setError('');
 
-      const catalogResponse = await getCatalog(userToken);
-      console.log('Catalog response (full):', JSON.stringify(catalogResponse));
+      // Create filters object based on selected options
+      const filters = {};
+      if (selectedCategory) {
+        filters.category = selectedCategory;
+      }
       
-      // Adapt response format if needed (for Laravel standard responses)
-      let processedResponse = { ...catalogResponse };
+      // Add sort option
+      if (sortOption) {
+        filters.sort = sortOption;
+      }
       
-      // Check if we have a Laravel style response with data property
-      if (catalogResponse.data && !catalogResponse.success) {
-        console.log('Detected Laravel response format for catalog, adapting...');
-        processedResponse.success = true;
+      // Add favorites filter
+      if (favoritesOnly) {
+        filters.favorites = 1;
+      }
+
+      console.log('Fetching catalog with filters:', filters);
+      const catalogResponse = await getCatalog(userToken, 1, filters);
+
+      console.log('Catalog response structure:', JSON.stringify(catalogResponse, null, 2).substring(0, 200) + '...');
+
+      if (!catalogResponse.success) {
+        throw new Error(catalogResponse.message || 'Failed to load catalog');
+      }
+
+      // Extract products array from response structure
+      let productsArray = [];
+      if (catalogResponse.products && catalogResponse.products.data) {
+        // If response has products.data structure (pagination)
+        productsArray = catalogResponse.products.data;
+      } else if (Array.isArray(catalogResponse.products)) {
+        // If response has direct products array
+        productsArray = catalogResponse.products;
+      }
+
+      console.log(`Loaded ${productsArray.length} products`);
+      
+      // Pre-process images to fix URLs
+      const processImageUrl = (url) => {
+        if (!url) return null;
         
-        // Handle different possible Laravel response structures
-        if (Array.isArray(catalogResponse.data)) {
-          // If data is directly an array of products
-          processedResponse.products = catalogResponse.data;
-        } else if (catalogResponse.data.products) {
-          // If data contains a products property
-          processedResponse.products = catalogResponse.data.products;
-        } else if (catalogResponse.data.data && Array.isArray(catalogResponse.data.data)) {
-          // If data contains a nested data property (common in Laravel resources)
-          processedResponse.products = catalogResponse.data.data;
-        } else {
-          // Fallback - use data as is
-          processedResponse.products = [catalogResponse.data];
+        if (!url.startsWith('http')) {
+          console.log(`Found a relative image URL: ${url}`);
+          
+          // Define your actual base URL - local XAMPP address
+          const API_BASE_URL = 'http://127.0.0.1:8000';
+          
+          // If path starts with /storage (Laravel public storage)
+          if (url.includes('/storage/') || url.includes('storage/')) {
+            let storagePath = url;
+            
+            // Clean up the path to ensure proper format
+            if (storagePath.startsWith('/')) {
+              return `${API_BASE_URL}${storagePath}`;
+            } else {
+              return `${API_BASE_URL}/${storagePath}`;
+            }
+          } 
+          // If path is a direct product-images path
+          else if (url.includes('product-images')) {
+            // Add the /storage/ prefix that Laravel's asset() would add
+            return `${API_BASE_URL}/storage/${url.replace('product-images', 'product-images/')}`;
+          }
+          // For other relative URLs
+          else {
+            return `${API_BASE_URL}/${url}`;
+          }
         }
-      }
-
-      if (!processedResponse.success) {
-        throw new Error(processedResponse.error || catalogResponse.message || 'Failed to load catalog');
-      }
-
-      // Make sure we have an array of products
-      const productsArray = processedResponse.products || [];
-      console.log(`Found ${productsArray.length} products in response`);
-      
-      setProducts(productsArray);
-      
-      // Extract unique categories
-      if (productsArray.length > 0) {
-        const uniqueCategories = [...new Set(productsArray
-          .map(product => product.category)
-          .filter(category => category) // Remove null/undefined
-        )];
         
-        setCategories(uniqueCategories);
-        console.log(`Found ${uniqueCategories.length} unique categories`);
+        return url;
+      };
+      
+      // Transform products to ensure they have all required fields
+      const transformedProducts = productsArray.map(product => {
+        // Process the image URL
+        const processedImageUrl = processImageUrl(product.image_url);
+        console.log(`Product ${product.id} image: ${product.image_url} → ${processedImageUrl}`);
+        
+        return {
+          id: product.id,
+          name: product.name || 'Unnamed Product',
+          description: product.description || '',
+          price: parseFloat(product.price || product.base_price || 0),
+          image_url: processedImageUrl, // Use the fixed URL
+          category: product.category || { name: 'Uncategorized' },
+          is_favorite: product.is_favorite ? true : false,
+          is_purchasable: product.is_purchasable !== undefined ? product.is_purchasable : true,
+          stock_status: product.stock_status || 'in_stock',
+          has_in_stock_variants: product.has_in_stock_variants || false,
+          variants: product.variants || [],
+          unit_size: product.unit_size || '',
+          unit_type: product.unit_type || '',
+          inventory_count: product.inventory_count || 0,
+          total_variant_inventory: product.total_variant_inventory || 0
+        };
+      });
+
+      setProducts(transformedProducts);
+      setFilteredProducts(transformedProducts);
+
+      // Extract categories
+      if (catalogResponse.categories && Array.isArray(catalogResponse.categories)) {
+        const categoryList = catalogResponse.categories.map(cat => 
+          typeof cat === 'object' ? cat : { id: cat, name: cat }
+        );
+        setCategories(categoryList);
       }
+
     } catch (error) {
       console.error('Catalog loading error:', error);
-      setError('Failed to load catalog. Pull down to refresh.');
+      setError(`Failed to load catalog: ${error.message}. Pull down to refresh.`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -117,22 +199,17 @@ const CatalogScreen = ({ navigation }) => {
   };
 
   const filterProducts = () => {
-    let filtered = [...products];
-    
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter(product => product.category === selectedCategory);
+    if (searchQuery.trim() === '') {
+      setFilteredProducts(products);
+      return;
     }
     
-    // Filter by search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(query) || 
-        (product.description && product.description.toLowerCase().includes(query))
-      );
-    }
-    
+    const query = searchQuery.toLowerCase();
+    const filtered = products.filter(product =>
+      (product.name && product.name.toLowerCase().includes(query)) ||
+      (product.description && product.description.toLowerCase().includes(query))
+    );
+
     setFilteredProducts(filtered);
   };
 
@@ -143,334 +220,628 @@ const CatalogScreen = ({ navigation }) => {
 
   const handleToggleFavorite = async (productId) => {
     if (!userToken) return;
-
     try {
+      console.log(`Attempting to toggle favorite for product ID: ${productId}`);
       const response = await toggleFavorite(userToken, productId);
+      console.log('Toggle favorite response:', response);
       
       if (response.success) {
-        // Update local state to reflect the change
-        setProducts(prevProducts => prevProducts.map(product => {
-          if (product.id === productId) {
-            return { ...product, is_favorite: !product.is_favorite };
-          }
-          return product;
-        }));
+        // Update both products and filteredProducts arrays
+        const updateProductList = (list) => list.map(p =>
+          p.id === productId ? { ...p, is_favorite: !p.is_favorite } : p
+        );
+        
+        setProducts(updateProductList(products));
+        setFilteredProducts(updateProductList(filteredProducts));
+        
+        // If the user has "favorites only" filter on and is unfavoriting an item, it may need to
+        // disappear from the list
+        if (favoritesOnly && response.is_favorite === false) {
+          setFilteredProducts(prev => prev.filter(p => p.id !== productId));
+        }
+        
+        // Show a toast or alert
+        const message = response.is_favorite 
+          ? 'Product added to favorites' 
+          : 'Product removed from favorites';
+        Alert.alert(
+          response.is_favorite ? 'Added to Favorites' : 'Removed from Favorites',
+          message
+        );
       } else {
-        console.error('Failed to toggle favorite:', response.error);
+        Alert.alert('Error', response.message || 'Failed to update favorites');
       }
     } catch (error) {
       console.error('Toggle favorite error:', error);
+      Alert.alert('Error', 'Failed to update favorites');
     }
   };
 
   const handleAddToCart = async (productId, quantity = 1) => {
-    if (!userToken) return;
+    // Show the Add to Cart modal instead of directly adding to cart
+    setSelectedProductId(productId);
+    setAddToCartModalVisible(true);
+  };
 
-    try {
-      const response = await addToCart(userToken, productId, null, quantity);
-      
-      if (response.success) {
-        // Show success message or update UI
-        alert('Product added to cart successfully!');
-      } else {
-        console.error('Failed to add to cart:', response.error);
-        alert('Failed to add product to cart. Please try again.');
-      }
-    } catch (error) {
-      console.error('Add to cart error:', error);
-      alert('Network error. Please try again.');
+  const getStockStatusInfo = (status) => {
+    switch(status) {
+      case 'in_stock':
+        return { label: 'In Stock', color: '#198754', icon: 'check-circle' };
+      case 'low_stock':
+        return { label: 'Low Stock', color: '#ffc107', icon: 'exclamation-circle' };
+      case 'variants_only':
+        return { label: 'Variants Only', color: '#ffc107', icon: 'exclamation-circle' };
+      case 'out_of_stock':
+      default:
+        return { label: 'Out of Stock', color: '#dc3545', icon: 'times-circle' };
     }
   };
 
-  const formatCurrency = (amount) => {
-    return '$' + parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+  const renderProductCard = ({ item }) => {
+    const stockStatus = getStockStatusInfo(item.stock_status);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardImageContainer}>
+          {item.image_url ? (
+            <Image 
+              source={{ uri: item.image_url }}
+              style={styles.cardImage}
+              resizeMode="cover"
+              onError={() => {
+                console.log(`Image failed to load for product ${item.id}: ${item.image_url}`);
+                // For debugging purposes, log the URL that failed
+              }}
+              onLoad={() => console.log(`Image loaded successfully for ${item.id}`)}
+            />
+          ) : (
+            <View style={styles.noImageContainer}>
+              <FallbackIcon name="image" iconType="FontAwesome" size={40} color="#cccccc" />
+            </View>
+          )}
+          <TouchableOpacity 
+            style={styles.favoriteButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleToggleFavorite(item.id);
+            }}
+          >
+            <FallbackIcon 
+              name="heart" 
+              iconType="FontAwesome" 
+              size={18} 
+              color={item.is_favorite ? '#dc3545' : '#ffffff'} 
+              style={styles.favoriteIcon}
+            />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.stockStatus} numberOfLines={1}>
+            <FallbackIcon 
+              name={stockStatus.icon} 
+              iconType="FontAwesome" 
+              size={12} 
+              color={stockStatus.color} 
+            /> {stockStatus.label}
+          </Text>
+          <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+          
+          {/* Display unit size and type if available */}
+          {(item.unit_size || item.unit_type) && (
+            <Text style={styles.unitInfo}>{item.unit_size} {item.unit_type}</Text>
+          )}
+          
+          {/* Display category */}
+          <Text style={styles.productCategory} numberOfLines={1}>{item.category?.name}</Text>
+          
+          {/* Display price and variants info */}
+          <Text style={styles.productPrice}>${parseFloat(item.price).toFixed(2)}</Text>
+          
+          {/* Variants information */}
+          {item.has_in_stock_variants && (
+            <View style={styles.variantsTag}>
+              <FallbackIcon name="tags" iconType="FontAwesome" size={10} color="#ffc107" />
+              <Text style={styles.variantsText}>
+                {item.total_variant_inventory 
+                  ? `${item.total_variant_inventory} in variants`
+                  : 'Variants available'}
+              </Text>
+            </View>
+          )}
+          
+          <TouchableOpacity
+            style={[
+              styles.addButton, 
+              (!item.is_purchasable || item.stock_status === 'out_of_stock') && styles.disabledButton
+            ]}
+            disabled={!item.is_purchasable || item.stock_status === 'out_of_stock'}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent navigating to product detail
+              navigation.navigate('ProductDetail', { productId: item.id });
+            }}
+          >
+            <FallbackIcon name="cart-plus" iconType="FontAwesome" size={16} color="#ffffff" />
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
-  const renderCategoryItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[
-        styles.categoryItem, 
-        selectedCategory === item && styles.selectedCategoryItem
-      ]}
-      onPress={() => setSelectedCategory(selectedCategory === item ? null : item)}
+  const renderCategoryModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showCategoryModal}
+      onRequestClose={() => setShowCategoryModal(false)}
     >
-      <Text 
-        style={[
-          styles.categoryText,
-          selectedCategory === item && styles.selectedCategoryText
-        ]}
-      >
-        {item}
-      </Text>
-    </TouchableOpacity>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Category</Text>
+            <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+              <FallbackIcon name="times" iconType="FontAwesome" size={20} color="#000" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalBody}>
+            <TouchableOpacity 
+              style={[styles.categoryItem, selectedCategory === null && styles.selectedCategory]}
+              onPress={() => {
+                setSelectedCategory(null);
+                setShowCategoryModal(false);
+              }}
+            >
+              <Text style={styles.categoryText}>All Categories</Text>
+            </TouchableOpacity>
+            
+            {categories.map((category) => (
+              <TouchableOpacity 
+                key={category.id} 
+                style={[
+                  styles.categoryItem, 
+                  selectedCategory === category.id && styles.selectedCategory
+                ]}
+                onPress={() => {
+                  setSelectedCategory(category.id);
+                  setShowCategoryModal(false);
+                }}
+              >
+                <Text style={styles.categoryText}>{category.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 
-  const renderProductItem = ({ item }) => (
-    <View style={styles.productCard}>
-      {item.image_url ? (
-        <Image 
-          source={{ uri: item.image_url }} 
-          style={styles.productImage}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={styles.productImagePlaceholder}>
-          <Text style={styles.productImagePlaceholderText}>No Image</Text>
+  const renderSortModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showSortModal}
+      onRequestClose={() => setShowSortModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Sort By</Text>
+            <TouchableOpacity onPress={() => setShowSortModal(false)}>
+              <FallbackIcon name="times" iconType="FontAwesome" size={20} color="#000" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalBody}>
+            {[
+              { id: 'name_asc', label: 'Name (A-Z)' },
+              { id: 'name_desc', label: 'Name (Z-A)' },
+              { id: 'price_asc', label: 'Price (Low to High)' },
+              { id: 'price_desc', label: 'Price (High to Low)' },
+              { id: 'popular', label: 'Most Popular' },
+            ].map((option) => (
+              <TouchableOpacity 
+                key={option.id} 
+                style={[
+                  styles.categoryItem, 
+                  sortOption === option.id && styles.selectedCategory
+                ]}
+                onPress={() => {
+                  setSortOption(option.id);
+                  setShowSortModal(false);
+                }}
+              >
+                <Text style={styles.categoryText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      )}
-      
-      <View style={styles.productHeader}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <TouchableOpacity
-          onPress={() => handleToggleFavorite(item.id)}
-          style={styles.favoriteButton}
-        >
-          <Text style={styles.favoriteIcon}>
-            {item.is_favorite ? '★' : '☆'}
-          </Text>
-        </TouchableOpacity>
       </View>
-      
-      {item.description && (
-        <Text 
-          style={styles.productDescription}
-          numberOfLines={2}
-        >
-          {item.description}
-        </Text>
-      )}
-      
-      <View style={styles.productFooter}>
-        <Text style={styles.productPrice}>
-          {formatCurrency(item.price)}
-        </Text>
-        
-        <TouchableOpacity
-          style={styles.addToCartButton}
-          onPress={() => handleAddToCart(item.id)}
-        >
-          <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </Modal>
   );
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={styles.loadingText}>Loading catalog...</Text>
+        <Text style={styles.loaderText}>Loading catalog...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          clearButtonMode="while-editing"
-        />
-      </View>
-      
-      {/* Categories horizontal list */}
-      {categories.length > 0 && (
-        <View style={styles.categoriesContainer}>
-          <FlatList
-            horizontal
-            data={categories}
-            renderItem={renderCategoryItem}
-            keyExtractor={(item) => item}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
+    <FranchiseeLayout title="Catalog">
+      {/* Search Bar */}
+      <View style={styles.searchBox}>
+        <View style={styles.searchInputContainer}>
+          <FallbackIcon name="search" iconType="FontAwesome" size={16} color="#666" style={styles.searchIcon} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search products..."
+            style={styles.searchInput}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
         </View>
-      )}
-      
+      </View>
+
+      {/* Filter Bar */}
+      <View style={styles.filterBar}>
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setShowCategoryModal(true)}
+        >
+          <FallbackIcon name="tag" iconType="FontAwesome" size={14} color="#0066cc" />
+          <Text style={styles.filterButtonText}>
+            {selectedCategory ? 
+              categories.find(c => c.id === selectedCategory)?.name || 'Category' : 
+              'Category'}
+          </Text>
+          <FallbackIcon name="chevron-down" iconType="FontAwesome" size={12} color="#0066cc" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={() => setShowSortModal(true)}
+        >
+          <FallbackIcon name="sort" iconType="FontAwesome" size={14} color="#0066cc" />
+          <Text style={styles.filterButtonText}>Sort</Text>
+          <FallbackIcon name="chevron-down" iconType="FontAwesome" size={12} color="#0066cc" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.filterButton, favoritesOnly && styles.activeFilterButton]}
+          onPress={() => setFavoritesOnly(!favoritesOnly)}
+        >
+          <FallbackIcon 
+            name="heart" 
+            iconType="FontAwesome" 
+            size={14} 
+            color={favoritesOnly ? "#dc3545" : "#0066cc"} 
+          />
+          <Text style={[
+            styles.filterButtonText, 
+            favoritesOnly && styles.activeFilterButtonText
+          ]}>
+            Favorites
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
-      
-      <FlatList
-        data={filteredProducts}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.productsList}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {searchQuery || selectedCategory
-                ? 'No products match your search'
-                : 'No products available'}
-            </Text>
-          </View>
-        }
-      />
-    </SafeAreaView>
+
+      {loading && !refreshing ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#0066cc" />
+          <Text style={styles.loaderText}>Loading catalog...</Text>
+        </View>
+      ) : filteredProducts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <FallbackIcon name="exclamation-circle" iconType="FontAwesome" size={50} color="#ccc" />
+          <Text style={styles.emptyText}>No products found</Text>
+          <Text style={styles.emptySubtext}>Try adjusting your filters or search terms</Text>
+          <TouchableOpacity style={styles.resetButton} onPress={() => {
+            setSearchQuery('');
+            setSelectedCategory(null);
+            setSortOption('newest');
+            setFavoritesOnly(false);
+            loadCatalog();
+          }}>
+            <Text style={styles.resetButtonText}>Reset Filters</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderProductCard}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          contentContainerStyle={styles.productList}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+        />
+      )}
+
+      {renderCategoryModal()}
+      {renderSortModal()}
+    </FranchiseeLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f5f5f5' 
   },
-  centered: {
+  loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#fff',
+    padding: 20
   },
-  loadingText: {
+  loaderText: {
     marginTop: 10,
-    fontSize: 16,
-    color: '#666',
+    color: '#0066cc'
   },
-  searchContainer: {
-    padding: 15,
+  searchBox: { 
+    padding: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#eee'
   },
-  searchInput: {
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f0f0f0',
-    padding: 10,
     borderRadius: 8,
-    fontSize: 16,
+    paddingHorizontal: 10
   },
-  categoriesContainer: {
+  searchIcon: {
+    marginRight: 8
+  },
+  searchInput: { 
+    flex: 1,
+    height: 40,
+    fontSize: 16
+  },
+  filterBar: {
+    flexDirection: 'row',
+    padding: 10,
     backgroundColor: '#fff',
-    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    justifyContent: 'space-between'
   },
-  categoriesList: {
-    paddingHorizontal: 15,
-  },
-  categoryItem: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginRight: 8
   },
-  selectedCategoryItem: {
-    backgroundColor: '#0066cc',
+  filterButtonText: {
+    color: '#0066cc',
+    marginHorizontal: 4,
+    fontSize: 14
   },
-  categoryText: {
-    fontSize: 14,
-    color: '#333',
+  activeFilterButton: {
+    backgroundColor: '#ffecef',
+    borderWidth: 1,
+    borderColor: '#ffc9d0'
   },
-  selectedCategoryText: {
-    color: '#fff',
+  activeFilterButtonText: {
+    color: '#dc3545'
   },
-  errorContainer: {
-    margin: 15,
-    padding: 10,
-    backgroundColor: '#ffebee',
-    borderRadius: 5,
+  productList: {
+    padding: 8
   },
-  errorText: {
-    color: '#c62828',
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 0
   },
-  productsList: {
-    padding: 15,
-  },
-  productCard: {
+  card: {
+    width: cardWidth,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 15,
+    borderRadius: 8,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
-  productImage: {
-    height: 150,
-    width: '100%',
-    backgroundColor: '#f0f0f0',
+  cardImageContainer: {
+    position: 'relative',
+    height: 140
   },
-  productImagePlaceholder: {
-    height: 150,
+  cardImage: {
     width: '100%',
-    backgroundColor: '#f0f0f0',
+    height: '100%'
+  },
+  noImageContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f9f9f9',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productImagePlaceholderText: {
-    color: '#999',
-  },
-  productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
+    alignItems: 'center'
   },
   favoriteButton: {
-    width: 30,
-    height: 30,
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   favoriteIcon: {
-    fontSize: 24,
-    color: '#ffc107',
+    // Additional styling if needed
   },
-  productDescription: {
+  cardContent: {
+    padding: 10
+  },
+  stockStatus: {
+    fontSize: 11,
+    marginBottom: 4
+  },
+  productName: {
     fontSize: 14,
-    color: '#666',
-    paddingHorizontal: 15,
-    marginBottom: 15,
+    fontWeight: 'bold',
+    marginBottom: 4
   },
-  productFooter: {
+  productCategory: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4
+  },
+  unitInfo: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2
+  },
+  variantsTag: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    marginBottom: 6,
+  },
+  variantsText: {
+    fontSize: 10,
+    color: '#856404',
+    marginLeft: 4
   },
   productPrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#0066cc',
+    marginBottom: 8
   },
-  addToCartButton: {
+  addButton: {
+    backgroundColor: '#28a745',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 4
+  },
+  addButtonText: {
+    color: '#fff',
+    marginLeft: 5,
+    fontSize: 14,
+    fontWeight: 'bold'
+  },
+  disabledButton: {
+    backgroundColor: '#ccc'
+  },
+  errorContainer: {
+    margin: 10,
+    padding: 15,
+    backgroundColor: '#ffe0e0',
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  errorText: {
+    color: '#d32f2f',
+    marginBottom: 10,
+    textAlign: 'center'
+  },
+  retryButton: {
     backgroundColor: '#0066cc',
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 5,
+    paddingHorizontal: 20,
+    borderRadius: 4
   },
-  addToCartButtonText: {
+  retryText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+    fontWeight: 'bold'
   },
   emptyContainer: {
-    padding: 30,
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 20
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
+    fontSize: 18,
+    color: '#666',
+    marginTop: 10
   },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center'
+  },
+  resetButton: {
+    marginTop: 20,
+    backgroundColor: '#0066cc',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 4
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    maxHeight: '70%'
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold'
+  },
+  modalBody: {
+    padding: 15
+  },
+  categoryItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  selectedCategory: {
+    backgroundColor: '#e6f2ff'
+  },
+  categoryText: {
+    fontSize: 16
+  }
 });
 
 export default CatalogScreen;

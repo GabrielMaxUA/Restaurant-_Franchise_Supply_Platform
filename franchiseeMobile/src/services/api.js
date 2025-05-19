@@ -1,69 +1,140 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-
+// Import session management from FranchiseeLayout
+import { sessionEventEmitter, handleApiResponse } from '../components/FranchiseeLayout';
 // Determine correct base URL based on platform
 import { Platform } from 'react-native';
+import axios from 'axios';
 
 export const BASE_URL = Platform.OS === 'ios' 
   ? 'http://localhost:8000/api'   // For iOS simulator
   : 'http://10.0.2.2:8000/api';   // For Android emulator 
 
+// Helper function to extract cart count from various API response formats
+export const extractCartCount = (response) => {
+  if (!response || typeof response !== 'object') {
+    console.log('❓ extractCartCount: Invalid response format', response);
+    return 0;
+  }
+  
+  console.log('🔍 extractCartCount: Examining response structure');
+  
+  // Direct items_count property
+  if (typeof response.items_count === 'number') {
+    console.log(`✅ Found direct items_count: ${response.items_count}`);
+    return response.items_count;
+  }
+  
+  // Count in cart object
+  if (response.cart) {
+    // Check for cart.items_count
+    if (typeof response.cart.items_count === 'number') {
+      console.log(`✅ Found cart.items_count: ${response.cart.items_count}`);
+      return response.cart.items_count;
+    }
+    
+    // Check for cart.items array
+    if (Array.isArray(response.cart.items)) {
+      console.log(`✅ Found cart.items array length: ${response.cart.items.length}`);
+      return response.cart.items.length;
+    }
+  }
+  
+  // Check for cart_items array
+  if (Array.isArray(response.cart_items)) {
+    console.log(`✅ Found cart_items array length: ${response.cart_items.length}`);
+    return response.cart_items.length;
+  }
+  
+  // Check for data property with nested count or arrays
+  if (response.data) {
+    // Direct count in data
+    if (typeof response.data.items_count === 'number') {
+      console.log(`✅ Found data.items_count: ${response.data.items_count}`);
+      return response.data.items_count;
+    }
+    
+    // Nested cart object in data
+    if (response.data.cart) {
+      if (typeof response.data.cart.items_count === 'number') {
+        console.log(`✅ Found data.cart.items_count: ${response.data.cart.items_count}`);
+        return response.data.cart.items_count;
+      }
+      
+      if (Array.isArray(response.data.cart.items)) {
+        console.log(`✅ Found data.cart.items array length: ${response.data.cart.items.length}`);
+        return response.data.cart.items.length;
+      }
+    }
+    
+    // Check for cart_items array in data
+    if (Array.isArray(response.data.cart_items)) {
+      console.log(`✅ Found data.cart_items array length: ${response.data.cart_items.length}`);
+      return response.data.cart_items.length;
+    }
+    
+    // Check if data itself is an array
+    if (Array.isArray(response.data)) {
+      console.log(`✅ Found data array length: ${response.data.length}`);
+      return response.data.length;
+    }
+  }
+  
+  console.log('⚠️ Could not find cart count in response');
+  return 0;
+};
+
 // For physical device testing, use your computer's actual IP address
 // export const BASE_URL = 'http://172.20.10.2:8000/api';
 
-// export const login = async (email, password) => {
-//   try {
-//     console.log('🔐 Attempting login with:', { email, password: '****' });
-//     console.log('🌐 Login API URL:', `${BASE_URL}/auth/login`);
+// CORS and Network Testing Function
+export const testCorsConnection = async () => {
+  try {
+    console.log(`🧪 Testing CORS connection to: ${BASE_URL}/cors-test`);
     
-//     const response = await fetch(`${BASE_URL}/auth/login`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Accept': 'application/json',
-//       },
-//       body: JSON.stringify({ email, password }),
-//     });
-
-//     console.log('🔐 Login response status:', response.status);
+    const response = await fetch(`${BASE_URL}/cors-test`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
-//     const data = await response.json();
-//     console.log('🔐 Login response data:', JSON.stringify(data, null, 2));
+    // Test the handleApiResponse function to see if it correctly detects auth issues
+    await handleApiResponse(response);
+    
+    console.log(`📊 CORS test status: ${response.status}`);
+    
+    // Log all response headers
+    console.log('📋 Response headers:');
+    response.headers.forEach((value, key) => {
+      console.log(`  ${key}: ${value}`);
+    });
+    
+    const text = await response.text();
+    console.log(`📝 Response body: ${text}`);
+    
+    if (response.ok) {
+      return {
+        success: true,
+        status: response.status,
+        data: text.length > 0 ? JSON.parse(text) : null
+      };
+    } else {
+      return {
+        success: false,
+        status: response.status,
+        error: text
+      };
+    }
+  } catch (error) {
+    console.error('❌ CORS test error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
 
-//     // Check for token in various possible locations in response
-//     const token = data.token || data.access_token || 
-//                  (data.data && (data.data.token || data.data.access_token));
-                 
-//     if (response.ok && token) {
-//       console.log('✅ Login successful, token found');
-      
-//       // Extract user data which might be at different paths
-//       const user = data.user || 
-//                   (data.data && data.data.user) || 
-//                   { id: 1, name: 'Franchisee User' };
-                  
-//       return {
-//         success: true,
-//         token: token,
-//         user: user,
-//       };
-//     } else {
-//       console.error('❌ Login failed:', data.message || data.error || 'Unknown error');
-//       return {
-//         success: false,
-//         error: data.message || data.error || 'Login failed - invalid credentials',
-//       };
-//     }
-//   } catch (error) {
-//     console.error('❌ Login error:', error);
-//     return {
-//       success: false,
-//       error: error.message || 'Network error',
-//     };
-//   }
-// };
 
 export const login = async (email, password) => {
   try {
@@ -129,50 +200,50 @@ export const login = async (email, password) => {
   }
 };
 
-// Add this to your API service
-export const testCorsConnection = async () => {
-  try {
-    console.log(`🧪 Testing CORS connection to: ${BASE_URL}/cors-test`);
+// // Add this to your API service
+// export const testCorsConnection = async () => {
+//   try {
+//     console.log(`🧪 Testing CORS connection to: ${BASE_URL}/cors-test`);
     
-    const response = await fetch(`${BASE_URL}/cors-test`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+//     const response = await fetch(`${BASE_URL}/cors-test`, {
+//       method: 'GET',
+//       headers: {
+//         'Accept': 'application/json',
+//       },
+//     });
     
-    console.log(`📊 CORS test status: ${response.status}`);
+//     console.log(`📊 CORS test status: ${response.status}`);
     
-    // Log all response headers
-    console.log('📋 Response headers:');
-    response.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
-    });
+//     // Log all response headers
+//     console.log('📋 Response headers:');
+//     response.headers.forEach((value, key) => {
+//       console.log(`  ${key}: ${value}`);
+//     });
     
-    const text = await response.text();
-    console.log(`📝 Response body: ${text}`);
+//     const text = await response.text();
+//     console.log(`📝 Response body: ${text}`);
     
-    if (response.ok) {
-      return {
-        success: true,
-        status: response.status,
-        data: JSON.parse(text)
-      };
-    } else {
-      return {
-        success: false,
-        status: response.status,
-        error: text
-      };
-    }
-  } catch (error) {
-    console.error('❌ CORS test error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
+//     if (response.ok) {
+//       return {
+//         success: true,
+//         status: response.status,
+//         data: JSON.parse(text)
+//       };
+//     } else {
+//       return {
+//         success: false,
+//         status: response.status,
+//         error: text
+//       };
+//     }
+//   } catch (error) {
+//     console.error('❌ CORS test error:', error);
+//     return {
+//       success: false,
+//       error: error.message
+//     };
+//   }
+// };
 
 export const logout = async () => {
   try {
@@ -463,10 +534,6 @@ export const getDashboardData = async () => {
   }
 };
 
-/**
- * Fetch the franchisee profile data
- * @returns {Promise<Object>} Response containing profile data or error
- */
 export const getProfileData = async () => {
   try {
     console.log('🚀 getProfileData - Function called');
@@ -581,11 +648,6 @@ export const getProfileData = async () => {
   }
 };
 
-/**
- * Update the franchisee profile
- * @param {Object} formData - FormData object containing profile data and logo
- * @returns {Promise<Object>} Response containing updated profile data or error
- */
 export const updateProfile = async (formData) => {
   try {
     console.log('🚀 updateProfile - Function called');
@@ -710,11 +772,6 @@ export const updateProfile = async (formData) => {
   }
 };
 
-/**
- * Update user password
- * @param {Object} passwordData - Object containing current_password, new_password, and new_password_confirmation
- * @returns {Promise<Object>} Response indicating success or failure
- */
 export const updatePassword = async (passwordData) => {
   try {
     console.log('🚀 updatePassword - Function called');
@@ -770,10 +827,6 @@ export const updatePassword = async (passwordData) => {
   }
 };
 
-/**
- * Delete the company logo
- * @returns {Promise<Object>} Response indicating success or failure
- */
 export const deleteLogo = async () => {
   try {
     console.log('🚀 deleteLogo - Function called');
@@ -827,10 +880,6 @@ export const deleteLogo = async () => {
   }
 };
 
-/**
- * Get common auth headers with token
- * @returns {Object} Headers object with Authorization
- */
 export const getAuthHeaders = async () => {
   try {
     const token = await AsyncStorage.getItem('userToken');
@@ -855,4 +904,540 @@ export const getAuthHeaders = async () => {
   }
 };
 
+/**Catalog data fetch */
+export const getCatalog = async (token, page = 1, filters = {}) => {
+  try {
+    // Build query parameters from filters
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    
+    // Add any additional filters
+    Object.keys(filters).forEach(key => {
+      if (filters[key]) {
+        queryParams.append(key, filters[key]);
+      }
+    });
+    
+    // Construct the URL
+    const url = `${BASE_URL}/franchisee/catalog?${queryParams.toString()}`;
+    
+    console.log('Fetching catalog from:', url);
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+    
+    console.log('Catalog API response status:', response.status);
+    console.log('Catalog API response structure:', Object.keys(response.data));
+    
+    // Return the response even if it doesn't match the expected structure
+    // so we can see what we're getting in the console
+    return {
+      success: response.data.success || false,
+      products: response.data.products || { data: [] },  // Ensure products is an object with data array
+      categories: response.data.categories || [],
+      message: response.data.message || '',
+    };
+  } catch (error) {
+    console.error('getCatalog error details:', error.response?.data || error.message);
+    
+    // Return a structured error response
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || 'Failed to fetch catalog',
+      products: { data: [] },
+      categories: [],
+    };
+  }
+};
+
+export const toggleFavorite = async (token, productId) => {
+  try {
+    console.log(`Toggling favorite for product ID: ${productId}`);
+    
+    // Use the correct endpoint path from your PHP controller
+    const response = await axios.post(`${BASE_URL}/franchisee/toggle-favorite`, {
+      product_id: productId,
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+    });
+    
+    console.log('Toggle favorite response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('toggleFavorite error:', error);
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      console.error('Error response status:', error.response.status);
+    }
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Failed to toggle favorite.' 
+    };
+  }
+};
+
+export const addToCart = async (token, productId, variantId = null, quantity = 1) => {
+  try {
+    console.log(`🛒 Adding to cart - Product ID: ${productId}, Variant ID: ${variantId}, Quantity: ${quantity}`);
+    
+    const payload = {
+      product_id: productId,
+      quantity: quantity
+    };
+    
+    // Only include variant_id if it's provided
+    if (variantId) {
+      payload.variant_id = variantId;
+    }
+    
+    // Use the correct endpoint path from your PHP controller
+    const response = await axios.post(`${BASE_URL}/franchisee/cart/add`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+    });
+    
+    console.log('✅ Add to cart response:', response.data);
+    
+    // Use extractCartCount to get consistent cart count
+    if (response.data && typeof response.data === 'object') {
+      // Make sure we have a success flag
+      if (!('success' in response.data)) {
+        response.data.success = true;
+      }
+      
+      // Extract and add cart count to response
+      const cartCount = extractCartCount(response.data);
+      console.log(`📊 Extracted cart count from add response: ${cartCount}`);
+      response.data.items_count = cartCount;
+    }
+    
+    // If successful, return the response
+    return response.data;
+  } catch (error) {
+    console.error('❌ addToCart error details:', error);
+    
+    // Check if it's an authentication error (401)
+    if (error.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected in addToCart');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+    
+    // Check for HTML response (redirect to login page)
+    const contentType = error.response?.headers?.['content-type'];
+    if (contentType && contentType.includes('text/html')) {
+      console.log('🔐 HTML response detected in addToCart (likely login redirect)');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+    
+    const errorMessage = error.response?.data?.message || 'Failed to add to cart.';
+    console.error('addToCart error message:', errorMessage);
+    
+    return { 
+      success: false, 
+      message: errorMessage
+    };
+  }
+};
+
+export const getCart = async (token) => {
+  console.log('🛒 getCart: Starting fetching cart data');
+  try {
+    if (!token) {
+      console.log('⛔ getCart: No token provided');
+      // Notify about token issue using the event system
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: No authentication token found');
+    }
+    
+    try {
+      console.log('🚀 getCart: Making API request');
+      const response = await axios.get(`${BASE_URL}/franchisee/cart`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      
+      // Successfully got cart data
+      console.log('✅ getCart: Successfully received data');
+      
+      // Ensure response has success flag
+      if (response.data && typeof response.data === 'object') {
+        if (!('success' in response.data)) {
+          response.data.success = true;
+        }
+        
+        // Use our helper to extract cart count consistently
+        const cartCount = extractCartCount(response.data);
+        console.log(`📊 getCart: Extracted cart count: ${cartCount}`);
+        
+        // Add consistent items_count property
+        response.data.items_count = cartCount;
+        
+        return response.data;
+      }
+      
+      return { 
+        success: true,
+        cart_items: [],
+        items_count: 0,
+        message: 'Empty cart'
+      };
+    } catch (axiosError) {
+      // Handle axios errors
+      console.log('🛑 Axios error on getCart:', axiosError);
+      
+      // Check if it's an authentication error (401)
+      if (axiosError.response && axiosError.response.status === 401) {
+        console.log('🔐 Authentication error (401) detected in getCart');
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check for HTML response (redirect to login page)
+      const contentType = axiosError.response?.headers?.['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.log('🔐 HTML response detected in getCart (likely login redirect)');
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Return error data from API if available
+      if (axiosError.response?.data) {
+        return { 
+          success: false,
+          error: axiosError.response.data.message || 'Failed to get cart data'
+        };
+      }
+      
+      // Default error
+      throw new Error('Failed to get cart data');
+    }
+  } catch (error) {
+    console.error('getCart error:', error.message);
+    
+    // Propagate authentication errors
+    if (error.message && error.message.includes('Authentication error')) {
+      throw error;
+    }
+    
+    // For other errors, return a structured error
+    return { 
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+export const updateCartItem = async (itemId, quantity) => {
+  // Add a special debug flag to see what's happening
+  console.log(`🧪 updateCartItem DEBUG START for item ID: ${itemId}, quantity: ${quantity}`);
+  
+  try {
+    console.log(`🔄 Updating cart item ${itemId} to quantity ${quantity}`);
+    const token = await AsyncStorage.getItem('userToken');
+    
+    if (!token) {
+      console.log(`⛔ No token available for updating item ${itemId}`);
+      // Notify about token issue using the event system
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: No authentication token found');
+    }
+    
+    console.log(`🔑 Using token for updating item ${itemId}: ${token.substring(0, 15)}...`);
+    
+    // Use axios instead of fetch for this specific call
+    // Axios handles JSON content-type better, especially with Laravel responses
+    try {
+      // Prepare the request payload
+      const payload = { 
+        items: [
+          {
+            id: itemId,           // Using 'id' instead of 'item_id' based on API error
+            quantity: quantity
+          }
+        ]
+      };
+      
+      console.log(`🚀 Making API call to update item ${itemId}`);
+      console.log('📦 Request payload:', JSON.stringify(payload, null, 2));
+      
+      // The API expects an "items" array with objects containing 'id' (not 'item_id') and 'quantity'
+      // Based on error messages: "The items field is required" and "The items.0.id field is required"
+      console.log(`📌 Using cart update endpoint: ${BASE_URL}/franchisee/cart/update`);
+      
+      let response;
+      try {
+        response = await axios.post(
+          `${BASE_URL}/franchisee/cart/update`, 
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000 // 10 second timeout
+          }
+        );
+      } catch (requestError) {
+        console.error(`❌ Request error in updateCartItem for ${itemId}:`, requestError);
+        
+        // Log the specific error response data if available
+        if (requestError.response && requestError.response.data) {
+          console.error('Error response data:', requestError.response.data);
+        }
+        
+        throw requestError;
+      }
+      
+      console.log(`✅ Update cart success for item ${itemId}:`, response.data);
+      
+      // Ensure we're returning a consistent structure
+      if (response.data && typeof response.data === 'object') {
+        if (!('success' in response.data)) {
+          // Add success flag if not present in the response
+          response.data.success = true;
+        }
+        
+        // Use extractCartCount to get consistent cart count
+        const cartCount = extractCartCount(response.data);
+        if (cartCount > 0) {
+          response.data.items_count = cartCount;
+        }
+        
+        return response.data;
+      } else {
+        // If the response is not an object or is empty, create a proper response object
+        return {
+          success: true,
+          message: 'Item updated successfully'
+        };
+      }
+    } catch (axiosError) {
+      // Handle axios errors
+      console.log(`🛑 Axios error on updateCartItem for item ${itemId}:`, axiosError.message);
+      
+      // Log the full error response
+      if (axiosError.response) {
+        console.log(`🔍 Error response status: ${axiosError.response.status}`);
+        console.log(`🔍 Error response headers:`, axiosError.response.headers);
+        console.log(`🔍 Error response data:`, axiosError.response.data);
+      }
+      
+      // Check if it's an authentication error (401)
+      if (axiosError.response && axiosError.response.status === 401) {
+        console.log(`🔐 Authentication error (401) detected for updating item ${itemId}`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check for HTML response (redirect to login page)
+      const contentType = axiosError.response?.headers?.['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.log(`🔐 HTML response detected for updating item ${itemId} (likely login redirect)`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Return the error message from the API if available
+      if (axiosError.response?.data?.message) {
+        console.log(`📝 API error message for updating item ${itemId}: ${axiosError.response.data.message}`);
+        return {
+          success: false,
+          message: axiosError.response.data.message
+        };
+      }
+      
+      // Default error message
+      console.log(`⚠️ Default error for updating item ${itemId}`);
+      throw new Error(`Failed to update item ${itemId} in cart`);
+    }
+  } catch (error) {
+    console.error(`❌ Error updating item ${itemId} in cart:`, error.message);
+    
+    // Special handling for authentication errors
+    if (error.message && error.message.includes('Authentication error')) {
+      // If it's an authentication error, let it bubble up so FranchiseeLayout can handle it
+      console.log(`🔒 Authentication error will bubble up for updating item ${itemId}`);
+      throw error;
+    }
+    
+    // For other errors, return a structured error
+    console.log(`⚠️ Returning structured error for updating item ${itemId}: ${error.message}`);
+    return {
+      success: false,
+      message: error.message || `Failed to update item ${itemId}`
+    };
+  } finally {
+    console.log(`🧪 updateCartItem DEBUG END for item ID: ${itemId}`);
+  }
+};
+
+export const removeCartItem = async (itemId) => {
+  // Add a special debug flag to see what's happening
+  console.log(`🧪 removeCartItem DEBUG START for item ID: ${itemId}`);
+  
+  try {
+    console.log(`🗑️ Removing cart item ${itemId}`);
+    const token = await AsyncStorage.getItem('userToken');
+    
+    if (!token) {
+      console.log(`⛔ No token available for item ${itemId}`);
+      // Notify about token issue using the event system
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: No authentication token found');
+    }
+    
+    console.log(`🔑 Using token for item ${itemId}: ${token.substring(0, 15)}...`);
+    
+    // Use axios instead of fetch for this specific call
+    // Axios handles JSON content-type better, especially with Laravel responses
+    try {
+      console.log(`🚀 Making API call to remove item ${itemId}`);
+      const response = await axios.post(`${BASE_URL}/franchisee/cart/remove`, 
+        { item_id: itemId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log(`✅ Remove from cart success for item ${itemId}:`, response.data);
+      
+      // Ensure we're returning a consistent structure
+      if (response.data && typeof response.data === 'object') {
+        if (!('success' in response.data)) {
+          // Add success flag if not present in the response
+          response.data.success = true;
+        }
+        
+        // Use extractCartCount to get consistent cart count and add it to the response
+        const cartCount = extractCartCount(response.data);
+        console.log(`📊 Extracted cart count from remove response: ${cartCount}`);
+        response.data.items_count = cartCount;
+        
+        return response.data;
+      } else {
+        // If the response is not an object or is empty, create a proper response object
+        return {
+          success: true,
+          message: 'Item removed successfully'
+        };
+      }
+    } catch (axiosError) {
+      // Handle axios errors
+      console.log(`🛑 Axios error on removeCartItem for item ${itemId}:`, axiosError.message);
+      
+      // Log the full error response
+      if (axiosError.response) {
+        console.log(`🔍 Error response status: ${axiosError.response.status}`);
+        console.log(`🔍 Error response headers:`, axiosError.response.headers);
+        console.log(`🔍 Error response data:`, axiosError.response.data);
+      }
+      
+      // Check if it's an authentication error (401)
+      if (axiosError.response && axiosError.response.status === 401) {
+        console.log(`🔐 Authentication error (401) detected for item ${itemId}`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check for HTML response (redirect to login page)
+      const contentType = axiosError.response?.headers?.['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.log(`🔐 HTML response detected for item ${itemId} (likely login redirect)`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Return the error message from the API if available
+      if (axiosError.response?.data?.message) {
+        console.log(`📝 API error message for item ${itemId}: ${axiosError.response.data.message}`);
+        return {
+          success: false,
+          message: axiosError.response.data.message
+        };
+      }
+      
+      // Default error message
+      console.log(`⚠️ Default error for item ${itemId}`);
+      throw new Error(`Failed to remove item ${itemId} from cart`);
+    }
+  } catch (error) {
+    console.error(`❌ Error removing item ${itemId} from cart:`, error.message);
+    
+    // Special handling for authentication errors
+    if (error.message && error.message.includes('Authentication error')) {
+      // If it's an authentication error, let it bubble up so FranchiseeLayout can handle it
+      console.log(`🔒 Authentication error will bubble up for item ${itemId}`);
+      throw error;
+    }
+    
+    // For other errors, return a structured error
+    console.log(`⚠️ Returning structured error for item ${itemId}: ${error.message}`);
+    return {
+      success: false,
+      message: error.message || `Failed to remove item ${itemId}`
+    };
+  } finally {
+    console.log(`🧪 removeCartItem DEBUG END for item ID: ${itemId}`);
+  }
+};
+
+export const getProductDetails = async (token, productId) => {
+  try {
+    console.log(`Fetching details for product ID: ${productId}`);
+    
+    // Use the new API endpoint for mobile app
+    const response = await axios.get(`${BASE_URL}/franchisee/products/${productId}/details`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+    
+    console.log('Product details response status:', response.status);
+    
+    // Check if we got a valid response
+    if (response.data && response.data.success && response.data.product) {
+      console.log('Successfully received product details data');
+      
+      // Return the product data directly as provided by the API
+      return response.data;
+    }
+    
+    return {
+      success: false,
+      message: response.data?.message || 'Invalid response format'
+    };
+  } catch (error) {
+    console.error('getProductDetails error:', error);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+    }
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to fetch product details'
+    };
+  }
+};
 

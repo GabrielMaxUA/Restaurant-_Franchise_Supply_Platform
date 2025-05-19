@@ -3,15 +3,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ActivityIndicator } from 'react-native';
-
 // Import screens
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
 import ProfileViewScreen from '../screens/ProfileViewScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
-import NetworkTestScreen from '../screens/NetworkTestScreen';
 
+import CartScreen from '../screens/CartScreen';
+import CatalogScreen from '../screens/CatalogScreen';
+import ProductDetailScreen from '../screens/ProductDetailScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -63,7 +64,22 @@ const AppNavigator = () => {
         <Stack.Screen name="Profile" component={ProfileViewScreen} />
         <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-        <Stack.Screen name="NetworkTest" component={NetworkTestScreen} />
+        <Stack.Screen name="Cart" component={CartScreen} />
+        <Stack.Screen name="Catalog" component={CatalogScreen} />
+        <Stack.Screen 
+          name="ProductDetail" 
+          component={ProductDetailScreen} 
+          options={{
+            presentation: 'modal', // This makes it appear as a modal
+            cardOverlayEnabled: true,
+            ...Platform.select({
+              ios: {
+                gestureEnabled: true,
+                gestureResponseDistance: { vertical: 800 }
+              }
+            })
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

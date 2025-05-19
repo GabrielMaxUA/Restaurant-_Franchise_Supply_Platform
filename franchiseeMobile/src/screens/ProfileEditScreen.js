@@ -13,13 +13,11 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { updateProfile, BASE_URL, testCorsConnection } from '../services/api'; // Adjust path as needed
+import { updateProfile, BASE_URL } from '../services/api'; // Adjust path as needed
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { PermissionsAndroid } from 'react-native';
 import Toast from 'react-native-toast-message';
-
-// Import FranchiseeLayout for consistent app appearance
 import FranchiseeLayout from '../components/FranchiseeLayout';
 
 // Mock image picker function as fallback
@@ -65,10 +63,7 @@ const ProfileEditScreen = ({ navigation }) => {
   const [logoToUpload, setLogoToUpload] = useState(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [useMock, setUseMock] = useState(false); // Flag to determine if mock should be used
-  
-  // Cart count for header - you can update this based on your app's state management
-  const [cartCount, setCartCount] = useState(0);
-  
+    
   // Fetch cart count - you can modify this to fit your actual cart implementation
   useEffect(() => {
 
@@ -135,17 +130,6 @@ const ProfileEditScreen = ({ navigation }) => {
     };
     
     checkApiConnection();
-    const getCartCount = async () => {
-      try {
-        // This is just a placeholder - replace with your actual cart logic
-        const count = 0; // Get this from your cart state or API
-        setCartCount(count);
-      } catch (error) {
-        console.error('Error getting cart count:', error);
-      }
-    };
-    
-    getCartCount();
   }, []);
 
   // Fetch profile data on component mount
