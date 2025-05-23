@@ -11,104 +11,127 @@ use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of products for franchisees.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function index(Request $request)
-    { 
-
-        $query = Product::with(['category', 'images', 'variants.images']);
-        
-        // Filter by name
-        if ($request->filled('name')) {
-            $query->where('name', 'like', '%' . $request->name . '%');
-        }
-        
-        // Filter by category
-        if ($request->filled('category')) {
-            $query->where('category_id', $request->category);
-        }
-        
-        // Filter by inventory status
-        if ($request->filled('inventory')) {
-            switch ($request->inventory) {
-                case 'in_stock':
-                    $query->where('inventory_count', '>', 0);
-                    break;
-                case 'low_stock':
-                    $query->where('inventory_count', '>', 0)
-                          ->where('inventory_count', '<=', 10);
-                    break;
-                case 'out_of_stock':
-                    $query->where('inventory_count', 0);
-                    break;
+/**
+ * Display the cart contents.
+ * Supports both web and API requests.
+ * 
+ * @param  \Illuminate\Http\Request  $request
+ * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+ */
+public function index(Request $request)
+{
+    $cart = $this->getOrCreateCart();
+    $cartItems = [];
+    $total = 0;
+    
+    // Eager load related models for performance - INCLUDE inventory_count in select
+    $items = $cart->items()->with([
+        'product' => function($query) {
+            $query->select('id', 'name', 'description', 'base_price', 'inventory_count'); // Make sure inventory_count is selected
+        },
+        'variant' => function($query) {
+            $query->select('id', 'name', 'price_adjustment', 'inventory_count'); // Make sure inventory_count is selected
+        },
+        'product.images'
+    ])->get();
+    
+    foreach ($items as $item) {
+        if ($item->variant_id) {
+            $variant = $item->variant;
+            $product = $item->product;
+            
+            // UPDATED: Use variant's price_adjustment directly as the price
+            $price = $variant->price_adjustment;
+            
+            $itemData = [
+                'id' => $item->id,
+                'product' => $product,
+                'variant' => $variant,
+                'quantity' => $item->quantity,
+                'price' => $price,
+                'subtotal' => $price * $item->quantity
+            ];
+            
+            // For API responses, include only necessary product and variant data
+            if ($request->expectsJson() || $request->wantsJson()) {
+                $itemData['product'] = [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'base_price' => $product->base_price,
+                    'inventory_count' => $product->inventory_count, // FIXED: Include inventory_count for products
+                    'image_url' => $product->images->isNotEmpty()
+                      ? asset('storage/' . $product->images->first()->image_url)
+                      : null
+                ];
+                
+                if ($variant) {
+                    $itemData['variant'] = [
+                        'id' => $variant->id,
+                        'name' => $variant->name,
+                        'price_adjustment' => $variant->price_adjustment,
+                        'inventory_count' => $variant->inventory_count
+                    ];
+                }
             }
-        }
-        
-        // Apply sorting
-        if ($request->filled('sort')) {
-            switch ($request->sort) {
-                case 'name_asc':
-                    $query->orderBy('name', 'asc');
-                    break;
-                case 'name_desc':
-                    $query->orderBy('name', 'desc');
-                    break;
-                case 'price_asc':
-                    $query->orderBy('base_price', 'asc');
-                    break;
-                case 'price_desc':
-                    $query->orderBy('base_price', 'desc');
-                    break;
-                case 'popular':
-                    $query->withCount('orderItems')
-                          ->orderBy('order_items_count', 'desc');
-                    break;
-                default:
-                    $query->orderBy('created_at', 'desc');
-                    break;
-            }
+            
+            $cartItems[] = $itemData;
+            $total += $price * $item->quantity;
         } else {
-            // Default sorting by newest
-            $query->orderBy('created_at', 'desc');
-        }
-        
-        // Get the franchisee's favorites to mark products
-        $franchisee = Auth::user();
-        $favoriteIds = Favorite::where('franchisee_id', $franchisee->id)
-            ->pluck('product_id')
-            ->toArray();
-        
-        $products = $query->paginate(12);
-        
-        // Mark favorites
-        foreach ($products as $product) {
-            $product->is_favorite = in_array($product->id, $favoriteIds);
-            
-            // Convert inventory_count to stock_status for the views
-            if ($product->inventory_count <= 0) {
-                $product->stock_status = 'out_of_stock';
-            } elseif ($product->inventory_count <= 10) {
-                $product->stock_status = 'low_stock';
-            } else {
-                $product->stock_status = 'in_stock';
+            $product = $item->product;
+            if ($product) {
+                $itemData = [
+                    'id' => $item->id,
+                    'product' => $product,
+                    'variant' => null,
+                    'quantity' => $item->quantity,
+                    'price' => $product->base_price,
+                    'subtotal' => $product->base_price * $item->quantity
+                ];
+                
+                // For API responses, include only necessary product data
+                if ($request->expectsJson() || $request->wantsJson()) {
+                    $itemData['product'] = [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'description' => $product->description,
+                        'base_price' => $product->base_price,
+                        'inventory_count' => $product->inventory_count, // FIXED: Include inventory_count for products
+                        'image_url' => $product->images->isNotEmpty()
+                          ? asset('storage/' . $product->images->first()->image_url)
+                          : null
+                    ];
+                }
+                
+                $cartItems[] = $itemData;
+                $total += $product->base_price * $item->quantity;
             }
-            
-            // Map base_price to price for consistency in views
-            $product->price = $product->base_price;
-            
-            // Set stock_quantity from inventory_count
-            $product->stock_quantity = $product->inventory_count;
         }
-        
-        $categories = Category::withCount('products')->get();
-        $total_products = Product::count();
-        
-        return view('franchisee.catalog', compact('products', 'categories', 'total_products'));
     }
+    
+    // Add debug logging to verify inventory data is being loaded
+    \Log::info('Cart API Response Debug:', [
+        'user_id' => Auth::id(),
+        'items_count' => count($cartItems),
+        'sample_item_inventory' => count($cartItems) > 0 ? [
+            'product_inventory' => $cartItems[0]['product']['inventory_count'] ?? 'MISSING',
+            'variant_inventory' => $cartItems[0]['variant']['inventory_count'] ?? 'N/A'
+        ] : 'No items'
+    ]);
+    
+    // Check if this is an API request
+    if ($request->expectsJson() || $request->wantsJson()) {
+        return response()->json([
+            'success' => true,
+            'cart_items' => $cartItems,
+            'total' => $total,
+            'items_count' => count($cartItems)
+        ]);
+    }
+    
+    // Web response
+    return view('franchisee.cart', compact('cartItems', 'total'));
+}
     
   /**
  * Display the specified product details.

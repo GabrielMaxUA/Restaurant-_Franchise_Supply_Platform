@@ -26,19 +26,6 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 //     ]);
 // });
 
-// In your routes/api.php for testing only - remove in production
-// Route::post('/test-profile-update', function(Request $request) {
-//   return response()->json([
-//       'success' => true,
-//       'received' => [
-//           'fields' => $request->all(),
-//           'files' => $request->hasFile('logo') ? 'Has logo file' : 'No logo file',
-//           'method' => $request->method(),
-//           'content_type' => $request->header('Content-Type'),
-//           'authorization' => $request->hasHeader('Authorization') ? 'Present' : 'Missing'
-//       ]
-//   ]);
-// });
 // Protected routes with JWT
 Route::group(['middleware' => ['auth:api']], function () {
 
@@ -60,6 +47,11 @@ Route::group(['middleware' => ['auth:api']], function () {
         Route::post('/profile/password', [App\Http\Controllers\Franchisee\ProfileController::class, 'apiUpdatePassword']);
         Route::delete('/profile/logo', [App\Http\Controllers\Franchisee\ProfileController::class, 'apiDeleteLogo']);
         
+        // Push notification management
+        Route::post('/fcm-token', [App\Http\Controllers\Franchisee\ProfileController::class, 'updateFcmToken']);
+        Route::delete('/fcm-token', [App\Http\Controllers\Franchisee\ProfileController::class, 'removeFcmToken']);
+        Route::post('/test-notification', [App\Http\Controllers\Franchisee\ProfileController::class, 'sendTestNotification']);
+        
         //Catalog
         Route::get('/catalog', [App\Http\Controllers\Franchisee\CatalogController::class, 'index']);
         Route::post('/toggle-favorite', [App\Http\Controllers\Franchisee\CatalogController::class, 'toggleFavorite']);
@@ -73,13 +65,35 @@ Route::group(['middleware' => ['auth:api']], function () {
         Route::get('/cart/clear', [App\Http\Controllers\Franchisee\CartController::class, 'clearCart']);
         Route::get('/cart/checkout', [App\Http\Controllers\Franchisee\CartController::class, 'checkout']);
         Route::post('/cart/place-order', [App\Http\Controllers\Franchisee\CartController::class, 'placeOrder']);
+        Route::post('/cart/update-item', [App\Http\Controllers\Franchisee\CartController::class, 'updateCartItemQuantity']);
+        Route::post('/cart/place-order', [App\Http\Controllers\Franchisee\CartController::class, 'placeOrder']);
+        // Orders - Updated with full API functionality
+        Route::prefix('orders')->group(function () {
+            // Get pending orders (with optional status filter)
+            Route::get('/pending', [App\Http\Controllers\Franchisee\OrderController::class, 'pendingOrders']);
+            
+            // Get order history (with optional filters)
+            Route::get('/history', [App\Http\Controllers\Franchisee\OrderController::class, 'orderHistory']);
+            
+            // Get detailed information for a specific order
+            Route::get('/{id}', [App\Http\Controllers\Franchisee\OrderController::class, 'orderDetails'])
+                ->where('id', '[0-9]+');
+            
+            // Update order status
+            Route::patch('/{id}/status/{status}', [App\Http\Controllers\Franchisee\OrderController::class, 'updateOrderStatus'])
+                ->where('id', '[0-9]+');
+            
+                // Repeat a previous order - API VERSION
+            Route::post('/{id}/repeat-api', [App\Http\Controllers\Franchisee\OrderController::class, 'repeatOrderApi'])
+            ->where('id', '[0-9]+');
+            
+            // Generate invoice
+            Route::get('/{id}/invoice', [App\Http\Controllers\Franchisee\OrderController::class, 'generateInvoice'])
+                ->where('id', '[0-9]+');
+        });
         
-        //Orders
-        Route::get('/orders/pending', [App\Http\Controllers\Franchisee\OrderController::class, 'pendingOrders']);
-        Route::get('/orders/history', [App\Http\Controllers\Franchisee\OrderController::class, 'orderHistory']);
-        Route::get('/orders/{order}/details', [App\Http\Controllers\Franchisee\OrderController::class, 'orderDetails']);
-        Route::get('/orders/{order}/repeat', [App\Http\Controllers\Franchisee\OrderController::class, 'repeatOrder']);
-        Route::get('/orders/{order}/invoice', [App\Http\Controllers\Franchisee\OrderController::class, 'generateInvoice']);
+        // Dismiss welcome banner
+        Route::post('/dismiss-welcome', [App\Http\Controllers\Franchisee\OrderController::class, 'dismissWelcomeBanner']);
     });
 });
 

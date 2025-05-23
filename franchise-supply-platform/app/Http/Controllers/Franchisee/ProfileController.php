@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\FranchiseeProfile;
+use App\Services\PushNotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class ProfileController extends Controller
 {
@@ -631,6 +633,134 @@ public function apiDeleteLogo()
         return response()->json([
             'success' => false,
             'message' => 'Failed to delete logo: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Update FCM token for push notifications
+ *
+ * @param \Illuminate\Http\Request $request
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function updateFcmToken(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'fcm_token' => 'required|string|max:255'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Invalid FCM token provided',
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    try {
+        $user = Auth::user();
+        $user->fcm_token = $request->fcm_token;
+        $user->save();
+
+        Log::info('FCM token updated for user', [
+            'user_id' => $user->id,
+            'token_preview' => substr($request->fcm_token, 0, 20) . '...'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'FCM token updated successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Failed to update FCM token', [
+            'user_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update FCM token'
+        ], 500);
+    }
+}
+
+/**
+ * Remove FCM token (when user logs out or uninstalls app)
+ *
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function removeFcmToken()
+{
+    try {
+        $user = Auth::user();
+        $user->fcm_token = null;
+        $user->save();
+
+        Log::info('FCM token removed for user', [
+            'user_id' => $user->id
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'FCM token removed successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Failed to remove FCM token', [
+            'user_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to remove FCM token'
+        ], 500);
+    }
+}
+
+/**
+ * Send test push notification (for development/testing)
+ *
+ * @param \Illuminate\Http\Request $request
+ * @param \App\Services\PushNotificationService $pushService
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function sendTestNotification(Request $request, PushNotificationService $pushService)
+{
+    try {
+        $user = Auth::user();
+        
+        if (!$user->fcm_token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No FCM token found for this user'
+            ], 400);
+        }
+
+        $success = $pushService->sendTestNotification($user->fcm_token);
+
+        if ($success) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Test notification sent successfully'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send test notification'
+            ], 500);
+        }
+
+    } catch (\Exception $e) {
+        Log::error('Failed to send test notification', [
+            'user_id' => Auth::id(),
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to send test notification'
         ], 500);
     }
 }

@@ -141,28 +141,142 @@
 
     </style>
     @yield('styles')
+    
+    <!-- Enhanced 15-Minute Inactivity System -->
     <script>
-        // === Inactivity timer config ===
-        let inactivityLimit = 15 * 60 * 1000; // 1 minute (60 seconds) for testing
-        let inactivityTimer;
-
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                // Show alert and redirect
-                alert("Sorry, you were gone too long. Please log in.");
-                window.location.href = "{{ url('/logout') }}"; // or route('login')
-            }, inactivityLimit);
-        }
-      
-        // Reset timer on common user activity
-        ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
-            document.addEventListener(evt, resetInactivityTimer, false);
+        // ============================================================================
+        // 15-MINUTE INACTIVITY LOGOUT SYSTEM - WEB VERSION
+        // ============================================================================
+        
+        // Activity tracking variables
+        let lastUserActivity = Date.now();
+        let lastActivityLog = 0;
+        const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+        const ACTIVITY_LOG_THROTTLE = 5000; // Only log activity every 5 seconds
+        let inactivityLogoutTimer = null;
+        let logoutInProgress = false;
+        
+        // User activity tracking function with throttling
+        const updateUserActivity = (source = 'unknown') => {
+            const now = Date.now();
+            const timeSinceLastActivity = now - lastUserActivity;
+            const wasInactive = timeSinceLastActivity > INACTIVITY_TIMEOUT;
+            const shouldLog = (now - lastActivityLog) > ACTIVITY_LOG_THROTTLE || wasInactive;
+            
+            lastUserActivity = now;
+            
+            // Only log if enough time has passed or user was inactive
+            if (shouldLog) {
+                lastActivityLog = now;
+                console.log('🔄 Admin activity detected:', new Date(now).toLocaleTimeString());
+                console.log(`📍 Activity source: ${source}`);
+                console.log(`📊 USER STATE: ${wasInactive ? 'INACTIVE → ACTIVE' : 'ACTIVE (continued)'}`);
+                console.log(`⏱️ Time since last activity: ${(timeSinceLastActivity / 1000).toFixed(1)}s`);
+            }
+            
+            // Always clear and restart timer
+            if (inactivityLogoutTimer) {
+                clearTimeout(inactivityLogoutTimer);
+                if (shouldLog) {
+                    console.log('⏰ Cleared previous inactivity timer');
+                }
+            }
+            
+            // Start new inactivity timer
+            scheduleInactivityLogout(shouldLog);
+        };
+        
+        // Schedule inactivity logout
+        const scheduleInactivityLogout = (shouldLog = true) => {
+            if (logoutInProgress) {
+                if (shouldLog) console.log('🚫 Logout already in progress, skipping inactivity timer');
+                return;
+            }
+            
+            if (shouldLog) {
+                const timeoutMinutes = INACTIVITY_TIMEOUT / (60 * 1000);
+                console.log(`⏰ INACTIVITY TIMER: Scheduling logout in ${timeoutMinutes} minutes`);
+                console.log(`📅 LOGOUT SCHEDULED FOR: ${new Date(Date.now() + INACTIVITY_TIMEOUT).toLocaleTimeString()}`);
+            }
+            
+            inactivityLogoutTimer = setTimeout(() => {
+                console.log('🕒 ===============================================');
+                console.log('🕒 15 MINUTES OF INACTIVITY DETECTED - LOGGING OUT');
+                console.log('🕒 ===============================================');
+                handleInactivityLogout();
+            }, INACTIVITY_TIMEOUT);
+        };
+        
+        // Handle inactivity logout
+        const handleInactivityLogout = () => {
+            if (logoutInProgress) {
+                console.log('🚫 Logout already in progress');
+                return;
+            }
+            
+            logoutInProgress = true;
+            
+            try {
+                // Clear timer
+                if (inactivityLogoutTimer) {
+                    clearTimeout(inactivityLogoutTimer);
+                    inactivityLogoutTimer = null;
+                }
+                
+                console.log('🕒 Performing inactivity logout for admin user');
+                
+                // Show inactivity alert and redirect
+                alert("You have been automatically logged out due to 15 minutes of inactivity. Please log in again.");
+                window.location.href = "{{ url('/logout') }}";
+                
+            } catch (error) {
+                console.error('❌ Error during inactivity logout:', error);
+                // Still redirect even if there was an error
+                window.location.href = "{{ url('/logout') }}";
+            } finally {
+                logoutInProgress = false;
+            }
+        };
+        
+        // Initialize activity tracking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 Admin inactivity system initialized');
+            updateUserActivity('page_load');
+            
+            // Set up periodic activity monitoring (every 2 minutes)
+            setInterval(() => {
+                const timeSinceActivity = Date.now() - lastUserActivity;
+                const userActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+                const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+                const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+                
+                console.log('⏰ ==========================================');
+                console.log('⏰ ADMIN ACTIVITY CHECK');
+                console.log('⏰ ==========================================');
+                console.log(`👤 User state: ${userActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+                console.log(`⏱️ Time since activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+                console.log('⏰ ==========================================');
+            }, 2 * 60 * 1000); // Check every 2 minutes
         });
-      
-        // Start the timer initially
-        resetInactivityTimer();
-  </script>
+        
+        // Enhanced activity detection
+        const activityEvents = [
+            'click', 'mousemove', 'keypress', 'scroll', 'touchstart', 
+            'mousedown', 'keydown', 'wheel', 'input'
+        ];
+        
+        activityEvents.forEach(eventType => {
+            document.addEventListener(eventType, () => updateUserActivity(eventType), true);
+        });
+        
+        // Register activity for specific admin actions
+        const registerAdminActivity = (action) => {
+            updateUserActivity(`admin_${action}`);
+        };
+        
+        // Make function globally available for onclick handlers
+        window.registerAdminActivity = registerAdminActivity;
+    </script>
 </head>
 <body>
     <div class="container-fluid">
@@ -177,25 +291,33 @@
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}" href="{{ url('/admin/dashboard') }}">
+                            <a class="nav-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/dashboard') }}"
+                               onclick="registerAdminActivity('dashboard_navigation')">
                                 <i class="fas fa-tachometer-alt me-2"></i>
                                 Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/products*') ? 'active' : '' }}" href="{{ url('/admin/products') }}">
+                            <a class="nav-link {{ request()->is('admin/products*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/products') }}"
+                               onclick="registerAdminActivity('products_navigation')">
                                 <i class="fas fa-box me-2"></i>
                                 Products
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/categories*') ? 'active' : '' }}" href="{{ url('/admin/categories') }}">
+                            <a class="nav-link {{ request()->is('admin/categories*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/categories') }}"
+                               onclick="registerAdminActivity('categories_navigation')">
                                 <i class="fas fa-tags me-2"></i>
                                 Categories
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/orders*') ? 'active' : '' }}" href="{{ url('/admin/orders') }}">
+                            <a class="nav-link {{ request()->is('admin/orders*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/orders') }}"
+                               onclick="registerAdminActivity('orders_navigation')">
                                 <i class="fas fa-shopping-cart me-2"></i>
                                 Orders
                                 @php
@@ -207,13 +329,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}" href="{{ url('/admin/users') }}">
+                            <a class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/users') }}"
+                               onclick="registerAdminActivity('users_navigation')">
                                 <i class="fas fa-users me-2"></i>
                                 Users
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('admin/quickbooks*') ? 'active' : '' }}" href="{{ url('/admin/quickbooks') }}">
+                            <a class="nav-link {{ request()->is('admin/quickbooks*') ? 'active' : '' }}" 
+                               href="{{ url('/admin/quickbooks') }}"
+                               onclick="registerAdminActivity('quickbooks_navigation')">
                                 <i class="fas fa-calculator me-2"></i>
                                 QuickBooks
                             </a>
@@ -222,7 +348,9 @@
 
                     <hr>
                     <div class="px-3 mt-4">
-                        <a href="{{ url('/logout') }}" class="btn btn-danger w-100">
+                        <a href="{{ url('/logout') }}" 
+                           class="btn btn-danger w-100"
+                           onclick="registerAdminActivity('manual_logout')">
                             <i class="fas fa-sign-out-alt me-2"></i> Logout
                         </a>
                     </div>
@@ -230,7 +358,7 @@
             </div>
             
             <!-- Toggle button as a separate element outside the sidebar -->
-            <div id="sidebar-toggle" class="sidebar-toggle">
+            <div id="sidebar-toggle" class="sidebar-toggle" onclick="registerAdminActivity('sidebar_toggle')">
                 <i id="toggle-icon" class="fas fa-chevron-left"></i>
             </div>
             
@@ -244,18 +372,30 @@
                             @include('layouts.components.notification-bell')
                             
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button class="btn btn-outline-secondary dropdown-toggle" 
+                                        type="button" 
+                                        id="userDropdown" 
+                                        data-bs-toggle="dropdown" 
+                                        aria-expanded="false"
+                                        onclick="registerAdminActivity('user_dropdown')">
                                     <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? Auth::user()->email ?? 'Admin' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                     <li>
-                                      <a class="dropdown-item" href="{{ url('/admin/profile') }}">
+                                      <a class="dropdown-item" 
+                                         href="{{ url('/admin/profile') }}"
+                                         onclick="registerAdminActivity('profile_navigation')">
                                         <i class="fas fa-cog me-2"></i>Settings
-                                      </a></li>
+                                      </a>
+                                    </li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                      </a></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{{ url('/logout') }}"
+                                           onclick="registerAdminActivity('manual_logout')">
+                                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -279,7 +419,9 @@
                                         <i class="fas fa-clock me-2"></i>
                                         <div>
                                             <strong>{{ $pendingOrders }} {{ Str::plural('order', $pendingOrders) }}</strong> pending approval
-                                            <a href="{{ route('admin.orders.index', ['status' => 'pending']) }}" class="btn btn-sm btn-warning ms-3">
+                                            <a href="{{ route('admin.orders.index', ['status' => 'pending']) }}" 
+                                               class="btn btn-sm btn-warning ms-3"
+                                               onclick="registerAdminActivity('pending_orders_view')">
                                                 View Orders
                                             </a>
                                         </div>
@@ -295,7 +437,9 @@
                                         <i class="fas fa-box me-2"></i>
                                         <div>
                                             <strong>{{ $activeOrders }} {{ Str::plural('order', $activeOrders) }}</strong> in progress
-                                            <a href="{{ route('admin.orders.index', ['status' => ['approved', 'packed', 'shipped']]) }}" class="btn btn-sm btn-info ms-3 text-white">
+                                            <a href="{{ route('admin.orders.index', ['status' => ['approved', 'packed', 'shipped']]) }}" 
+                                               class="btn btn-sm btn-info ms-3 text-white"
+                                               onclick="registerAdminActivity('active_orders_view')">
                                                 View Orders
                                             </a>
                                         </div>
@@ -338,7 +482,7 @@
     <!-- Custom JS for notifications -->
     <script src="{{ asset('js/notifications.js') }}"></script>
     
-    <!-- Enhanced Sidebar toggle script with fixes -->
+    <!-- Enhanced Sidebar toggle script with activity tracking -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle');
@@ -347,7 +491,6 @@
             const mainContent = document.getElementById('main-content');
             
             // Check if sidebar state is stored in localStorage
-            // Default to NOT collapsed (sidebar visible by default)
             const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
             
             // Apply initial state ONLY if explicitly collapsed
@@ -355,52 +498,45 @@
                 sidebar.classList.add('sidebar-collapsed');
                 mainContent.classList.add('content-expanded');
                 mainContent.classList.remove('col-md-10', 'ms-sm-auto');
-                // Use right-facing arrow immediately when collapsed
                 toggleIcon.classList.remove('fa-chevron-left');
                 toggleIcon.classList.add('fa-chevron-right');
-                // Position toggle button at edge of screen when sidebar is collapsed
                 sidebarToggleBtn.style.left = '15px';
             }
             
             // Toggle sidebar when button is clicked
             sidebarToggleBtn.addEventListener('click', function() {
-                // Toggle collapse class
+                registerAdminActivity('sidebar_toggle');
+                
                 sidebar.classList.toggle('sidebar-collapsed');
                 
                 if (sidebar.classList.contains('sidebar-collapsed')) {
-                    // Sidebar is now being hidden - immediately show right arrow
                     toggleIcon.classList.remove('fa-chevron-left');
                     toggleIcon.classList.add('fa-chevron-right');
-                    
-                    // Adjust content and button position
                     mainContent.classList.add('content-expanded');
                     mainContent.classList.remove('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '15px';
                     localStorage.setItem('sidebar-collapsed', 'true');
                 } else {
-                    // Sidebar is now being shown
-                    // Keep right arrow until sidebar is fully visible
-                    
-                    // Adjust content and button position immediately
                     mainContent.classList.remove('content-expanded');
                     mainContent.classList.add('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '16.66667%';
                     localStorage.setItem('sidebar-collapsed', 'false');
                     
-                    // Wait for animation to complete before changing icon
                     setTimeout(() => {
                         toggleIcon.classList.remove('fa-chevron-right');
                         toggleIcon.classList.add('fa-chevron-left');
-                    }, 1000); // Match the 1s animation time
+                    }, 1000);
                 }
             });
         });
     </script>
     
-    <!-- Add auto-refresh for checking new orders -->
+    <!-- Add auto-refresh for checking new orders with activity tracking -->
     <script>
         // Check for new orders every 30 seconds
         setInterval(function() {
+            registerAdminActivity('auto_order_check');
+            
             fetch('{{ url('/admin/orders/check-new') }}')
                 .then(response => response.json())
                 .then(data => {
@@ -437,6 +573,7 @@
                                 const bellLink = document.createElement('a');
                                 bellLink.href = '{{ url('/admin/orders?status=pending') }}';
                                 bellLink.className = 'btn btn-outline-success me-2 position-relative';
+                                bellLink.onclick = () => registerAdminActivity('notification_bell_click');
                                 bellLink.innerHTML = `
                                     <i class="fas fa-bell"></i>
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">

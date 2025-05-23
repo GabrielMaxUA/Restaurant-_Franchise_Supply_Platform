@@ -23,9 +23,6 @@ class CartController extends Controller
 
     /**
      * Create a new controller instance.
-     *
-     * @param InventoryService $inventoryService
-     * @return void
      */
     public function __construct(InventoryService $inventoryService)
     {
@@ -43,11 +40,32 @@ class CartController extends Controller
     }
     
     /**
+     * Calculate the correct price for an item (product or variant)
+     */
+    private function calculateItemPrice($product, $variant = null)
+    {
+        if ($variant) {
+            // For variants, use price_adjustment as the actual price
+            return (float) $variant->price_adjustment;
+        }
+        
+        return (float) $product->base_price;
+    }
+    
+    /**
+     * Get inventory count for an item (product or variant)
+     */
+    private function getInventoryCount($product, $variant = null)
+    {
+        if ($variant) {
+            return (int) $variant->inventory_count;
+        }
+        
+        return (int) $product->inventory_count;
+    }
+    
+    /**
      * Display the cart contents.
-     * Supports both web and API requests.
-     * 
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -59,76 +77,49 @@ class CartController extends Controller
         $items = $cart->items()->with(['product', 'variant', 'product.images'])->get();
         
         foreach ($items as $item) {
-            if ($item->variant_id) {
-                $variant = $item->variant;
-                $product = $item->product;
-                
-                // UPDATED: Use variant's price_adjustment directly as the price
-                $price = $variant->price_adjustment;
-                
-                $itemData = [
-                    'id' => $item->id,
-                    'product' => $product,
-                    'variant' => $variant,
-                    'quantity' => $item->quantity,
-                    'price' => $price,
-                    'subtotal' => $price * $item->quantity
-                ];
-                
-                // For API responses, include only necessary product and variant data
-                if ($request->expectsJson() || $request->wantsJson()) {
-                    $itemData['product'] = [
-                        'id' => $product->id,
-                        'name' => $product->name,
-                        'description' => $product->description,
-                        'base_price' => $product->base_price,
-                        'image_url' => $product->images->isNotEmpty()
-                          ? asset('storage/' . $product->images->first()->image_url)
-                          : null
-
-                    ];
-                    
-                    if ($variant) {
-                        $itemData['variant'] = [
-                            'id' => $variant->id,
-                            'name' => $variant->name,
-                            'price_adjustment' => $variant->price_adjustment,
-                            'inventory_count' => $variant->inventory_count
-                        ];
-                    }
-                }
-                
-                $cartItems[] = $itemData;
-                $total += $price * $item->quantity;
-            } else {
-                $product = $item->product;
-                if ($product) {
-                    $itemData = [
-                        'id' => $item->id,
-                        'product' => $product,
-                        'variant' => null,
-                        'quantity' => $item->quantity,
-                        'price' => $product->base_price,
-                        'subtotal' => $product->base_price * $item->quantity
-                    ];
-                    
-                    // For API responses, include only necessary product data
-                    if ($request->expectsJson() || $request->wantsJson()) {
-                        $itemData['product'] = [
-                            'id' => $product->id,
-                            'name' => $product->name,
-                            'description' => $product->description,
-                            'base_price' => $product->base_price,
-                            'image_url' => $product->images->isNotEmpty()
-                              ? asset('storage/' . $product->images->first()->image_url)
-                              : null
-                        ];
-                    }
-                    
-                    $cartItems[] = $itemData;
-                    $total += $product->base_price * $item->quantity;
-                }
+            $product = $item->product;
+            $variant = $item->variant;
+            
+            if (!$product) {
+                continue; // Skip items with missing products
             }
+            
+            $price = $this->calculateItemPrice($product, $variant);
+            $subtotal = $price * $item->quantity;
+            
+            $itemData = [
+                'id' => $item->id,
+                'product_id' => $product->id,
+                'variant_id' => $variant ? $variant->id : null,
+                'quantity' => $item->quantity,
+                'price' => $price,
+                'subtotal' => $subtotal,
+                'product' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'base_price' => $product->base_price,
+                    'inventory_count' => $product->inventory_count,
+                    'image_url' => $product->images->isNotEmpty()
+                      ? asset('storage/' . $product->images->first()->image_url)
+                      : null
+                ],
+                'variant' => $variant ? [
+                    'id' => $variant->id,
+                    'name' => $variant->name,
+                    'price_adjustment' => $variant->price_adjustment,
+                    'inventory_count' => $variant->inventory_count
+                ] : null
+            ];
+            
+            // For web responses, include full models
+            if (!($request->expectsJson() || $request->wantsJson())) {
+                $itemData['product'] = $product;
+                $itemData['variant'] = $variant;
+            }
+            
+            $cartItems[] = $itemData;
+            $total += $subtotal;
         }
         
         // Check if this is an API request
@@ -147,237 +138,152 @@ class CartController extends Controller
     
     /**
      * Add a product to the cart.
-     * Supports both web and API requests.
-     * 
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
      */
     public function addToCart(Request $request)
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'variant_id' => 'nullable|exists:product_variants,id',
-            'quantity' => 'required|integer|min:1'
+            'quantity' => 'required|integer|min:1',
+            'check_inventory' => 'boolean'
         ]);
         
         $productId = $request->product_id;
         $variantId = $request->variant_id;
-        $quantity = $request->quantity;
+        $requestedQuantity = $request->quantity;
+        $checkInventory = $request->boolean('check_inventory', true);
         
         try {
-            // Begin database transaction for inventory check
             DB::beginTransaction();
             
-            // Load product with variants using for update lock to prevent race conditions
+            // Load product with variants
             $product = Product::with(['variants'])->lockForUpdate()->find($productId);
             if (!$product) {
                 DB::rollBack();
-                if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Product not found.',
-                    ], 404);
-                }
-                return redirect()->back()->with('error', 'Product not found.');
+                return $this->errorResponse($request, 'Product not found.', 404);
             }
             
-            // If a variant is specified, check variant inventory with locking
+            $variant = null;
             if ($variantId) {
                 $variant = ProductVariant::lockForUpdate()->find($variantId);
-                $availableInventory = $variant ? $variant->inventory_count : 0;
-                
-                if (!$variant || $availableInventory < $quantity) {
+                if (!$variant) {
                     DB::rollBack();
-                    if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Selected variant is out of stock or has insufficient inventory.',
-                            'remaining_inventory' => $availableInventory,
-                            'requested_quantity' => $quantity,
-                            'product_cart_quantity' => 0
-                        ], 400);
-                    }
-                    return redirect()->back()->with('error', 'Selected variant is out of stock or has insufficient inventory.');
-                }
-            } else {
-                // For main product, check if it has inventory
-                $availableInventory = $product->inventory_count;
-                
-                if ($availableInventory < $quantity) {
-                    // Check if any variants have inventory
-                    $hasInStockVariants = false;
-                    $availableVariants = [];
-                    
-                    // Lock all variants for consistent inventory check
-                    $variants = ProductVariant::where('product_id', $productId)
-                        ->lockForUpdate()
-                        ->get();
-                    
-                    foreach ($variants as $variant) {
-                        if ($variant->inventory_count > 0) {
-                            $hasInStockVariants = true;
-                            $availableVariants[] = [
-                                'id' => $variant->id,
-                                'name' => $variant->name,
-                                'inventory' => $variant->inventory_count
-                            ];
-                        }
-                    }
-                    
-                    DB::rollBack();
-                    
-                    if ($hasInStockVariants) {
-                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'This product is out of stock. Please select an available variant.',
-                                'variants_available' => true,
-                                'available_variants' => $availableVariants,
-                                'product_id' => $productId
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'This product is out of stock. Please select a variant.');
-                    } else {
-                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Product is out of stock.',
-                                'remaining_inventory' => $availableInventory,
-                                'requested_quantity' => $quantity,
-                                'product_cart_quantity' => 0
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'Product is out of stock.');
-                    }
+                    return $this->errorResponse($request, 'Variant not found.', 404);
                 }
             }
             
-            // Get user's cart
+            // Get current inventory
+            $availableInventory = $this->getInventoryCount($product, $variant);
+            
+            // Get user's cart and check existing quantity
             $cart = $this->getOrCreateCart();
-            
-            // Check if this product/variant is already in the cart
-            $query = CartItem::where('cart_id', $cart->id)
-                ->where('product_id', $productId);
-                
-            if ($variantId) {
-                $query->where('variant_id', $variantId);
-            } else {
-                $query->whereNull('variant_id');
-            }
-            
-            $existingItem = $query->first();
-            $currentCartQuantity = 0;
-            
-            // If the product is already in the cart, update the quantity
-            if ($existingItem) {
-                $currentCartQuantity = $existingItem->quantity;
-                $newQuantity = $currentCartQuantity + $quantity;
-                
-                // Check if the new quantity exceeds available stock
-                if ($variantId) {
-                    $variant = ProductVariant::lockForUpdate()->find($variantId);
-                    $availableInventory = $variant ? $variant->inventory_count : 0;
-                    
-                    if (!$variant || $availableInventory < $newQuantity) {
-                        DB::rollBack();
-                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Adding this quantity would exceed available inventory.',
-                                'remaining_inventory' => ($availableInventory - $currentCartQuantity),
-                                'requested_quantity' => $quantity,
-                                'product_cart_quantity' => $currentCartQuantity
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
+            $existingItem = CartItem::where('cart_id', $cart->id)
+                ->where('product_id', $productId)
+                ->where(function($query) use ($variantId) {
+                    if ($variantId) {
+                        $query->where('variant_id', $variantId);
+                    } else {
+                        $query->whereNull('variant_id');
                     }
-                } else {
-                    $availableInventory = $product ? $product->inventory_count : 0;
+                })->first();
+            
+            $currentCartQuantity = $existingItem ? $existingItem->quantity : 0;
+            $totalRequested = $currentCartQuantity + $requestedQuantity;
+            
+            // Inventory checking
+            $warnings = [];
+            $finalQuantity = $requestedQuantity;
+            $wasAdjusted = false;
+            
+            if ($checkInventory && $availableInventory < $totalRequested) {
+                $maxCanAdd = max(0, $availableInventory - $currentCartQuantity);
+                
+                if ($maxCanAdd <= 0) {
+                    DB::rollBack();
+                    $message = $currentCartQuantity > 0 
+                        ? "You already have all available stock ({$currentCartQuantity}) in your cart"
+                        : 'This item is out of stock';
                     
-                    if (!$product || $availableInventory < $newQuantity) {
-                        DB::rollBack();
-                        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Adding this quantity would exceed available inventory.',
-                                'remaining_inventory' => ($availableInventory - $currentCartQuantity),
-                                'requested_quantity' => $quantity,
-                                'product_cart_quantity' => $currentCartQuantity
-                            ], 400);
-                        }
-                        return redirect()->back()->with('error', 'Adding this quantity would exceed available inventory.');
-                    }
+                    return $this->errorResponse($request, $message, 400, [
+                        'inventory_limited' => true,
+                        'max_available' => 0,
+                        'current_cart_quantity' => $currentCartQuantity,
+                        'total_inventory' => $availableInventory
+                    ]);
                 }
                 
-                // Update the quantity
-                $existingItem->quantity = $newQuantity;
+                // Adjust quantity to what's available
+                $finalQuantity = $maxCanAdd;
+                $wasAdjusted = true;
+                
+                $itemName = $variant ? "{$product->name} ({$variant->name})" : $product->name;
+                $warnings[] = "Only {$availableInventory} units available in stock. " .
+                    ($currentCartQuantity > 0 
+                        ? "Your cart already has {$currentCartQuantity} of {$itemName}. Only {$finalQuantity} more added."
+                        : "Only {$finalQuantity} added to cart.");
+            }
+            
+            // Add or update cart item
+            if ($existingItem) {
+                $existingItem->quantity += $finalQuantity;
                 $existingItem->save();
+                $newCartQuantity = $existingItem->quantity;
             } else {
-                // Add to cart as a new item
                 CartItem::create([
                     'cart_id' => $cart->id,
                     'product_id' => $productId,
                     'variant_id' => $variantId,
-                    'quantity' => $quantity
+                    'quantity' => $finalQuantity
                 ]);
+                $newCartQuantity = $finalQuantity;
             }
             
-            // Commit the transaction after successfully adding to cart
             DB::commit();
             
-            // Get current cart quantity for this product
-            $finalCartQuantity = $existingItem ? $newQuantity : $quantity;
-            
-            // Calculate remaining inventory after adding to cart
-            $totalInventory = $variantId 
-                ? ($variant ? $variant->inventory_count : 0) 
-                : ($product ? $product->inventory_count : 0);
-            
-            // Calculate actual remaining inventory (total - what's in cart)
-            $remainingInventory = $totalInventory - $finalCartQuantity;
-            
-            // Get cart count
+            // Calculate remaining inventory
+            $remainingInventory = max(0, $availableInventory - $newCartQuantity);
             $cartCount = $cart->items()->count();
             
-            // Return success response for JSON or AJAX requests
-            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Product added to cart successfully.',
-                    'cart_count' => $cartCount,
-                    'remaining_inventory' => $remainingInventory,
-                    'product_cart_quantity' => $finalCartQuantity
-                ]);
+            $message = $wasAdjusted 
+                ? "Added {$finalQuantity} item(s) to cart (inventory adjusted)"
+                : "Added {$finalQuantity} item(s) to cart successfully";
+            
+            $responseData = [
+                'success' => true,
+                'message' => $message,
+                'cart_count' => $cartCount,
+                'items_count' => $cartCount,
+                'remaining_inventory' => $remainingInventory,
+                'product_cart_quantity' => $newCartQuantity,
+                'was_adjusted' => $wasAdjusted,
+                'requested_quantity' => $requestedQuantity,
+                'actual_quantity_added' => $finalQuantity
+            ];
+            
+            if (!empty($warnings)) {
+                $responseData['warnings'] = $warnings;
             }
             
-            return redirect()->back()->with('success', 'Product added to cart successfully.');
+            return $this->successResponse($request, $responseData);
         
         } catch (\Exception $e) {
-            // Rollback transaction on error
             DB::rollBack();
             
             \Log::error('Error adding to cart: ' . $e->getMessage(), [
                 'product_id' => $productId,
                 'variant_id' => $variantId,
-                'quantity' => $quantity,
+                'quantity' => $requestedQuantity,
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
             
-            if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to add product to cart: ' . $e->getMessage()
-                ], 500);
-            }
-            
-            return redirect()->back()->with('error', 'Failed to add product to cart: ' . $e->getMessage());
+            return $this->errorResponse($request, 'Failed to add product to cart: ' . $e->getMessage(), 500);
         }
     }
     
     /**
-     * Update cart item quantity.
+     * Update cart item quantity (bulk update).
      */
     public function updateCart(Request $request)
     {
@@ -388,56 +294,150 @@ class CartController extends Controller
         ]);
         
         $cart = $this->getOrCreateCart();
+        $warnings = [];
         $success = true;
-        $message = 'Cart updated successfully.';
         
-        foreach ($request->items as $item) {
-            $itemId = $item['id'];
-            $quantity = $item['quantity'];
-            
-            // Get the cart item and check if it belongs to the user's cart
-            $cartItem = CartItem::where('id', $itemId)
-                ->where('cart_id', $cart->id)
-                ->first();
-            
-            if ($cartItem) {
-                // Check inventory before updating
-                if ($cartItem->variant_id) {
-                    $variant = ProductVariant::find($cartItem->variant_id);
-                    if ($variant && $variant->inventory_count >= $quantity) {
-                        $cartItem->quantity = $quantity;
-                        $cartItem->save();
-                    } else {
-                        $success = false;
-                        $message = 'Insufficient inventory for ' . ($variant ? $variant->name : 'selected variant');
-                        break;
-                    }
+        DB::beginTransaction();
+        
+        try {
+            foreach ($request->items as $item) {
+                $itemId = $item['id'];
+                $newQuantity = $item['quantity'];
+                
+                $cartItem = CartItem::where('id', $itemId)
+                    ->where('cart_id', $cart->id)
+                    ->with(['product', 'variant'])
+                    ->lockForUpdate()
+                    ->first();
+                
+                if (!$cartItem) {
+                    continue;
+                }
+                
+                $availableInventory = $this->getInventoryCount($cartItem->product, $cartItem->variant);
+                
+                if ($newQuantity > $availableInventory) {
+                    $adjustedQuantity = max(1, $availableInventory);
+                    $cartItem->quantity = $adjustedQuantity;
+                    $cartItem->save();
+                    
+                    $itemName = $cartItem->variant 
+                        ? "{$cartItem->product->name} ({$cartItem->variant->name})"
+                        : $cartItem->product->name;
+                    
+                    $warnings[] = "Quantity for {$itemName} adjusted to {$adjustedQuantity} (maximum available)";
                 } else {
-                    $product = Product::find($cartItem->product_id);
-                    if ($product && $product->inventory_count >= $quantity) {
-                        $cartItem->quantity = $quantity;
-                        $cartItem->save();
-                    } else {
-                        $success = false;
-                        $message = 'Insufficient inventory for ' . ($product ? $product->name : 'selected product');
-                        break;
-                    }
+                    $cartItem->quantity = $newQuantity;
+                    $cartItem->save();
                 }
             }
+            
+            DB::commit();
+            
+            $responseData = [
+                'success' => true,
+                'message' => 'Cart updated successfully',
+                'cart_count' => $cart->items()->count(),
+                'items_count' => $cart->items()->count()
+            ];
+            
+            if (!empty($warnings)) {
+                $responseData['warnings'] = $warnings;
+            }
+            
+            return $this->successResponse($request, $responseData);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->errorResponse($request, 'Failed to update cart: ' . $e->getMessage(), 500);
         }
+    }
+    
+    /**
+     * Update a single cart item quantity.
+     */
+    public function updateCartItemQuantity(Request $request)
+    {
+        $request->validate([
+            'item_id' => 'required|integer|exists:cart_items,id',
+            'quantity' => 'required|integer|min:1'
+        ]);
         
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => $success,
+        $itemId = $request->item_id;
+        $requestedQuantity = $request->quantity;
+        
+        DB::beginTransaction();
+        
+        try {
+            $cart = $this->getOrCreateCart();
+            
+            $cartItem = CartItem::where('id', $itemId)
+                ->where('cart_id', $cart->id)
+                ->with(['product', 'variant'])
+                ->lockForUpdate()
+                ->first();
+            
+            if (!$cartItem) {
+                DB::rollBack();
+                return $this->errorResponse($request, 'Cart item not found.', 404);
+            }
+            
+            $availableInventory = $this->getInventoryCount($cartItem->product, $cartItem->variant);
+            $itemName = $cartItem->variant 
+                ? "{$cartItem->product->name} ({$cartItem->variant->name})"
+                : $cartItem->product->name;
+            
+            $finalQuantity = $requestedQuantity;
+            $wasAdjusted = false;
+            $itemRemoved = false;
+            $message = '';
+            
+            if ($requestedQuantity > $availableInventory) {
+                if ($availableInventory > 0) {
+                    $finalQuantity = $availableInventory;
+                    $cartItem->quantity = $finalQuantity;
+                    $cartItem->save();
+                    $wasAdjusted = true;
+                    $message = "Quantity for {$itemName} adjusted to {$finalQuantity} (maximum available)";
+                } else {
+                    $cartItem->delete();
+                    $itemRemoved = true;
+                    $finalQuantity = 0;
+                    $message = "{$itemName} removed from cart (out of stock)";
+                }
+            } else {
+                $cartItem->quantity = $finalQuantity;
+                $cartItem->save();
+                $message = "Quantity for {$itemName} updated to {$finalQuantity}";
+            }
+            
+            DB::commit();
+            
+            $cartCount = $cart->items()->count();
+            $remainingInventory = max(0, $availableInventory - $finalQuantity);
+            
+            return $this->successResponse($request, [
+                'success' => true,
                 'message' => $message,
-                'cart_count' => $cart->items()->count()
-            ], $success ? 200 : 400);
-        }
-        
-        if ($success) {
-            return redirect()->back()->with('success', $message);
-        } else {
-            return redirect()->back()->with('error', $message);
+                'cart_count' => $cartCount,
+                'items_count' => $cartCount,
+                'final_quantity' => $finalQuantity,
+                'remaining_inventory' => $remainingInventory,
+                'was_adjusted' => $wasAdjusted,
+                'item_removed' => $itemRemoved
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            \Log::error('Error updating cart item quantity: ' . $e->getMessage(), [
+                'item_id' => $itemId,
+                'quantity' => $requestedQuantity,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+            
+            return $this->errorResponse($request, 'Failed to update cart item: ' . $e->getMessage(), 500);
         }
     }
     
@@ -454,61 +454,47 @@ class CartController extends Controller
             ->where('cart_id', $cart->id)
             ->first();
         
-        if ($cartItem) {
-            // If quantity is specified and less than current quantity, reduce quantity
-            if ($quantity !== null && $quantity > 0 && $quantity < $cartItem->quantity) {
-                $cartItem->quantity -= $quantity;
-                $cartItem->save();
-                $message = 'Item quantity reduced.';
-            } else {
-                // Otherwise, remove the item completely
-                $cartItem->delete();
-                $message = 'Item removed from cart.';
-            }
-            
-            // Calculate total items count for badge display
-            $totalItems = $cart->items()->sum('quantity');
-            $cartCount = $cart->items()->count();
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $message,
-                    'cart_count' => $cartCount,
-                    'total_items' => $totalItems
-                ]);
-            }
-            
-            return redirect()->back()->with('success', $message);
+        if (!$cartItem) {
+            return $this->errorResponse($request, 'Item not found in cart.', 404);
         }
         
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item not found in cart.'
-            ], 404);
+        $message = '';
+        
+        if ($quantity !== null && $quantity > 0 && $quantity < $cartItem->quantity) {
+            $cartItem->quantity -= $quantity;
+            $cartItem->save();
+            $message = 'Item quantity reduced.';
+        } else {
+            $cartItem->delete();
+            $message = 'Item removed from cart.';
         }
         
-        return redirect()->back()->with('error', 'Item not found in cart.');
+        $cartCount = $cart->items()->count();
+        $totalItems = $cart->items()->sum('quantity');
+        
+        return $this->successResponse($request, [
+            'success' => true,
+            'message' => $message,
+            'cart_count' => $cartCount,
+            'items_count' => $cartCount,
+            'total_items' => $totalItems
+        ]);
     }
     
     /**
      * Clear the entire cart.
      */
-    public function clearCart()
+    public function clearCart(Request $request)
     {
         $cart = $this->getOrCreateCart();
         $cart->items()->delete();
         
-        if (request()->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Cart cleared successfully.',
-                'cart_count' => 0
-            ]);
-        }
-        
-        return redirect()->back()->with('success', 'Cart cleared successfully.');
+        return $this->successResponse($request, [
+            'success' => true,
+            'message' => 'Cart cleared successfully.',
+            'cart_count' => 0,
+            'items_count' => 0
+        ]);
     }
     
     /**
@@ -520,276 +506,277 @@ class CartController extends Controller
         $count = $cart->items()->count();
         
         return response()->json([
-            'count' => $count
+            'count' => $count,
+            'items_count' => $count
         ]);
     }
     
     /**
      * Show the checkout form.
-     * UPDATED: Uses variant price_adjustment directly as the price
      */
     public function checkout(Request $request)
-      {
+    {
         $cart = $this->getOrCreateCart();
         $items = $cart->items()->with(['product', 'variant', 'product.images'])->get();
-    
+
         if ($items->isEmpty()) {
             \Log::info('Checkout called but cart is empty for user: ' . Auth::id());
-    
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Your cart is empty. Please add some products before checkout.'
                 ], 400);
             }
-    
+
             return redirect()->route('franchisee.cart')
                 ->with('error', 'Your cart is empty. Please add some products before checkout.');
         }
-    
-          $cartItems = [];
-          $total = 0;
-        
-          foreach ($items as $item) {
-              if ($item->variant_id) {
-                  $variant = $item->variant;
-                  $product = $item->product;
-                  $price = $variant->price_adjustment;
-              
-                  $cartItems[] = [
-                      'id' => $item->id,
-                      'product' => $product,
-                      'variant' => $variant,
-                      'quantity' => $item->quantity,
-                      'price' => $price,
-                      'subtotal' => $price * $item->quantity
-                  ];
-                
-                  $total += $price * $item->quantity;
-              } else {
-                  $product = $item->product;
-                  if ($product) {
-                      $cartItems[] = [
-                          'id' => $item->id,
-                          'product' => $product,
-                          'variant' => null,
-                          'quantity' => $item->quantity,
-                          'price' => $product->base_price,
-                          'subtotal' => $product->base_price * $item->quantity
-                      ];
-                      $total += $product->base_price * $item->quantity;
-                  }
-              }
-          }
-        
-            if ($request->expectsJson()) 
-            {
-              \Log::info('Checkout API data:', [
-                  'user_id' => Auth::id(),
-                  'cart_items' => $cartItems,
-                  'total' => $total
-              ]);
-                
-              return response()->json([
-                    'success' => true,
-                    'cart_items' => $cartItems,
-                    'total' => $total
-                ]);
-              }
-          
-          $franchisee = Auth::user()->franchisee;
-          return view('franchisee.checkout', compact('cartItems', 'total', 'franchisee'));
-  }
-    
-    
-    /**
-     * Process the order.
-     * UPDATED: Uses variant price_adjustment directly as the price
-     */
-    public function placeOrder(Request $request)
-    {
-        \Log::info('placeOrder called with input:', $request->all());
-    
-        $request->validate([
-            'shipping_address' => 'required|string|max:255',
-            'shipping_city' => 'required|string|max:100',
-            'shipping_state' => 'required|string|max:100',
-            'shipping_zip' => 'required|string|max:20',
-            'delivery_preference' => 'required|string',
-        ]);
-    
-        $cart = $this->getOrCreateCart();
-        $items = $cart->items()->with(['product', 'variant'])->get();
-    
-        if ($items->isEmpty()) {
-            \Log::info('Cart is empty at placeOrder for user: ' . Auth::id());
-    
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cart is empty.'
-                ], 400);
-            }
-    
-            return redirect()->route('franchisee.cart')
-                ->with('error', 'Your cart is empty. Please add some products before checkout.');
-        }
-    
+
+        $cartItems = [];
         $total = 0;
-        $orderItems = [];
-        $inventoryIssues = [];
-    
+      
         foreach ($items as $item) {
-            if ($item->variant_id) {
-                $variant = $item->variant;
-                $product = $item->product;
-    
-                if (!$product || !$variant || $variant->inventory_count < $item->quantity) {
-                    $availableQty = $variant ? $variant->inventory_count : 0;
-                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name} ({$variant->name})' available.";
-                    continue;
-                }
-    
-                $price = $variant->price_adjustment;
-                $subtotal = $price * $item->quantity;
-                $total += $subtotal;
-    
-                $orderItems[] = [
-                    'product_id' => $product->id,
-                    'variant_id' => $variant->id,
-                    'quantity' => $item->quantity,
-                    'price' => $price
-                ];
-            } else {
-                $product = $item->product;
-    
-                if (!$product || $product->inventory_count < $item->quantity) {
-                    $availableQty = $product ? $product->inventory_count : 0;
-                    $inventoryIssues[] = "Only {$availableQty} units of '{$product->name}' available.";
-                    continue;
-                }
-    
-                $subtotal = $product->base_price * $item->quantity;
-                $total += $subtotal;
-    
-                $orderItems[] = [
-                    'product_id' => $product->id,
-                    'variant_id' => null,
-                    'quantity' => $item->quantity,
-                    'price' => $product->base_price
-                ];
+            $product = $item->product;
+            $variant = $item->variant;
+            
+            if (!$product) {
+                continue;
             }
+            
+            $price = $this->calculateItemPrice($product, $variant);
+            $subtotal = $price * $item->quantity;
+            
+            $cartItems[] = [
+                'id' => $item->id,
+                'product' => $product,
+                'variant' => $variant,
+                'quantity' => $item->quantity,
+                'price' => $price,
+                'subtotal' => $subtotal
+            ];
+            
+            $total += $subtotal;
         }
-    
-        if (!empty($inventoryIssues)) {
-            \Log::warning('Inventory issues at placeOrder:', $inventoryIssues);
-    
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory issue(s) occurred.',
-                    'details' => $inventoryIssues
-                ], 400);
-            }
-    
-            return redirect()->route('franchisee.cart')
-                ->with('error', implode('<br>', $inventoryIssues));
-        }
-    
-        if (empty($orderItems)) {
-            \Log::warning('No valid orderItems found');
-    
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No valid items in your cart.'
-                ], 400);
-            }
-    
-            return redirect()->route('franchisee.cart')
-                ->with('error', 'No valid items in your cart.');
-        }
-    
-        $tax = $total * 0.08;
-        $shippingCost = $request->delivery_preference === 'express' ? 15.00 : 0;
-        $finalTotal = $total + $tax + $shippingCost;
-    
-        DB::beginTransaction();
-    
-        try {
-            $order = new Order([
+      
+        if ($request->expectsJson()) {
+            \Log::info('Checkout API data:', [
                 'user_id' => Auth::id(),
-                'status' => 'pending',
-                'total_amount' => $finalTotal,
-                'shipping_address' => $request->shipping_address,
-                'shipping_city' => $request->shipping_city,
-                'shipping_state' => $request->shipping_state,
-                'shipping_zip' => $request->shipping_zip,
-                'delivery_date' => $request->delivery_date ?? now()->addDays(3)->toDateString(),
-                'delivery_time' => $request->input('delivery_time', 'morning'),
-                'delivery_preference' => $request->delivery_preference,
-                'shipping_cost' => $shippingCost,
-                'notes' => $request->notes ?? '',
-                'manager_name' => $request->input('manager_name', 'Default Manager'),
-                'contact_phone' => $request->input('contact_phone', Auth::user()->phone ?? 'N/A'),
+                'cart_items' => $cartItems,
+                'total' => $total
             ]);
-            $order->save();
-    
-            foreach ($orderItems as $item) {
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item['product_id'],
-                    'variant_id' => $item['variant_id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price']
-                ]);
-    
-                $this->inventoryService->decreaseInventory(
-                    $item['product_id'],
-                    $item['quantity'],
-                    $item['variant_id']
-                );
-            }
-    
-            $cart->items()->delete();
-            DB::commit();
-    
-            \Log::info("Order #{$order->id} placed successfully by user #" . Auth::id());
-    
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Order placed successfully.',
-                    'order_id' => $order->id,
-                    'total' => $finalTotal
-                ]);
-            }
-    
-            return redirect()->route('franchisee.orders.details', $order->id)
-                ->with('success', 'Your order has been placed successfully!');
-    
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Order placement failed:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id(),
-                'request' => $request->all()
+              
+            return response()->json([
+                'success' => true,
+                'cart_items' => $cartItems,
+                'total' => $total
             ]);
-    
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to place order.',
-                    'error' => $e->getMessage()
-                ], 500);
-            }
-    
-            return redirect()->back()
-                ->with('error', 'There was a problem processing your order. Please try again.');
         }
+        
+        $franchisee = Auth::user()->franchisee;
+        return view('franchisee.checkout', compact('cartItems', 'total', 'franchisee'));
     }
     
+   /**
+ * Process the order - Updated version with better error handling and response format
+ */
+public function placeOrder(Request $request)
+{
+    \Log::info('placeOrder called with input:', $request->all());
+
+    // Validate the incoming request
+    $validator = \Validator::make($request->all(), [
+        'shipping_address' => 'required|string|max:255',
+        'shipping_city' => 'required|string|max:100',
+        'shipping_state' => 'required|string|max:100',
+        'shipping_zip' => 'required|string|max:20',
+        'delivery_preference' => 'required|string|in:standard,express,scheduled',
+        'delivery_date' => 'nullable|date|after:today',
+        'notes' => 'nullable|string|max:1000',
+    ]);
+
+    if ($validator->fails()) {
+        \Log::warning('Validation failed for placeOrder:', $validator->errors()->toArray());
+        return $this->errorResponse($request, 'Validation failed.', 422, [
+            'errors' => $validator->errors()->toArray()
+        ]);
+    }
+
+    $cart = $this->getOrCreateCart();
+    $items = $cart->items()->with(['product', 'variant'])->get();
+
+    if ($items->isEmpty()) {
+        \Log::info('Cart is empty at placeOrder for user: ' . Auth::id());
+        return $this->errorResponse($request, 'Your cart is empty.', 400);
+    }
+
+    $total = 0;
+    $orderItems = [];
+    $inventoryIssues = [];
+
+    // Process each cart item and check inventory
+    foreach ($items as $item) {
+        $product = $item->product;
+        $variant = $item->variant;
+        
+        if (!$product) {
+            \Log::warning('Product not found for cart item: ' . $item->id);
+            continue;
+        }
+        
+        $availableInventory = $this->getInventoryCount($product, $variant);
+        
+        if ($availableInventory < $item->quantity) {
+            $itemName = $variant ? "{$product->name} ({$variant->name})" : $product->name;
+            $inventoryIssues[] = "Only {$availableInventory} units of '{$itemName}' available, but {$item->quantity} requested.";
+            \Log::warning("Inventory issue for {$itemName}: available={$availableInventory}, requested={$item->quantity}");
+            continue;
+        }
+
+        $price = $this->calculateItemPrice($product, $variant);
+        $subtotal = $price * $item->quantity;
+        $total += $subtotal;
+
+        $orderItems[] = [
+            'product_id' => $product->id,
+            'variant_id' => $variant ? $variant->id : null,
+            'quantity' => $item->quantity,
+            'price' => $price
+        ];
+    }
+
+    // Check for inventory issues
+    if (!empty($inventoryIssues)) {
+        \Log::warning('Inventory issues at placeOrder:', $inventoryIssues);
+        return $this->errorResponse($request, 'Some items in your cart are no longer available in the requested quantities.', 400, [
+            'details' => $inventoryIssues
+        ]);
+    }
+
+    if (empty($orderItems)) {
+        \Log::warning('No valid orderItems found');
+        return $this->errorResponse($request, 'No valid items in your cart.', 400);
+    }
+
+    // Calculate totals
+    $tax = $total * 0.08; // 8% tax
+    $shippingCost = 0;
     
-  
+    if ($request->delivery_preference === 'express') {
+        $shippingCost = 15.00;
+    }
+    
+    $finalTotal = $total + $tax + $shippingCost;
+
+    // Generate order number
+    $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(uniqid());
+
+    DB::beginTransaction();
+
+    try {
+        // Create the order
+        $order = new Order([
+            'user_id' => Auth::id(),
+            'order_number' => $orderNumber,
+            'status' => 'pending',
+            'total_amount' => $finalTotal,
+            'shipping_address' => $request->shipping_address,
+            'shipping_city' => $request->shipping_city,
+            'shipping_state' => $request->shipping_state,
+            'shipping_zip' => $request->shipping_zip,
+            'delivery_date' => $request->delivery_date ?? now()->addDays(3)->toDateString(),
+            'delivery_time' => $request->input('delivery_time', 'morning'),
+            'delivery_preference' => $request->delivery_preference,
+            'shipping_cost' => $shippingCost,
+            'notes' => $request->notes ?? '',
+            'manager_name' => $request->input('manager_name', Auth::user()->name ?? 'Default Manager'),
+            'contact_phone' => $request->input('contact_phone', Auth::user()->phone ?? 'N/A'),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+        $order->save();
+
+        // Create order items and update inventory
+        foreach ($orderItems as $item) {
+            OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $item['product_id'],
+                'variant_id' => $item['variant_id'],
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Decrease inventory
+            $this->inventoryService->decreaseInventory(
+                $item['product_id'],
+                $item['quantity'],
+                $item['variant_id']
+            );
+        }
+
+        // Clear the cart
+        $cart->items()->delete();
+        
+        DB::commit();
+
+        \Log::info("Order #{$order->id} ({$orderNumber}) placed successfully by user #" . Auth::id() . " with total: $" . $finalTotal);
+
+        // Send success response
+        return $this->successResponse($request, [
+            'success' => true,
+            'message' => 'Order placed successfully!',
+            'order_id' => $order->id,
+            'order_number' => $orderNumber,
+            'total' => $finalTotal,
+            'subtotal' => $total,
+            'tax' => $tax,
+            'shipping_cost' => $shippingCost,
+            'items_count' => count($orderItems)
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Order placement failed:', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'user_id' => Auth::id(),
+            'request' => $request->all()
+        ]);
+
+        return $this->errorResponse($request, 'Failed to place order. Please try again.', 500, [
+            'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+        ]);
+    }
+}
+    
+    /**
+     * Helper method for success responses
+     */
+    private function successResponse($request, $data)
+    {
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json($data);
+        }
+        
+        return redirect()->back()->with('success', $data['message'] ?? 'Operation successful');
+    }
+    
+    /**
+     * Helper method for error responses
+     */
+    private function errorResponse($request, $message, $statusCode = 400, $additionalData = [])
+    {
+        $responseData = array_merge([
+            'success' => false,
+            'message' => $message
+        ], $additionalData);
+        
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json($responseData, $statusCode);
+        }
+        
+        return redirect()->back()->with('error', $message);
+    }
 }

@@ -143,28 +143,142 @@
     </style>
     
     @yield('styles')
-  <script>
-        // === Inactivity timer config ===
-        let inactivityLimit = 15 * 60 * 1000; // 1 minute (60 seconds) for testing
-        let inactivityTimer;
-
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                // Show alert and redirect
-                alert("Sorry, you were gone too long. Please log in.");
-                window.location.href = "{{ url('/logout') }}"; // or route('login')
-            }, inactivityLimit);
-        }
-      
-        // Reset timer on common user activity
-        ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
-            document.addEventListener(evt, resetInactivityTimer, false);
+    
+    <!-- Enhanced 15-Minute Inactivity System -->
+    <script>
+        // ============================================================================
+        // 15-MINUTE INACTIVITY LOGOUT SYSTEM - WEB VERSION (FRANCHISEE)
+        // ============================================================================
+        
+        // Activity tracking variables
+        let lastUserActivity = Date.now();
+        let lastActivityLog = 0;
+        const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+        const ACTIVITY_LOG_THROTTLE = 5000; // Only log activity every 5 seconds
+        let inactivityLogoutTimer = null;
+        let logoutInProgress = false;
+        
+        // User activity tracking function with throttling
+        const updateUserActivity = (source = 'unknown') => {
+            const now = Date.now();
+            const timeSinceLastActivity = now - lastUserActivity;
+            const wasInactive = timeSinceLastActivity > INACTIVITY_TIMEOUT;
+            const shouldLog = (now - lastActivityLog) > ACTIVITY_LOG_THROTTLE || wasInactive;
+            
+            lastUserActivity = now;
+            
+            // Only log if enough time has passed or user was inactive
+            if (shouldLog) {
+                lastActivityLog = now;
+                console.log('🔄 Franchisee activity detected:', new Date(now).toLocaleTimeString());
+                console.log(`📍 Activity source: ${source}`);
+                console.log(`📊 USER STATE: ${wasInactive ? 'INACTIVE → ACTIVE' : 'ACTIVE (continued)'}`);
+                console.log(`⏱️ Time since last activity: ${(timeSinceLastActivity / 1000).toFixed(1)}s`);
+            }
+            
+            // Always clear and restart timer
+            if (inactivityLogoutTimer) {
+                clearTimeout(inactivityLogoutTimer);
+                if (shouldLog) {
+                    console.log('⏰ Cleared previous inactivity timer');
+                }
+            }
+            
+            // Start new inactivity timer
+            scheduleInactivityLogout(shouldLog);
+        };
+        
+        // Schedule inactivity logout
+        const scheduleInactivityLogout = (shouldLog = true) => {
+            if (logoutInProgress) {
+                if (shouldLog) console.log('🚫 Logout already in progress, skipping inactivity timer');
+                return;
+            }
+            
+            if (shouldLog) {
+                const timeoutMinutes = INACTIVITY_TIMEOUT / (60 * 1000);
+                console.log(`⏰ INACTIVITY TIMER: Scheduling logout in ${timeoutMinutes} minutes`);
+                console.log(`📅 LOGOUT SCHEDULED FOR: ${new Date(Date.now() + INACTIVITY_TIMEOUT).toLocaleTimeString()}`);
+            }
+            
+            inactivityLogoutTimer = setTimeout(() => {
+                console.log('🕒 ===============================================');
+                console.log('🕒 15 MINUTES OF INACTIVITY DETECTED - LOGGING OUT');
+                console.log('🕒 ===============================================');
+                handleInactivityLogout();
+            }, INACTIVITY_TIMEOUT);
+        };
+        
+        // Handle inactivity logout
+        const handleInactivityLogout = () => {
+            if (logoutInProgress) {
+                console.log('🚫 Logout already in progress');
+                return;
+            }
+            
+            logoutInProgress = true;
+            
+            try {
+                // Clear timer
+                if (inactivityLogoutTimer) {
+                    clearTimeout(inactivityLogoutTimer);
+                    inactivityLogoutTimer = null;
+                }
+                
+                console.log('🕒 Performing inactivity logout for franchisee user');
+                
+                // Show inactivity alert and redirect
+                alert("You have been automatically logged out due to 15 minutes of inactivity. Please log in again.");
+                window.location.href = "{{ url('/logout') }}";
+                
+            } catch (error) {
+                console.error('❌ Error during inactivity logout:', error);
+                // Still redirect even if there was an error
+                window.location.href = "{{ url('/logout') }}";
+            } finally {
+                logoutInProgress = false;
+            }
+        };
+        
+        // Initialize activity tracking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 Franchisee inactivity system initialized');
+            updateUserActivity('page_load');
+            
+            // Set up periodic activity monitoring (every 2 minutes)
+            setInterval(() => {
+                const timeSinceActivity = Date.now() - lastUserActivity;
+                const userActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+                const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+                const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+                
+                console.log('⏰ ==========================================');
+                console.log('⏰ FRANCHISEE ACTIVITY CHECK');
+                console.log('⏰ ==========================================');
+                console.log(`👤 User state: ${userActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+                console.log(`⏱️ Time since activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+                console.log('⏰ ==========================================');
+            }, 2 * 60 * 1000); // Check every 2 minutes
         });
-      
-        // Start the timer initially
-        resetInactivityTimer();
-  </script>
+        
+        // Enhanced activity detection
+        const activityEvents = [
+            'click', 'mousemove', 'keypress', 'scroll', 'touchstart', 
+            'mousedown', 'keydown', 'wheel', 'input'
+        ];
+        
+        activityEvents.forEach(eventType => {
+            document.addEventListener(eventType, () => updateUserActivity(eventType), true);
+        });
+        
+        // Register activity for specific franchisee actions
+        const registerFranchiseeActivity = (action) => {
+            updateUserActivity(`franchisee_${action}`);
+        };
+        
+        // Make function globally available for onclick handlers
+        window.registerFranchiseeActivity = registerFranchiseeActivity;
+    </script>
 
 </head>
 <body>
@@ -180,27 +294,32 @@
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/dashboard*') ? 'active' : '' }}" href="{{ url('/franchisee/dashboard') }}">
+                            <a class="nav-link {{ request()->is('franchisee/dashboard*') ? 'active' : '' }}" 
+                               href="{{ url('/franchisee/dashboard') }}"
+                               onclick="registerFranchiseeActivity('dashboard_navigation')">
                                 <i class="fas fa-tachometer-alt me-2"></i>
                                 Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/catalog*') ? 'active' : '' }}" href="{{ url('/franchisee/catalog') }}">
+                            <a class="nav-link {{ request()->is('franchisee/catalog*') ? 'active' : '' }}" 
+                               href="{{ url('/franchisee/catalog') }}"
+                               onclick="registerFranchiseeActivity('catalog_navigation')">
                                 <i class="fas fa-box me-2"></i>
                                 Product Catalog
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" href="{{ url('/franchisee/cart') }}" id="sidebar-cart-link">
+                            <a class="nav-link {{ request()->is('franchisee/cart*') ? 'active' : '' }}" 
+                               href="{{ url('/franchisee/cart') }}" 
+                               id="sidebar-cart-link"
+                               onclick="registerFranchiseeActivity('cart_navigation')">
                                 <i class="fas fa-shopping-basket me-2"></i>
                                 Cart
                                 @php
                                     $cart = Auth::user()->cart ?? null;
-                                    // Count distinct product/variant combinations, not just products
                                     $distinctProductCount = 0;
                                     if ($cart) {
-                                        // Count distinct combinations of product_id and variant_id
                                         $distinctProductCount = DB::table('cart_items')
                                             ->where('cart_id', $cart->id)
                                             ->distinct()
@@ -214,13 +333,17 @@
                         </li>
 
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/orders/pending*') ? 'active' : '' }}" href="{{ url('/franchisee/orders/pending') }}">
+                            <a class="nav-link {{ request()->is('franchisee/orders/pending*') ? 'active' : '' }}" 
+                               href="{{ url('/franchisee/orders/pending') }}"
+                               onclick="registerFranchiseeActivity('pending_orders_navigation')">
                                 <i class="fas fa-clock me-2"></i>
                                 Pending Orders
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('franchisee/orders/history*') ? 'active' : '' }}" href="{{ url('/franchisee/orders/history') }}">
+                            <a class="nav-link {{ request()->is('franchisee/orders/history*') ? 'active' : '' }}" 
+                               href="{{ url('/franchisee/orders/history') }}"
+                               onclick="registerFranchiseeActivity('order_history_navigation')">
                                 <i class="fas fa-history me-2"></i>
                                 Order History
                             </a>
@@ -229,7 +352,9 @@
                     
                     <hr>
                     <div class="px-3 mt-4">
-                        <a href="{{ url('/logout') }}" class="btn btn-danger w-100">
+                        <a href="{{ url('/logout') }}" 
+                           class="btn btn-danger w-100"
+                           onclick="registerFranchiseeActivity('manual_logout')">
                             <i class="fas fa-sign-out-alt me-2"></i> Logout
                         </a>
                     </div>
@@ -237,7 +362,7 @@
             </div>
             
             <!-- Toggle button as a separate element outside the sidebar -->
-            <div id="sidebar-toggle" class="sidebar-toggle">
+            <div id="sidebar-toggle" class="sidebar-toggle" onclick="registerFranchiseeActivity('sidebar_toggle')">
                 <i id="toggle-icon" class="fas fa-chevron-left"></i>
             </div>
             
@@ -248,11 +373,11 @@
                     <div class="container-fluid">
                         <span class="navbar-brand mb-0 h1">@yield('page-title', 'Franchisee Dashboard')</span>
                         <div class="d-flex">
-                        <a href="{{ url('/franchisee/cart') }}" class="btn btn-outline-success me-2 position-relative cart-btn" id="top-cart-btn">
+                        <a href="{{ url('/franchisee/cart') }}" 
+                           class="btn btn-outline-success me-2 position-relative cart-btn" 
+                           id="top-cart-btn"
+                           onclick="registerFranchiseeActivity('cart_button_click')">
                             <i class="fas fa-shopping-cart"></i>
-                            @php
-                                // No need to query again, we already have $distinctProductCount from above
-                            @endphp
                             @if($distinctProductCount > 0)
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count">
                                 {{ $distinctProductCount }}
@@ -261,18 +386,30 @@
                         </a>
                             @include('layouts.components.notification-bell')
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button class="btn btn-outline-secondary dropdown-toggle" 
+                                        type="button" 
+                                        id="userDropdown" 
+                                        data-bs-toggle="dropdown" 
+                                        aria-expanded="false"
+                                        onclick="registerFranchiseeActivity('user_dropdown')">
                                     <i class="fas fa-user-circle me-2"></i> {{ Auth::user()->username ?? 'Franchisee' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                   
-                                    <li><a class="dropdown-item" href="{{ url('/franchisee/profile') }}">
-                                        <i class="fas fa-cog me-2"></i> Settings
-                                    </a></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{{ url('/franchisee/profile') }}"
+                                           onclick="registerFranchiseeActivity('profile_navigation')">
+                                            <i class="fas fa-cog me-2"></i> Settings
+                                        </a>
+                                    </li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                    </a></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{{ url('/logout') }}"
+                                           onclick="registerFranchiseeActivity('manual_logout')">
+                                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -286,22 +423,7 @@
                             <i class="fas fa-star me-2"></i> Welcome back, {{ session('user_name') ?? Auth::user()->username ?? 'Franchisee' }}!
                         </h4>
                         <p class="mt-3">Nice to see you back!</p>
-
-                        <!-- @php
-                          // Check if there are any recent orders with non-completed statuses
-                          $pendingOrders = App\Models\Order::where('user_id', Auth::id())
-                            ->whereIn('status', ['pending', 'processing', 'shipped', 'out_for_delivery', 'delayed', 'rejected', 'cancelled'])
-                            ->where('updated_at', '>=', \Carbon\Carbon::now()->subDays(7))
-                            ->exists();
-                        @endphp
-
-                        @if($pendingOrders)
-                            <div class="mt-2">
-                                <p><i class="fas fa-bell me-2"></i> <strong>You have order updates!</strong> Check your orders for the latest status changes.</p>
-                            </div>
-                        @endif
-
-                        <hr> -->
+                        <hr>
                         <p class="mb-0">Check the dashboard for more insights about your restaurant supply status.</p>
                     </div>
                     @endif
@@ -317,11 +439,13 @@
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Global cart update script -->
+    <!-- Global cart update script with activity tracking -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Global function to update all cart count badges
             window.updateAllCartCountBadges = function(count) {
+                registerFranchiseeActivity('cart_update');
+                
                 // Update top navigation cart badge
                 const topNavBadge = document.querySelector('#top-cart-btn .badge');
                 if (topNavBadge) {
@@ -370,7 +494,7 @@
         });
     </script>
     
-    <!-- Enhanced Sidebar toggle script with fixes -->
+    <!-- Enhanced Sidebar toggle script with activity tracking -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle');
@@ -379,7 +503,6 @@
             const mainContent = document.getElementById('main-content');
             
             // Check if sidebar state is stored in localStorage
-            // Default to NOT collapsed (sidebar visible by default)
             const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
             
             // Apply initial state ONLY if explicitly collapsed
@@ -387,49 +510,40 @@
                 sidebar.classList.add('sidebar-collapsed');
                 mainContent.classList.add('content-expanded');
                 mainContent.classList.remove('col-md-10', 'ms-sm-auto');
-                // Use right-facing arrow immediately when collapsed
                 toggleIcon.classList.remove('fa-chevron-left');
                 toggleIcon.classList.add('fa-chevron-right');
-                // Position toggle button at edge of screen when sidebar is collapsed
                 sidebarToggleBtn.style.left = '15px';
             }
             
             // Toggle sidebar when button is clicked
             sidebarToggleBtn.addEventListener('click', function() {
-                // Toggle collapse class
+                registerFranchiseeActivity('sidebar_toggle');
+                
                 sidebar.classList.toggle('sidebar-collapsed');
                 
                 if (sidebar.classList.contains('sidebar-collapsed')) {
-                    // Sidebar is now being hidden - immediately show right arrow
                     toggleIcon.classList.remove('fa-chevron-left');
                     toggleIcon.classList.add('fa-chevron-right');
-                    
-                    // Adjust content and button position
                     mainContent.classList.add('content-expanded');
                     mainContent.classList.remove('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '15px';
                     localStorage.setItem('sidebar-collapsed', 'true');
                 } else {
-                    // Sidebar is now being shown
-                    // Keep right arrow until sidebar is fully visible
-                    
-                    // Adjust content and button position immediately
                     mainContent.classList.remove('content-expanded');
                     mainContent.classList.add('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '16.66667%';
                     localStorage.setItem('sidebar-collapsed', 'false');
                     
-                    // Wait for animation to complete before changing icon
                     setTimeout(() => {
                         toggleIcon.classList.remove('fa-chevron-right');
                         toggleIcon.classList.add('fa-chevron-left');
-                    }, 1000); // Match the 1s animation time
+                    }, 1000);
                 }
             });
         });
     </script>
     
-    <!-- Quantity selector script -->
+    <!-- Quantity selector script with activity tracking -->
     <script>
         // Handle quantity selector buttons
         document.addEventListener('DOMContentLoaded', function() {
@@ -438,11 +552,11 @@
             
             decrementButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    registerFranchiseeActivity('quantity_decrement');
                     const input = this.parentNode.querySelector('input');
                     const currentValue = parseInt(input.value);
                     if (currentValue > parseInt(input.min)) {
                         input.value = currentValue - 1;
-                        // Trigger change event to update any listeners
                         input.dispatchEvent(new Event('change'));
                     }
                 });
@@ -450,11 +564,11 @@
             
             incrementButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    registerFranchiseeActivity('quantity_increment');
                     const input = this.parentNode.querySelector('input');
                     const currentValue = parseInt(input.value);
                     if (currentValue < parseInt(input.max)) {
                         input.value = currentValue + 1;
-                        // Trigger change event to update any listeners
                         input.dispatchEvent(new Event('change'));
                     }
                 });

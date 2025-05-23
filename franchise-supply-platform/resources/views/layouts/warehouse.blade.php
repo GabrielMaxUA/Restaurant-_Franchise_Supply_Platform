@@ -176,28 +176,142 @@
         }
     </style>
     @yield('styles')
+    
+    <!-- Enhanced 15-Minute Inactivity System -->
     <script>
-        // === Inactivity timer config ===
-        let inactivityLimit = 15 * 60 * 1000; // 1 minute (60 seconds) for testing
-        let inactivityTimer;
-
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                // Show alert and redirect
-                alert("Sorry, you were gone too long. Please log in.");
-                window.location.href = "{{ url('/logout') }}"; // or route('login')
-            }, inactivityLimit);
-        }
-      
-        // Reset timer on common user activity
-        ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
-            document.addEventListener(evt, resetInactivityTimer, false);
+        // ============================================================================
+        // 15-MINUTE INACTIVITY LOGOUT SYSTEM - WEB VERSION (WAREHOUSE)
+        // ============================================================================
+        
+        // Activity tracking variables
+        let lastUserActivity = Date.now();
+        let lastActivityLog = 0;
+        const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+        const ACTIVITY_LOG_THROTTLE = 5000; // Only log activity every 5 seconds
+        let inactivityLogoutTimer = null;
+        let logoutInProgress = false;
+        
+        // User activity tracking function with throttling
+        const updateUserActivity = (source = 'unknown') => {
+            const now = Date.now();
+            const timeSinceLastActivity = now - lastUserActivity;
+            const wasInactive = timeSinceLastActivity > INACTIVITY_TIMEOUT;
+            const shouldLog = (now - lastActivityLog) > ACTIVITY_LOG_THROTTLE || wasInactive;
+            
+            lastUserActivity = now;
+            
+            // Only log if enough time has passed or user was inactive
+            if (shouldLog) {
+                lastActivityLog = now;
+                console.log('🔄 Warehouse activity detected:', new Date(now).toLocaleTimeString());
+                console.log(`📍 Activity source: ${source}`);
+                console.log(`📊 USER STATE: ${wasInactive ? 'INACTIVE → ACTIVE' : 'ACTIVE (continued)'}`);
+                console.log(`⏱️ Time since last activity: ${(timeSinceLastActivity / 1000).toFixed(1)}s`);
+            }
+            
+            // Always clear and restart timer
+            if (inactivityLogoutTimer) {
+                clearTimeout(inactivityLogoutTimer);
+                if (shouldLog) {
+                    console.log('⏰ Cleared previous inactivity timer');
+                }
+            }
+            
+            // Start new inactivity timer
+            scheduleInactivityLogout(shouldLog);
+        };
+        
+        // Schedule inactivity logout
+        const scheduleInactivityLogout = (shouldLog = true) => {
+            if (logoutInProgress) {
+                if (shouldLog) console.log('🚫 Logout already in progress, skipping inactivity timer');
+                return;
+            }
+            
+            if (shouldLog) {
+                const timeoutMinutes = INACTIVITY_TIMEOUT / (60 * 1000);
+                console.log(`⏰ INACTIVITY TIMER: Scheduling logout in ${timeoutMinutes} minutes`);
+                console.log(`📅 LOGOUT SCHEDULED FOR: ${new Date(Date.now() + INACTIVITY_TIMEOUT).toLocaleTimeString()}`);
+            }
+            
+            inactivityLogoutTimer = setTimeout(() => {
+                console.log('🕒 ===============================================');
+                console.log('🕒 15 MINUTES OF INACTIVITY DETECTED - LOGGING OUT');
+                console.log('🕒 ===============================================');
+                handleInactivityLogout();
+            }, INACTIVITY_TIMEOUT);
+        };
+        
+        // Handle inactivity logout
+        const handleInactivityLogout = () => {
+            if (logoutInProgress) {
+                console.log('🚫 Logout already in progress');
+                return;
+            }
+            
+            logoutInProgress = true;
+            
+            try {
+                // Clear timer
+                if (inactivityLogoutTimer) {
+                    clearTimeout(inactivityLogoutTimer);
+                    inactivityLogoutTimer = null;
+                }
+                
+                console.log('🕒 Performing inactivity logout for warehouse user');
+                
+                // Show inactivity alert and redirect
+                alert("You have been automatically logged out due to 15 minutes of inactivity. Please log in again.");
+                window.location.href = "{{ url('/logout') }}";
+                
+            } catch (error) {
+                console.error('❌ Error during inactivity logout:', error);
+                // Still redirect even if there was an error
+                window.location.href = "{{ url('/logout') }}";
+            } finally {
+                logoutInProgress = false;
+            }
+        };
+        
+        // Initialize activity tracking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔄 Warehouse inactivity system initialized');
+            updateUserActivity('page_load');
+            
+            // Set up periodic activity monitoring (every 2 minutes)
+            setInterval(() => {
+                const timeSinceActivity = Date.now() - lastUserActivity;
+                const userActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+                const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+                const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+                
+                console.log('⏰ ==========================================');
+                console.log('⏰ WAREHOUSE ACTIVITY CHECK');
+                console.log('⏰ ==========================================');
+                console.log(`👤 User state: ${userActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+                console.log(`⏱️ Time since activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+                console.log('⏰ ==========================================');
+            }, 2 * 60 * 1000); // Check every 2 minutes
         });
-      
-        // Start the timer initially
-        resetInactivityTimer();
-  </script>
+        
+        // Enhanced activity detection
+        const activityEvents = [
+            'click', 'mousemove', 'keypress', 'scroll', 'touchstart', 
+            'mousedown', 'keydown', 'wheel', 'input'
+        ];
+        
+        activityEvents.forEach(eventType => {
+            document.addEventListener(eventType, () => updateUserActivity(eventType), true);
+        });
+        
+        // Register activity for specific warehouse actions
+        const registerWarehouseActivity = (action) => {
+            updateUserActivity(`warehouse_${action}`);
+        };
+        
+        // Make function globally available for onclick handlers
+        window.registerWarehouseActivity = registerWarehouseActivity;
+    </script>
 </head>
 <body>
     <div class="container-fluid">
@@ -212,7 +326,9 @@
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/dashboard*') ? 'active' : '' }}" href="{{ url('/warehouse/dashboard') }}">
+                            <a class="nav-link {{ request()->is('warehouse/dashboard*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/dashboard') }}"
+                               onclick="registerWarehouseActivity('dashboard_navigation')">
                                 <i class="fas fa-tachometer-alt me-2"></i>
                                 Dashboard
                             </a>
@@ -220,13 +336,17 @@
 
                         <!-- Order Management Section -->
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/orders*') ? 'active' : '' }}" href="{{ url('/warehouse/orders') }}">
+                            <a class="nav-link {{ request()->is('warehouse/orders*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/orders') }}"
+                               onclick="registerWarehouseActivity('orders_navigation')">
                                 <i class="fas fa-shopping-cart me-2"></i>
                                 Order Management
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/orders/pending*') ? 'active' : '' }}" href="{{ url('/warehouse/orders/pending') }}">
+                            <a class="nav-link {{ request()->is('warehouse/orders/pending*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/orders/pending') }}"
+                               onclick="registerWarehouseActivity('pending_orders_navigation')">
                                 <i class="fas fa-clipboard-list me-2"></i>
                                 Awaiting Fulfillment
                                 @php
@@ -238,7 +358,9 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/orders/in-progress*') ? 'active' : '' }}" href="{{ url('/warehouse/orders/in-progress') }}">
+                            <a class="nav-link {{ request()->is('warehouse/orders/in-progress*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/orders/in-progress') }}"
+                               onclick="registerWarehouseActivity('in_progress_orders_navigation')">
                                 <i class="fas fa-box me-2"></i>
                                 In Progress
                             </a>
@@ -246,19 +368,25 @@
 
                         <!-- Product Management Section -->
                         <li class="nav-item mt-3">
-                            <a class="nav-link {{ request()->is('warehouse/products*') ? 'active' : '' }}" href="{{ url('/warehouse/products') }}">
+                            <a class="nav-link {{ request()->is('warehouse/products*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/products') }}"
+                               onclick="registerWarehouseActivity('products_navigation')">
                                 <i class="fas fa-boxes me-2"></i>
                                 Products
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/categories*') ? 'active' : '' }}" href="{{ url('/warehouse/categories') }}">
+                            <a class="nav-link {{ request()->is('warehouse/categories*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/categories') }}"
+                               onclick="registerWarehouseActivity('categories_navigation')">
                                 <i class="fas fa-tags me-2"></i>
                                 Categories
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/inventory/low-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/low-stock') }}">
+                            <a class="nav-link {{ request()->is('warehouse/inventory/low-stock*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/inventory/low-stock') }}"
+                               onclick="registerWarehouseActivity('low_stock_navigation')">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 Low Stock
                                 @php
@@ -273,7 +401,9 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->is('warehouse/inventory/out-of-stock*') ? 'active' : '' }}" href="{{ url('/warehouse/inventory/out-of-stock') }}">
+                            <a class="nav-link {{ request()->is('warehouse/inventory/out-of-stock*') ? 'active' : '' }}" 
+                               href="{{ url('/warehouse/inventory/out-of-stock') }}"
+                               onclick="registerWarehouseActivity('out_of_stock_navigation')">
                                 <i class="fas fa-ban me-2"></i>
                                 Out of Stock
                                 @php
@@ -289,7 +419,9 @@
                     
                     <hr>
                     <div class="px-3 mt-4">
-                        <a href="{{ url('/logout') }}" class="btn btn-danger w-100">
+                        <a href="{{ url('/logout') }}" 
+                           class="btn btn-danger w-100"
+                           onclick="registerWarehouseActivity('manual_logout')">
                             <i class="fas fa-sign-out-alt me-2"></i> Logout
                         </a>
                     </div>
@@ -297,7 +429,7 @@
             </div>
             
             <!-- Toggle button as a separate element outside the sidebar -->
-            <div id="sidebar-toggle" class="sidebar-toggle">
+            <div id="sidebar-toggle" class="sidebar-toggle" onclick="registerWarehouseActivity('sidebar_toggle')">
                 <i id="toggle-icon" class="fas fa-chevron-left"></i>
             </div>
             
@@ -310,15 +442,30 @@
                         <div class="d-flex">
                             @include('layouts.components.notification-bell')
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button class="btn btn-outline-secondary dropdown-toggle" 
+                                        type="button" 
+                                        id="userDropdown" 
+                                        data-bs-toggle="dropdown" 
+                                        aria-expanded="false"
+                                        onclick="registerWarehouseActivity('user_dropdown')">
                                     <i class="fas fa-user me-2"></i> {{ Auth::user()->username ?? 'Warehouse Manager' }}
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                                    <li><a class="dropdown-item" href="{{ url('/warehouse/profile') }}">
-                                    <i class="fas fa-cog me-2"></i>Settings</a></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{{ url('/warehouse/profile') }}"
+                                           onclick="registerWarehouseActivity('profile_navigation')">
+                                            <i class="fas fa-cog me-2"></i>Settings
+                                        </a>
+                                    </li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url('/logout') }}">
-                                    <i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{{ url('/logout') }}"
+                                           onclick="registerWarehouseActivity('manual_logout')">
+                                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -342,7 +489,9 @@
                                         <i class="fas fa-clipboard-check me-2"></i>
                                         <div>
                                             <strong>{{ $approvedOrders }} {{ Str::plural('order', $approvedOrders) }}</strong> awaiting fulfillment
-                                            <a href="{{ route('warehouse.orders.index', ['status' => 'approved']) }}" class="btn btn-sm btn-primary ms-3">
+                                            <a href="{{ route('warehouse.orders.index', ['status' => 'approved']) }}" 
+                                               class="btn btn-sm btn-primary ms-3"
+                                               onclick="registerWarehouseActivity('approved_orders_view')">
                                                 Process Orders
                                             </a>
                                         </div>
@@ -358,7 +507,9 @@
                                         <i class="fas fa-box me-2"></i>
                                         <div>
                                             <strong>{{ $inProgressOrders }} {{ Str::plural('order', $inProgressOrders) }}</strong> in progress
-                                            <a href="{{ route('warehouse.orders.in-progress') }}" class="btn btn-sm btn-info ms-3 text-white">
+                                            <a href="{{ route('warehouse.orders.in-progress') }}" 
+                                               class="btn btn-sm btn-info ms-3 text-white"
+                                               onclick="registerWarehouseActivity('in_progress_orders_view')">
                                                 View Orders
                                             </a>
                                         </div>
@@ -398,9 +549,7 @@
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-
-    
-    <!-- Enhanced Sidebar toggle script with fixes -->
+    <!-- Enhanced Sidebar toggle script with activity tracking -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const sidebarToggleBtn = document.getElementById('sidebar-toggle');
@@ -409,7 +558,6 @@
             const mainContent = document.getElementById('main-content');
             
             // Check if sidebar state is stored in localStorage
-            // Default to NOT collapsed (sidebar visible by default)
             const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
             
             // Apply initial state ONLY if explicitly collapsed
@@ -417,43 +565,34 @@
                 sidebar.classList.add('sidebar-collapsed');
                 mainContent.classList.add('content-expanded');
                 mainContent.classList.remove('col-md-10', 'ms-sm-auto');
-                // Use right-facing arrow immediately when collapsed
                 toggleIcon.classList.remove('fa-chevron-left');
                 toggleIcon.classList.add('fa-chevron-right');
-                // Position toggle button at edge of screen when sidebar is collapsed
                 sidebarToggleBtn.style.left = '15px';
             }
             
             // Toggle sidebar when button is clicked
             sidebarToggleBtn.addEventListener('click', function() {
-                // Toggle collapse class
+                registerWarehouseActivity('sidebar_toggle');
+                
                 sidebar.classList.toggle('sidebar-collapsed');
                 
                 if (sidebar.classList.contains('sidebar-collapsed')) {
-                    // Sidebar is now being hidden - immediately show right arrow
                     toggleIcon.classList.remove('fa-chevron-left');
                     toggleIcon.classList.add('fa-chevron-right');
-                    
-                    // Adjust content and button position
                     mainContent.classList.add('content-expanded');
                     mainContent.classList.remove('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '15px';
                     localStorage.setItem('sidebar-collapsed', 'true');
                 } else {
-                    // Sidebar is now being shown
-                    // Keep right arrow until sidebar is fully visible
-                    
-                    // Adjust content and button position immediately
                     mainContent.classList.remove('content-expanded');
                     mainContent.classList.add('col-md-10', 'ms-sm-auto');
                     sidebarToggleBtn.style.left = '16.66667%';
                     localStorage.setItem('sidebar-collapsed', 'false');
                     
-                    // Wait for animation to complete before changing icon
                     setTimeout(() => {
                         toggleIcon.classList.remove('fa-chevron-right');
                         toggleIcon.classList.add('fa-chevron-left');
-                    }, 1000); // Match the 1s animation time
+                    }, 1000);
                 }
             });
         });

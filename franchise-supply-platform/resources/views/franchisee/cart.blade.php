@@ -69,6 +69,12 @@
         align-items: center;
         padding: 20px;
         border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.3s ease;
+    }
+    
+    .cart-item.updating {
+        background-color: rgba(40, 167, 69, 0.1);
+        pointer-events: none;
     }
     
     .cart-image {
@@ -86,6 +92,12 @@
     .cart-item-name {
         font-size: 1.1rem;
         font-weight: 500;
+        margin-bottom: 5px;
+    }
+    
+    .cart-item-variant {
+        font-size: 0.9rem;
+        color: #6c757d;
         margin-bottom: 5px;
     }
     
@@ -110,10 +122,16 @@
         border: 1px solid #ced4da;
         font-size: 16px;
         cursor: pointer;
+        transition: background-color 0.2s ease;
     }
     
-    .quantity-btn:hover {
+    .quantity-btn:hover:not(:disabled) {
         background-color: #e9ecef;
+    }
+    
+    .quantity-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
     
     .quantity-btn.minus {
@@ -142,6 +160,11 @@
         margin: 0;
     }
     
+    .quantity-input:disabled {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    
     .cart-item-total {
         font-weight: 600;
         font-size: 1.1rem;
@@ -158,10 +181,16 @@
         padding: 5px 10px;
         border-radius: 4px;
         cursor: pointer;
+        transition: background-color 0.2s ease;
     }
     
-    .btn-remove:hover {
+    .btn-remove:hover:not(:disabled) {
         background-color: #f8d7da;
+    }
+    
+    .btn-remove:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
     
     .cart-actions {
@@ -181,8 +210,13 @@
         transition: all 0.2s;
     }
     
-    .clear-cart-btn:hover {
+    .clear-cart-btn:hover:not(:disabled) {
         background-color: #f8d7da;
+    }
+    
+    .clear-cart-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
     }
     
     /* Order summary */
@@ -238,7 +272,7 @@
         text-align: center;
     }
     
-    .checkout-btn:hover {
+    .checkout-btn:hover:not(:disabled) {
         background-color: #218838;
     }
     
@@ -348,64 +382,6 @@
         text-decoration: underline;
     }
 
-    /* Success message toast */
-    .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 10000;
-    }
-    
-    .toast {
-        transition: opacity 0.3s ease;
-        opacity: 0;
-        background-color: #fff;
-        border-radius: 5px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        padding: 15px;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        max-width: 350px;
-    }
-    
-    .toast.show {
-        opacity: 1;
-    }
-    
-    .toast.success {
-        border-left: 4px solid #28a745;
-    }
-    
-    .toast.error {
-        border-left: 4px solid #dc3545;
-    }
-    
-    .toast-icon {
-        margin-right: 10px;
-        font-size: 1.2rem;
-    }
-    
-    .toast.success .toast-icon {
-        color: #28a745;
-    }
-    
-    .toast.error .toast-icon {
-        color: #dc3545;
-    }
-    
-    .toast-content {
-        flex-grow: 1;
-    }
-    
-    .toast-close {
-        background: none;
-        border: none;
-        font-size: 1.1rem;
-        color: #6c757d;
-        cursor: pointer;
-    }
-
     /* Quantity adjustment highlight effect */
     .highlight {
         animation: highlight 1s ease-in-out;
@@ -452,13 +428,22 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    /* Item quantity adjustment indicator */
+    .quantity-adjusted {
+        background-color: rgba(255, 193, 7, 0.2);
+        border-left: 3px solid #ffc107;
+        transition: all 0.3s ease;
+    }
+
+    .quantity-adjusted .cart-item-total {
+        color: #e67e22;
+    }
 </style>
 @endsection
 
 @section('content')
 <div class="container-fluid">
-
-    
     <div class="row">
         <!-- Cart Items -->
         <div class="col-lg-8 mb-4">
@@ -574,9 +559,6 @@
     </div>
 </div>
 
-<!-- Toast notification container -->
-<div class="toast-container"></div>
-
 <!-- Loading overlay -->
 <div class="loading-overlay">
     <div class="spinner"></div>
@@ -590,7 +572,7 @@
         // Initial calculation of cart totals
         calculateCartTotals();
         
-        // Quantity buttons functionality with automatic update
+        // Setup quantity management
         setupQuantityButtons();
         
         // Remove item functionality
@@ -621,6 +603,32 @@
             const loadingOverlay = document.querySelector('.loading-overlay');
             if (loadingOverlay) {
                 loadingOverlay.classList.remove('active');
+            }
+        }
+        
+        // Function to disable cart item interactions
+        function disableCartItem(itemId) {
+            const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+            if (cartItem) {
+                cartItem.classList.add('updating');
+                const buttons = cartItem.querySelectorAll('.quantity-btn, .btn-remove');
+                const input = cartItem.querySelector('.quantity-input');
+                
+                buttons.forEach(btn => btn.disabled = true);
+                if (input) input.disabled = true;
+            }
+        }
+        
+        // Function to enable cart item interactions
+        function enableCartItem(itemId) {
+            const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+            if (cartItem) {
+                cartItem.classList.remove('updating');
+                const buttons = cartItem.querySelectorAll('.quantity-btn, .btn-remove');
+                const input = cartItem.querySelector('.quantity-input');
+                
+                buttons.forEach(btn => btn.disabled = false);
+                if (input) input.disabled = false;
             }
         }
         
@@ -680,11 +688,9 @@
         function updateAllCartBadges(count, totalItems) {
             // Use the global function if available (defined in layout)
             if (window.updateAllCartCountBadges) {
-                // Pass totalItems if available, otherwise just use count
                 window.updateAllCartCountBadges(totalItems || count);
             } else {
                 // Fallback if global function isn't available
-                // Update top navigation cart badge
                 const topNavBadge = document.querySelector('#top-cart-btn .badge');
                 if (topNavBadge) {
                     if (count > 0) {
@@ -693,17 +699,8 @@
                     } else {
                         topNavBadge.style.display = 'none';
                     }
-                } else if (count > 0) {
-                    const cartBtn = document.querySelector('#top-cart-btn');
-                    if (cartBtn) {
-                        const newBadge = document.createElement('span');
-                        newBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count';
-                        newBadge.textContent = totalItems || count;
-                        cartBtn.appendChild(newBadge);
-                    }
                 }
                 
-                // Update sidebar cart badge
                 const sidebarBadge = document.querySelector('#sidebar-cart-link .badge');
                 if (sidebarBadge) {
                     if (count > 0) {
@@ -712,30 +709,14 @@
                     } else {
                         sidebarBadge.style.display = 'none';
                     }
-                } else if (count > 0) {
-                    const sidebarLink = document.querySelector('#sidebar-cart-link');
-                    if (sidebarLink) {
-                        const newBadge = document.createElement('span');
-                        newBadge.className = 'badge bg-danger ms-2 cart-sidebar-count';
-                        newBadge.textContent = totalItems || count;
-                        sidebarLink.appendChild(newBadge);
-                    }
                 }
             }
-            
-            // Dispatch a custom event for other components to listen for
-            document.dispatchEvent(new CustomEvent('cartUpdated', { 
-                detail: { count: count, totalItems: totalItems || count }
-            }));
         }
         
-        // Function to update cart quantity via AJAX
+        // Function to update cart quantity via AJAX using the new method
         const updateCartItemQuantity = debounce(function(itemId, quantity, previousQuantity) {
-            // Show loading indicator
-            showLoading();
-            
-            // Determine if this is a partial removal
-            const isPartialRemoval = previousQuantity && quantity < previousQuantity;
+            // Disable item interactions
+            disableCartItem(itemId);
             
             // If quantity is zero, handle as a removal
             if (quantity === 0) {
@@ -743,14 +724,14 @@
                 return;
             }
             
-            // Create form data
+            // Create form data for the new single item update method
             const formData = new FormData();
             formData.append('_token', '{{ csrf_token() }}');
-            formData.append('items[0][id]', itemId);
-            formData.append('items[0][quantity]', quantity);
+            formData.append('item_id', itemId);
+            formData.append('quantity', quantity);
             
-            // Make AJAX request
-            fetch('{{ route("franchisee.cart.update") }}', {
+            // Make AJAX request to the new endpoint
+            fetch('{{ route("franchisee.cart.update-item") }}', {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -766,17 +747,57 @@
             })
             .then(data => {
                 if (data.success) {
-                    // Show success toast using the global function
-                    // Use correct parameter order: (message, type)
+                    const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+                    
+                    if (data.item_removed) {
+                        // Item was removed due to no stock
+                        cartItem.style.opacity = '0';
+                        cartItem.style.transition = 'opacity 0.3s ease';
+                        
+                        setTimeout(() => {
+                            cartItem.remove();
+                            calculateCartTotals();
+                            
+                            // If cart is now empty, reload the page
+                            if (data.cart_count === 0) {
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            }
+                        }, 300);
+                    } else {
+                        // Update the quantity to the actual final quantity
+                        const quantityInput = cartItem.querySelector('.quantity-input');
+                        if (quantityInput && data.final_quantity !== undefined) {
+                            quantityInput.value = data.final_quantity;
+                            quantityInput.dataset.initialQuantity = data.final_quantity;
+                        }
+                        
+                        // Recalculate item subtotal
+                        calculateItemSubtotal(cartItem);
+                        
+                        // Show visual feedback if quantity was adjusted
+                        if (data.was_adjusted && data.final_quantity !== quantity) {
+                            cartItem.classList.add('quantity-adjusted');
+                            setTimeout(() => {
+                                cartItem.classList.remove('quantity-adjusted');
+                            }, 3000);
+                        }
+                    }
+                    
+                    // Show appropriate message
+                    const messageType = data.was_adjusted ? 'warning' : 'success';
                     if (typeof window.showFloatingAlert === 'function') {
-                        window.showFloatingAlert(isPartialRemoval ? 'Item quantity reduced' : 'Cart updated successfully', 'success');
+                        window.showFloatingAlert(data.message, messageType);
                     }
                     
                     // Update cart count everywhere
-                    updateAllCartBadges(data.cart_count, data.total_items);
+                    updateAllCartBadges(data.cart_count);
+                    
+                    // Recalculate cart totals
+                    calculateCartTotals();
                 } else {
-                    // Show error toast using the global function
-                    // Use correct parameter order and 'danger' instead of 'error'
+                    // Show error message
                     if (typeof window.showFloatingAlert === 'function') {
                         window.showFloatingAlert(data.message || 'Failed to update cart', 'danger');
                     }
@@ -787,35 +808,31 @@
             })
             .catch(error => {
                 console.error('Error:', error);
-                // Use global function with correct parameter order
                 if (typeof window.showFloatingAlert === 'function') {
                     window.showFloatingAlert('An error occurred while updating the cart', 'danger');
                 }
                 revertQuantityChange(itemId, previousQuantity);
             })
             .finally(() => {
-                // Hide loading indicator
-                hideLoading();
+                // Re-enable item interactions
+                enableCartItem(itemId);
             });
-        }, 500); // 500ms debounce delay
+        }, 800); // Increased debounce delay for better UX
         
         // Function to revert quantity change if API call fails
         function revertQuantityChange(itemId, previousQuantity) {
             const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
             if (input) {
-                // Reset to initial quantity (or previous quantity if provided)
                 input.value = previousQuantity || input.dataset.initialQuantity || 1;
                 
                 // Recalculate subtotal
                 const itemElement = input.closest('.cart-item');
                 calculateItemSubtotal(itemElement);
-                
-                // Recalculate cart totals
                 calculateCartTotals();
             }
         }
         
-        // Set up quantity buttons with auto-update
+        // Set up quantity buttons with improved logic
         function setupQuantityButtons() {
             const minusButtons = document.querySelectorAll('.quantity-btn.minus');
             const plusButtons = document.querySelectorAll('.quantity-btn.plus');
@@ -823,25 +840,22 @@
             
             minusButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    
                     const itemId = this.dataset.itemId;
                     const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
                     const currentValue = parseInt(input.value);
                     
                     if (currentValue > 1) {
-                        // Store previous value before updating
                         const previousValue = currentValue;
-                        
-                        // Decrease value
                         input.value = currentValue - 1;
                         
-                        // Update subtotal for this item
+                        // Update subtotal immediately for better UX
                         const itemElement = this.closest('.cart-item');
                         calculateItemSubtotal(itemElement);
-                        
-                        // Update cart totals
                         calculateCartTotals();
                         
-                        // Send update to server (with previous value for comparison)
+                        // Send update to server
                         updateCartItemQuantity(itemId, currentValue - 1, previousValue);
                     } else if (currentValue === 1) {
                         // If quantity is already 1, ask if they want to remove the item
@@ -854,24 +868,21 @@
             
             plusButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    
                     const itemId = this.dataset.itemId;
                     const input = document.querySelector(`.quantity-input[data-item-id="${itemId}"]`);
                     const currentValue = parseInt(input.value);
-                    
-                    // Store previous value before updating
                     const previousValue = currentValue;
                     
-                    // Increase value
                     input.value = currentValue + 1;
                     
-                    // Update subtotal for this item
+                    // Update subtotal immediately for better UX
                     const itemElement = this.closest('.cart-item');
                     calculateItemSubtotal(itemElement);
-                    
-                    // Update cart totals
                     calculateCartTotals();
                     
-                    // Send update to server (with previous value for comparison)
+                    // Send update to server
                     updateCartItemQuantity(itemId, currentValue + 1, previousValue);
                 });
             });
@@ -880,64 +891,84 @@
                 // Store initial value for reverting if needed
                 input.dataset.initialQuantity = input.value;
                 
-                // Add change event listener
+                // Add change event listener with improved validation
                 input.addEventListener('change', function() {
+                    if (this.disabled) return;
+                    
                     const itemId = this.dataset.itemId;
                     const previousValue = parseInt(this.dataset.initialQuantity) || 1;
                     let newValue = parseInt(this.value);
                     
-                    // Ensure minimum value of 1
-                    if (newValue < 1) {
-                        // If they entered 0, ask if they want to remove the item
-                        if (newValue === 0) {
-                            if (confirm('Remove this item from your cart?')) {
-                                removeCartItem(itemId);
-                                return;
-                            } else {
-                                // If they cancel, revert to previous value
-                                newValue = previousValue;
-                                this.value = previousValue;
-                            }
+                    // Handle invalid inputs
+                    if (isNaN(newValue) || newValue < 0) {
+                        newValue = previousValue;
+                        this.value = previousValue;
+                        return;
+                    }
+                    
+                    // Handle zero quantity
+                    if (newValue === 0) {
+                        if (confirm('Remove this item from your cart?')) {
+                            removeCartItem(itemId);
+                            return;
                         } else {
-                            // Invalid negative value, set to 1
-                            newValue = 1;
-                            this.value = 1;
+                            newValue = previousValue;
+                            this.value = previousValue;
+                            return;
                         }
                     }
                     
-                    // Update subtotal for this item
+                    // Handle minimum value
+                    if (newValue < 1) {
+                        newValue = 1;
+                        this.value = 1;
+                    }
+                    
+                    // Update subtotal immediately for better UX
                     const itemElement = this.closest('.cart-item');
                     calculateItemSubtotal(itemElement);
-                    
-                    // Update cart totals
                     calculateCartTotals();
                     
                     // Update current value as initial value
                     this.dataset.initialQuantity = newValue;
                     
-                    // Send update to server (with previous value for comparison)
+                    // Send update to server
                     updateCartItemQuantity(itemId, newValue, previousValue);
+                });
+                
+                // Prevent invalid input during typing
+                input.addEventListener('keydown', function(e) {
+                    // Allow: backspace, delete, tab, escape, enter
+                    if ([46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1 ||
+                        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                        (e.keyCode === 67 && e.ctrlKey === true) ||
+                        (e.keyCode === 86 && e.ctrlKey === true) ||
+                        (e.keyCode === 88 && e.ctrlKey === true) ||
+                        // Allow: home, end, left, right
+                        (e.keyCode >= 35 && e.keyCode <= 39)) {
+                        return;
+                    }
+                    // Ensure that it is a number and stop the keypress
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                        e.preventDefault();
+                    }
                 });
             });
         }
         
         // Function to remove cart item
-        function removeCartItem(itemId, quantity = null) {
+        function removeCartItem(itemId) {
             const cartItem = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
             if (!cartItem) return;
             
-            // Show loading indicator
-            showLoading();
+            // Disable item interactions
+            disableCartItem(itemId);
             
             // Create form data
             const formData = new FormData();
             formData.append('_token', '{{ csrf_token() }}');
             formData.append('item_id', itemId);
-            
-            // Add quantity if specified (for partial removal)
-            if (quantity !== null) {
-                formData.append('quantity', quantity);
-            }
             
             // Make AJAX request
             fetch('{{ route("franchisee.cart.remove") }}', {
@@ -956,60 +987,32 @@
             })
             .then(data => {
                 if (data.success) {
-                    if (quantity === null || !data.cart_count || quantity >= parseInt(cartItem.querySelector('.quantity-input').value)) {
-                        // Full removal - fade out the item
-                        cartItem.style.opacity = '0';
-                        cartItem.style.transition = 'opacity 0.3s ease';
+                    // Fade out the item
+                    cartItem.style.opacity = '0';
+                    cartItem.style.transition = 'opacity 0.3s ease';
+                    
+                    setTimeout(() => {
+                        cartItem.remove();
                         
-                        setTimeout(() => {
-                            // Remove the item from DOM
-                            cartItem.remove();
-                            
-                            // Show success toast using the global function
-                            if (typeof window.showFloatingAlert === 'function') {
-                                window.showFloatingAlert(data.message || 'Item removed from cart', 'success');
-                            }
-                            
-                            // Update cart count everywhere
-                            updateAllCartBadges(data.cart_count, data.total_items);
-                            
-                            // Recalculate cart totals
-                            calculateCartTotals();
-                            
-                            // If cart is now empty, reload the page
-                            if (data.cart_count === 0) {
-                                setTimeout(() => {
-                                    window.location.reload();
-                                }, 1000);
-                            }
-                        }, 300);
-                    } else {
-                        // Partial removal - update the quantity
-                        const quantityInput = cartItem.querySelector('.quantity-input');
-                        if (quantityInput) {
-                            // Get the new quantity from the server response if available
-                            const newQuantity = data.item_quantity || (parseInt(quantityInput.value) - quantity);
-                            quantityInput.value = newQuantity;
-                            quantityInput.dataset.initialQuantity = newQuantity;
-                            
-                            // Recalculate subtotal
-                            calculateItemSubtotal(cartItem);
-                            calculateCartTotals();
-                            
-                            // Show success toast
-                            if (typeof window.showFloatingAlert === 'function') {
-                                window.showFloatingAlert(data.message || 'Item quantity reduced', 'success');
-                            }
-                            
-                            // Update cart count
-                            updateAllCartBadges(data.cart_count, data.total_items);
+                        if (typeof window.showFloatingAlert === 'function') {
+                            window.showFloatingAlert(data.message || 'Item removed from cart', 'success');
                         }
-                    }
+                        
+                        updateAllCartBadges(data.cart_count);
+                        calculateCartTotals();
+                        
+                        // If cart is now empty, reload the page
+                        if (data.cart_count === 0) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        }
+                    }, 300);
                 } else {
-                    // Show error toast using the global function
                     if (typeof window.showFloatingAlert === 'function') {
                         window.showFloatingAlert(data.message || 'Failed to remove item', 'danger');
                     }
+                    enableCartItem(itemId);
                 }
             })
             .catch(error => {
@@ -1017,19 +1020,18 @@
                 if (typeof window.showFloatingAlert === 'function') {
                     window.showFloatingAlert('An error occurred while removing the item', 'danger');
                 }
-            })
-            .finally(() => {
-                // Hide loading indicator
-                hideLoading();
+                enableCartItem(itemId);
             });
         }
         
-        // Set up remove buttons with AJAX functionality
+        // Set up remove buttons
         function setupRemoveButtons() {
             const removeButtons = document.querySelectorAll('.btn-remove');
             
             removeButtons.forEach(button => {
                 button.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    
                     if (!confirm('Are you sure you want to remove this item?')) return;
                     
                     const itemId = this.dataset.itemId;
@@ -1044,9 +1046,12 @@
             
             if (clearCartBtn) {
                 clearCartBtn.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    
                     if (!confirm('Are you sure you want to clear your cart?')) return;
                     
-                    // Show loading indicator
+                    // Disable the button
+                    this.disabled = true;
                     showLoading();
                     
                     // Make AJAX request
@@ -1066,23 +1071,20 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            // Update all cart badges to zero before reload
                             updateAllCartBadges(0, 0);
                             
-                            // Show success message using the global function
                             if (typeof window.showFloatingAlert === 'function') {
                                 window.showFloatingAlert('Cart has been cleared', 'success');
                             }
                             
-                            // Reload the page after a short delay
                             setTimeout(() => {
                                 window.location.reload();
                             }, 1500);
                         } else {
-                            // Show error toast using the global function
                             if (typeof window.showFloatingAlert === 'function') {
                                 window.showFloatingAlert(data.message || 'Failed to clear cart', 'danger');
                             }
+                            this.disabled = false;
                         }
                     })
                     .catch(error => {
@@ -1090,9 +1092,9 @@
                         if (typeof window.showFloatingAlert === 'function') {
                             window.showFloatingAlert('An error occurred while clearing the cart', 'danger');
                         }
+                        this.disabled = false;
                     })
                     .finally(() => {
-                        // Hide loading indicator
                         hideLoading();
                     });
                 });

@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Events\OrderSaved;
 use App\Models\OrderNotification;
 use App\Models\User;
+use App\Services\PushNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
@@ -13,8 +14,9 @@ class CreateOrderNotification
     /**
      * Create the event listener.
      */
-    public function __construct()
-    {
+    public function __construct(
+        private PushNotificationService $pushNotificationService
+    ) {
         //
     }
 
@@ -36,6 +38,9 @@ class CreateOrderNotification
         if ($event->statusChanged) {
             // Notify the franchisee about the status change
             $this->createNotificationForOwner($order, $event->oldStatus);
+            
+            // Send push notification to franchisee
+            $this->pushNotificationService->sendOrderStatusNotification($order, $event->oldStatus);
             
             // Notify staff based on the new status
             $this->notifyStaffAboutStatusChange($order, $event->oldStatus);
