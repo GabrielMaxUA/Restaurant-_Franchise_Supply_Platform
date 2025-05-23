@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getOrderHistory } from '../services/api';
+import FranchiseeLayout, { sessionEventEmitter } from '../components/FranchiseeLayout';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
 const OrderHistoryScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
@@ -20,37 +21,18 @@ const OrderHistoryScreen = ({ navigation }) => {
   const [userToken, setUserToken] = useState('');
 
   useEffect(() => {
-    const getTokenFromStorage = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        if (token) {
-          setUserToken(token);
-        } else {
-          setError('Authentication token not found. Please login again.');
-        }
-      } catch (e) {
-        console.error('Failed to get token from storage:', e);
-        setError('Failed to authenticate. Please login again.');
-      }
-    };
-
-    getTokenFromStorage();
+    loadOrderHistory();
   }, []);
 
-  useEffect(() => {
-    if (userToken) {
-      loadOrderHistory();
-    }
-  }, [userToken]);
-
   const loadOrderHistory = async () => {
-    if (!userToken) return;
-
     try {
       setLoading(true);
       setError('');
+      
+      // Signal user activity to extend session
+      sessionEventEmitter.emit('userActivity');
 
-      const orderHistoryResponse = await getOrderHistory(userToken);
+      const orderHistoryResponse = await getOrderHistory({status: 'completed,delivered,rejected'});
       console.log('Order history response (full):', JSON.stringify(orderHistoryResponse));
       
       // Check if we received a raw response (HTML or non-JSON)
@@ -144,58 +126,106 @@ const OrderHistoryScreen = ({ navigation }) => {
     }
   };
 
-  const renderOrderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
-    >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderNumber}>Order #{item.id}</Text>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: getStatusColor(item.status) }
-        ]}>
-          <Text style={styles.statusText}>
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+  const renderOrderItem = ({ item }) => {
+    // Extract number of items properly handling different data formats
+    const itemsCount = item.items_count || 
+                      (item.items ? item.items.length : 0) || 
+                      (item.order_items ? item.order_items.length : 0) || 
+                      '?';
+    
+    // Handle total amount with different possible field names
+    const totalAmount = item.total_amount || item.total || 0;
+    
+    // Format date display based on order status
+    const getDateDisplay = () => {
+      const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('en-US', { 
+          year: 'numeric', month: 'short', day: 'numeric' 
+        });
+      };
+
+      if (item.status === 'delivered' && item.delivered_at) {
+        return (
+          <View style={styles.dateContainer}>
+            <FontAwesome name="check-circle" size={14} color="#27ae60" style={{ marginRight: 5 }} />
+            <Text style={styles.orderDate}>
+              Delivered on {formatDate(item.delivered_at)}
+            </Text>
+          </View>
+        );
+      } else if (item.status === 'rejected' && item.rejected_at) {
+        return (
+          <View style={styles.dateContainer}>
+            <FontAwesome name="times-circle" size={14} color="#e74c3c" style={{ marginRight: 5 }} />
+            <Text style={styles.orderDate}>
+              Rejected on {formatDate(item.rejected_at)}
+            </Text>
+          </View>
+        );
+      } else {
+        // Default case for other statuses
+        return (
+          <Text style={styles.orderDate}>
+            {formatDate(item.created_at)}
+          </Text>
+        );
+      }
+    };
+    
+    return (
+      <TouchableOpacity
+        style={styles.orderCard}
+        onPress={() => navigation.navigate('OrderDetails', { orderId: item.id })}
+      >
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderNumber}>Order #{item.order_number || item.id}</Text>
+          <View style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) }
+          ]}>
+            <Text style={styles.statusText}>
+              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.orderDetails}>
+          {getDateDisplay()}
+          <Text style={styles.orderAmount}>
+            {formatCurrency(totalAmount)}
           </Text>
         </View>
-      </View>
-
-      <View style={styles.orderDetails}>
-        <Text style={styles.orderDate}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
-        <Text style={styles.orderAmount}>
-          {formatCurrency(item.total_amount)}
-        </Text>
-      </View>
-      
-      <View style={styles.orderFooter}>
-        <Text style={styles.itemsCount}>
-          {item.items_count || '?'} items
-        </Text>
         
-        <Text style={styles.viewDetailsText}>View Details &rsaquo;</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.orderFooter}>
+          <View style={styles.itemsCountContainer}>
+            <FontAwesome name="shopping-cart" size={14} color="#666" style={{ marginRight: 5 }} />
+            <Text style={styles.itemsCount}>
+              {itemsCount} items
+            </Text>
+          </View>
+          
+          <View style={styles.viewDetailsContainer}>
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <FontAwesome name="chevron-right" size={12} color="#0066cc" style={{ marginLeft: 4 }} />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0066cc" />
-        <Text style={styles.loadingText}>Loading order history...</Text>
-      </View>
+      <FranchiseeLayout title="Order History">
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#0066cc" />
+          <Text style={styles.loadingText}>Loading order history...</Text>
+        </View>
+      </FranchiseeLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Orders</Text>
-        <Text style={styles.headerSubtitle}>View your order history</Text>
-      </View>
-      
+    <FranchiseeLayout title="Order History">
       {error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -220,7 +250,7 @@ const OrderHistoryScreen = ({ navigation }) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>You haven't placed any orders yet</Text>
+            <Text style={styles.emptyText}>You haven't placed any completed orders yet</Text>
             <TouchableOpacity 
               style={styles.browseCatalogButton}
               onPress={() => navigation.navigate('Catalog')}
@@ -230,15 +260,11 @@ const OrderHistoryScreen = ({ navigation }) => {
           </View>
         }
       />
-    </SafeAreaView>
+    </FranchiseeLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -249,22 +275,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
-  },
-  header: {
-    padding: 15,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
   },
   errorContainer: {
     margin: 15,
@@ -331,6 +341,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   orderDate: {
     fontSize: 14,
     color: '#666',
@@ -345,9 +359,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  itemsCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   itemsCount: {
     fontSize: 14,
     color: '#666',
+  },
+  viewDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   viewDetailsText: {
     fontSize: 14,

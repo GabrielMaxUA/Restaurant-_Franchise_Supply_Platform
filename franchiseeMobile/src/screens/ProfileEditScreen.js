@@ -13,13 +13,13 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { updateProfile, BASE_URL } from '../services/api'; // Adjust path as needed
+import { updateProfile } from '../services/api'; // Adjust path as needed
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { PermissionsAndroid } from 'react-native';
 import Toast from 'react-native-toast-message';
 import FranchiseeLayout from '../components/FranchiseeLayout';
-
+import { BASE_URL } from '../services/axiosInstance';
 // Mock image picker function as fallback
 const mockPickImage = () => {
   return new Promise((resolve) => {
@@ -63,7 +63,7 @@ const ProfileEditScreen = ({ navigation }) => {
   const [logoToUpload, setLogoToUpload] = useState(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [useMock, setUseMock] = useState(false); // Flag to determine if mock should be used
-    
+
   // Fetch cart count - you can modify this to fit your actual cart implementation
   useEffect(() => {
 
@@ -73,7 +73,7 @@ const ProfileEditScreen = ({ navigation }) => {
         // Check token
         const token = await AsyncStorage.getItem('userToken');
         console.log('🔑 Token check:', token ? 'Present' : 'Missing');
-        
+
         if (token) {
           // Log JWT payload if possible
           const parts = token.split('.');
@@ -81,7 +81,7 @@ const ProfileEditScreen = ({ navigation }) => {
             try {
               const payload = JSON.parse(atob(parts[1]));
               console.log('🔐 Token payload:', payload);
-              
+
               // Check for expiration
               const now = Math.floor(Date.now() / 1000);
               if (payload.exp && payload.exp < now) {
@@ -95,19 +95,19 @@ const ProfileEditScreen = ({ navigation }) => {
             }
           }
         }
-        
+
         // Check basic API connectivity
         console.log('🧪 Testing API connection...');
         const testResponse = await fetch(`${BASE_URL}/test`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' }
         });
-        
+
         console.log('📡 API connectivity test:', {
           status: testResponse.status,
           ok: testResponse.ok
         });
-        
+
         // If we can reach the API, try an authenticated endpoint
         if (testResponse.ok && token) {
           console.log('🧪 Testing authenticated endpoint...');
@@ -118,7 +118,7 @@ const ProfileEditScreen = ({ navigation }) => {
               'Accept': 'application/json'
             }
           });
-          
+
           console.log('🔒 Auth test:', {
             status: authTest.status,
             ok: authTest.ok
@@ -128,7 +128,7 @@ const ProfileEditScreen = ({ navigation }) => {
         console.error('❌ API connection error:', error);
       }
     };
-    
+
     checkApiConnection();
   }, []);
 
@@ -137,98 +137,98 @@ const ProfileEditScreen = ({ navigation }) => {
     fetchProfileData();
   }, []);
 
- // API-ONLY fetchProfileData function - NO local storage fallback
+  // API-ONLY fetchProfileData function - NO local storage fallback
 
-const fetchProfileData = async () => {
-  try {
-    setLoading(true);
-    console.log('🚀 Starting API-ONLY profile data retrieval...');
-    
-    // Check for token
-    const token = await AsyncStorage.getItem('userToken');
-    if (!token) {
-      console.error('⛔ No auth token found!');
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      console.log('🚀 Starting API-ONLY profile data retrieval...');
+
+      // Check for token
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        console.error('⛔ No auth token found!');
+        Toast.show({
+          type: 'error',
+          text1: 'Authentication Error',
+          text2: 'Please log in again'
+        });
+        navigation.navigate('Login');
+        return;
+      }
+
+      console.log('🔑 Using token to fetch profile data from API');
+
+      // ONLY fetch from API - no local storage fallback
+      const response = await fetch(`${BASE_URL}/franchisee/profile`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('📊 API response status:', response.status);
+
+      // Handle non-200 responses
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      // Get response as text first for debugging
+      const responseText = await response.text();
+      console.log('📝 API response data:', responseText.substring(0, 150) + '...');
+
+      // Parse response
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('❌ Failed to parse API response as JSON:', jsonError);
+        throw new Error('Invalid API response format');
+      }
+
+      console.log('✅ Successfully retrieved profile data from API');
+
+      // Save latest data to state
+      setUserData({
+        username: data.user?.username || '',
+        email: data.user?.email || '',
+        phone: data.user?.phone || '',
+        updated_at: data.user?.updated_at || null
+      });
+
+      // Set profile data if available
+      if (data.profile) {
+        setProfileData({
+          contact_name: data.profile.contact_name || '',
+          company_name: data.profile.company_name || '',
+          address: data.profile.address || '',
+          city: data.profile.city || '',
+          state: data.profile.state || '',
+          postal_code: data.profile.postal_code || '',
+          logo_url: data.profile.logo_url || null
+        });
+      }
+
+      // Optional: Update local storage with API data
+      await AsyncStorage.setItem('userData', JSON.stringify(data));
+      console.log('💾 Updated local cache with fresh API data');
+
+    } catch (error) {
+      console.error('🔥 API fetch error:', error.message);
       Toast.show({
         type: 'error',
-        text1: 'Authentication Error',
-        text2: 'Please log in again'
+        text1: 'API Error',
+        text2: 'Failed to load profile from server: ' + error.message
       });
-      navigation.navigate('Login');
-      return;
+
+      // DO NOT FALLBACK TO LOCAL STORAGE
+      console.log('⛔ Not using local storage fallback per requirements');
+    } finally {
+      setLoading(false);
     }
-    
-    console.log('🔑 Using token to fetch profile data from API');
-    
-    // ONLY fetch from API - no local storage fallback
-    const response = await fetch(`${BASE_URL}/franchisee/profile`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json'
-      }
-    });
-    
-    console.log('📊 API response status:', response.status);
-    
-    // Handle non-200 responses
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
-    }
-    
-    // Get response as text first for debugging
-    const responseText = await response.text();
-    console.log('📝 API response data:', responseText.substring(0, 150) + '...');
-    
-    // Parse response
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error('❌ Failed to parse API response as JSON:', jsonError);
-      throw new Error('Invalid API response format');
-    }
-    
-    console.log('✅ Successfully retrieved profile data from API');
-    
-    // Save latest data to state
-    setUserData({
-      username: data.user?.username || '',
-      email: data.user?.email || '',
-      phone: data.user?.phone || '',
-      updated_at: data.user?.updated_at || null
-    });
-    
-    // Set profile data if available
-    if (data.profile) {
-      setProfileData({
-        contact_name: data.profile.contact_name || '',
-        company_name: data.profile.company_name || '',
-        address: data.profile.address || '',
-        city: data.profile.city || '',
-        state: data.profile.state || '',
-        postal_code: data.profile.postal_code || '',
-        logo_url: data.profile.logo_url || null
-      });
-    }
-    
-    // Optional: Update local storage with API data
-    await AsyncStorage.setItem('userData', JSON.stringify(data));
-    console.log('💾 Updated local cache with fresh API data');
-    
-  } catch (error) {
-    console.error('🔥 API fetch error:', error.message);
-    Toast.show({
-      type: 'error',
-      text1: 'API Error',
-      text2: 'Failed to load profile from server: ' + error.message
-    });
-    
-    // DO NOT FALLBACK TO LOCAL STORAGE
-    console.log('⛔ Not using local storage fallback per requirements');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Handle form input changes for user data
   const handleUserChange = (field, value) => {
@@ -236,7 +236,7 @@ const fetchProfileData = async () => {
       ...userData,
       [field]: value
     });
-    
+
     // Clear validation error when user types
     if (errors[field]) {
       setErrors({
@@ -252,7 +252,7 @@ const fetchProfileData = async () => {
       ...profileData,
       [field]: value
     });
-    
+
     // Clear validation error when user types
     if (errors[field]) {
       setErrors({
@@ -265,7 +265,7 @@ const fetchProfileData = async () => {
   // Request permission for Android
   const requestStoragePermission = async () => {
     if (Platform.OS !== 'android') return true;
-    
+
     try {
       if (parseInt(Platform.Version, 10) >= 33) {
         // For Android 13+ (API 33+)
@@ -295,14 +295,14 @@ const fetchProfileData = async () => {
         Alert.alert('Permission Denied', 'We need permission to access your photos');
         return;
       }
-      
+
       let result;
-      
+
       // Try to use the real image picker first
       if (!useMock) {
         try {
           console.log('📷 Attempting to use real image picker...');
-          
+
           // Launch image picker
           const pickerResult = await launchImageLibrary({
             mediaType: 'photo',
@@ -311,7 +311,7 @@ const fetchProfileData = async () => {
             maxHeight: 800,
             includeBase64: false,
           });
-          
+
           // If successful, use this result
           if (pickerResult && !pickerResult.didCancel) {
             result = pickerResult;
@@ -352,29 +352,29 @@ const fetchProfileData = async () => {
           text2: 'This is a mock image for development'
         });
       }
-      
+
       // Process the result
       if (!result.didCancel && result.assets && result.assets.length > 0) {
         // Image picked successfully
         const selectedImage = result.assets[0];
-        
+
         console.log('📷 Selected image:', {
           uri: selectedImage.uri,
           type: selectedImage.type,
           size: selectedImage.fileSize,
         });
-        
+
         // Check file size (limit to 2MB)
         if (selectedImage.fileSize > 2 * 1024 * 1024) {
           Alert.alert('File too large', 'Please select an image under 2MB');
           return;
         }
-        
+
         // Set the logo to upload and display a preview
         setLogoToUpload(selectedImage.uri);
         // If we were previously removing the logo, cancel that
         setRemoveLogo(false);
-        
+
         console.log('✅ Logo selected for upload');
       }
     } catch (error) {
@@ -394,151 +394,151 @@ const fetchProfileData = async () => {
     setLogoToUpload(null);
   };
 
-// API-ONLY saveProfile function - No local storage fallback
+  // API-ONLY saveProfile function - No local storage fallback
 
-const saveProfile = async () => {
-  try {
-    setSaving(true);
-    console.log('💾 Starting API-ONLY profile save process...');
-    
-    // Validate form data first
-    const validateForm = () => {
-      const newErrors = {};
-      
-      // Add validation for required fields
-      if (!userData.email) newErrors.email = ['Email is required'];
-      if (!userData.username) newErrors.username = ['Username is required'];
-      if (!profileData.company_name) newErrors.company_name = ['Company name is required'];
-      if (!profileData.address) newErrors.address = ['Address is required'];
-      
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-    
-    // Stop if validation fails
-    if (!validateForm()) {
-      console.log('❌ Validation failed - cannot save');
-      setSaving(false);
-      
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: 'Please check the highlighted fields'
-      });
-      
-      return;
-    }
-    
-    console.log('✅ Validation passed, proceeding with API save');
-    
-    // Create FormData object for API request
-    const formData = new FormData();
-    
-    // Add user data fields - ENSURE ALL REQUIRED FIELDS
-    formData.append('username', userData.username);
-    formData.append('email', userData.email);
-    formData.append('phone', userData.phone || '');
-    
-    // Add profile data fields - ENSURE ALL REQUIRED FIELDS
-    formData.append('contact_name', profileData.contact_name || '');
-    formData.append('company_name', profileData.company_name);
-    formData.append('address', profileData.address); // REQUIRED!
-    formData.append('city', profileData.city || '');
-    formData.append('state', profileData.state || '');
-    formData.append('postal_code', profileData.postal_code || '');
-    
-    // Handle logo upload
-    if (logoToUpload) {
-      // Get file name from URI
-      const fileName = logoToUpload.split('/').pop();
-      
-      // Determine file type
-      const match = /\.(\w+)$/.exec(fileName);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-      
-      // Append logo to form data
-      formData.append('logo', {
-        uri: Platform.OS === 'ios' ? logoToUpload.replace('file://', '') : logoToUpload,
-        type: type,
-        name: fileName,
-      });
-      
-      console.log('📎 Adding logo to form data:', {
-        uri: logoToUpload,
-        type,
-        name: fileName
-      });
-    } else if (removeLogo) {
-      // If logo should be removed
-      formData.append('remove_logo', '1');
-      console.log('🗑️ Setting logo to be removed');
-    }
-    
-    // Use the existing updateProfile function from your API service
-    console.log('🌐 Calling updateProfile API function');
-    const result = await updateProfile(formData);
-    
-    console.log('📊 updateProfile result:', result);
-    
-    if (result.success) {
-      console.log('✅ Profile update successful on API');
-      
-      // Clear local userData storage to force fresh API fetch on next screen
-      await AsyncStorage.removeItem('userData');
-      console.log('🧹 Cleared local userData cache to force fresh fetch');
-      
-      // Show success message
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: 'Profile updated successfully'
-      });
-      
-      // Navigate back and force refresh
-      setTimeout(() => {
-        navigation.navigate('Profile', { refresh: true });
-      }, 1000);
-    } else {
-      console.error('❌ API update failed:', result.error || 'Unknown error');
-      
-      // Handle validation errors from API
-      if (result.errors) {
-        setErrors(result.errors);
-        console.log('⚠️ Server validation errors:', result.errors);
-        
+  const saveProfile = async () => {
+    try {
+      setSaving(true);
+      console.log('💾 Starting API-ONLY profile save process...');
+
+      // Validate form data first
+      const validateForm = () => {
+        const newErrors = {};
+
+        // Add validation for required fields
+        if (!userData.email) newErrors.email = ['Email is required'];
+        if (!userData.username) newErrors.username = ['Username is required'];
+        if (!profileData.company_name) newErrors.company_name = ['Company name is required'];
+        if (!profileData.address) newErrors.address = ['Address is required'];
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+      };
+
+      // Stop if validation fails
+      if (!validateForm()) {
+        console.log('❌ Validation failed - cannot save');
+        setSaving(false);
+
         Toast.show({
           type: 'error',
           text1: 'Validation Error',
-          text2: result.error || 'Please check the highlighted fields'
+          text2: 'Please check the highlighted fields'
         });
-        
-        // Stay on form to fix errors
-        setSaving(false);
+
         return;
       }
-      
-      // Show error message
+
+      console.log('✅ Validation passed, proceeding with API save');
+
+      // Create FormData object for API request
+      const formData = new FormData();
+
+      // Add user data fields - ENSURE ALL REQUIRED FIELDS
+      formData.append('username', userData.username);
+      formData.append('email', userData.email);
+      formData.append('phone', userData.phone || '');
+
+      // Add profile data fields - ENSURE ALL REQUIRED FIELDS
+      formData.append('contact_name', profileData.contact_name || '');
+      formData.append('company_name', profileData.company_name);
+      formData.append('address', profileData.address); // REQUIRED!
+      formData.append('city', profileData.city || '');
+      formData.append('state', profileData.state || '');
+      formData.append('postal_code', profileData.postal_code || '');
+
+      // Handle logo upload
+      if (logoToUpload) {
+        // Get file name from URI
+        const fileName = logoToUpload.split('/').pop();
+
+        // Determine file type
+        const match = /\.(\w+)$/.exec(fileName);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+        // Append logo to form data
+        formData.append('logo', {
+          uri: Platform.OS === 'ios' ? logoToUpload.replace('file://', '') : logoToUpload,
+          type: type,
+          name: fileName,
+        });
+
+        console.log('📎 Adding logo to form data:', {
+          uri: logoToUpload,
+          type,
+          name: fileName
+        });
+      } else if (removeLogo) {
+        // If logo should be removed
+        formData.append('remove_logo', '1');
+        console.log('🗑️ Setting logo to be removed');
+      }
+
+      // Use the existing updateProfile function from your API service
+      console.log('🌐 Calling updateProfile API function');
+      const result = await updateProfile(formData);
+
+      console.log('📊 updateProfile result:', result);
+
+      if (result.success) {
+        console.log('✅ Profile update successful on API');
+
+        // Clear local userData storage to force fresh API fetch on next screen
+        await AsyncStorage.removeItem('userData');
+        console.log('🧹 Cleared local userData cache to force fresh fetch');
+
+        // Show success message
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Profile updated successfully'
+        });
+
+        // Navigate back and force refresh
+        setTimeout(() => {
+          navigation.navigate('Profile', { refresh: true });
+        }, 1000);
+      } else {
+        console.error('❌ API update failed:', result.error || 'Unknown error');
+
+        // Handle validation errors from API
+        if (result.errors) {
+          setErrors(result.errors);
+          console.log('⚠️ Server validation errors:', result.errors);
+
+          Toast.show({
+            type: 'error',
+            text1: 'Validation Error',
+            text2: result.error || 'Please check the highlighted fields'
+          });
+
+          // Stay on form to fix errors
+          setSaving(false);
+          return;
+        }
+
+        // Show error message
+        Toast.show({
+          type: 'error',
+          text1: 'Server Error',
+          text2: result.error || 'Failed to update profile on server'
+        });
+
+        // Stay on screen
+        setSaving(false);
+      }
+    } catch (error) {
+      console.error('🔥 Exception in saveProfile:', error);
+
       Toast.show({
         type: 'error',
-        text1: 'Server Error',
-        text2: result.error || 'Failed to update profile on server'
+        text1: 'Error',
+        text2: 'Failed to update profile: ' + error.message
       });
-      
-      // Stay on screen
+
       setSaving(false);
     }
-  } catch (error) {
-    console.error('🔥 Exception in saveProfile:', error);
-    
-    Toast.show({
-      type: 'error',
-      text1: 'Error',
-      text2: 'Failed to update profile: ' + error.message
-    });
-    
-    setSaving(false);
-  }
-};
+  };
   // Function to navigate to password change screen
   const navigateToPasswordChange = () => {
     navigation.navigate('ChangePassword');
@@ -569,8 +569,8 @@ const saveProfile = async () => {
               <Icon name="create-outline" size={24} color="#0066cc" />
               <Text style={styles.headerTitle}>Edit Profile</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.passwordButton} 
+            <TouchableOpacity
+              style={styles.passwordButton}
               onPress={navigateToPasswordChange}
             >
               <Icon name="key-outline" size={16} color="#0066cc" />
@@ -581,7 +581,7 @@ const saveProfile = async () => {
           {/* Basic Information Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
-            
+
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Username</Text>
@@ -595,7 +595,7 @@ const saveProfile = async () => {
                   <Text style={styles.errorText}>{errors.username[0]}</Text>
                 )}
               </View>
-              
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Email Address</Text>
                 <TextInput
@@ -611,7 +611,7 @@ const saveProfile = async () => {
                 )}
               </View>
             </View>
-            
+
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Phone Number</Text>
@@ -626,7 +626,7 @@ const saveProfile = async () => {
                   <Text style={styles.errorText}>{errors.phone[0]}</Text>
                 )}
               </View>
-              
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Contact Person Name</Text>
                 <TextInput
@@ -647,7 +647,7 @@ const saveProfile = async () => {
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>Company Information</Text>
           </View>
-          
+
           <View style={styles.section}>
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
@@ -663,7 +663,7 @@ const saveProfile = async () => {
                 )}
               </View>
             </View>
-            
+
             {/* Logo Section */}
             <View style={styles.logoSection}>
               <Text style={styles.label}>Company Logo</Text>
@@ -679,19 +679,19 @@ const saveProfile = async () => {
                     <Icon name="business-outline" size={40} color="#6c757d" />
                   </View>
                 )}
-                
+
                 <View style={styles.logoActions}>
-                  <TouchableOpacity 
-                    style={styles.logoButton} 
+                  <TouchableOpacity
+                    style={styles.logoButton}
                     onPress={pickLogo}
                   >
                     <Icon name="cloud-upload-outline" size={16} color="#fff" />
                     <Text style={styles.logoButtonText}>Upload Logo</Text>
                   </TouchableOpacity>
-                  
+
                   {(logoToUpload || (!removeLogo && profileData.logo_url)) && (
-                    <TouchableOpacity 
-                      style={styles.logoRemoveButton} 
+                    <TouchableOpacity
+                      style={styles.logoRemoveButton}
                       onPress={handleRemoveLogo}
                     >
                       <Icon name="trash-outline" size={16} color="#fff" />
@@ -704,7 +704,7 @@ const saveProfile = async () => {
                 </Text>
               </View>
             </View>
-            
+
             {/* Address Section */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Address</Text>
@@ -718,7 +718,7 @@ const saveProfile = async () => {
                 <Text style={styles.errorText}>{errors.address[0]}</Text>
               )}
             </View>
-            
+
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>City</Text>
@@ -732,7 +732,7 @@ const saveProfile = async () => {
                   <Text style={styles.errorText}>{errors.city[0]}</Text>
                 )}
               </View>
-              
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>State/Province</Text>
                 <TextInput
@@ -745,7 +745,7 @@ const saveProfile = async () => {
                   <Text style={styles.errorText}>{errors.state[0]}</Text>
                 )}
               </View>
-              
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Postal Code</Text>
                 <TextInput
@@ -760,12 +760,12 @@ const saveProfile = async () => {
               </View>
             </View>
           </View>
-          
+
           {/* Footer */}
           <View style={styles.footer}>
             <View style={styles.footerRight}>
-              <TouchableOpacity 
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                 onPress={saveProfile}
                 disabled={saving}
               >
@@ -778,16 +778,16 @@ const saveProfile = async () => {
                   </>
                 )}
               </TouchableOpacity>
-              
+
               <Text style={styles.lastUpdated}>
                 <Icon name="time-outline" size={12} color="#6c757d" />
-                {' '}Last updated: {userData.updated_at ? 
+                {' '}Last updated: {userData.updated_at ?
                   new Date(userData.updated_at).toLocaleString() : 'Never'}
               </Text>
             </View>
           </View>
 
-          
+
           {/* Development Mode Toggle */}
           <View style={styles.devModeContainer}>
             <Text style={styles.devModeText}>Use mock image picker:</Text>
@@ -808,7 +808,7 @@ const saveProfile = async () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      
+
       {/* Toast message for notifications */}
       <Toast />
     </FranchiseeLayout>
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 6, // Spacing below button
   },
-  
+
   saveButton: {
     backgroundColor: '#0066cc',
     flexDirection: 'row',
@@ -1009,11 +1009,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 16,
   },
-  
+
   saveButtonDisabled: {
     backgroundColor: '#99c2ff',
   },
-  
+
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -1075,8 +1075,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
-  
-  
+
+
 });
 
 export default ProfileEditScreen;

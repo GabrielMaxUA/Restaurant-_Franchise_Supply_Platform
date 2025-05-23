@@ -1,14 +1,13 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import session management from FranchiseeLayout
-import { sessionEventEmitter, handleApiResponse } from '../components/FranchiseeLayout';
-// Determine correct base URL based on platform
-import { Platform } from 'react-native';
+import { sessionEventEmitter } from '../components/FranchiseeLayout';
+// Import axios for API requests
 import axios from 'axios';
-
-export const BASE_URL = Platform.OS === 'ios' 
-  ? 'http://localhost:8000/api'   // For iOS simulator
-  : 'http://10.0.2.2:8000/api';   // For Android emulator 
+// Import the centralized axios instance
+import axiosInstance, { BASE_URL } from './axiosInstance';
+// Import auth service functions
+import { getAuthToken, getAuthHeaders } from './authService';
 
 // Helper function to extract cart count from various API response formats
 export const extractCartCount = (response) => {
@@ -84,56 +83,6 @@ export const extractCartCount = (response) => {
   return 0;
 };
 
-// For physical device testing, use your computer's actual IP address
-// export const BASE_URL = 'http://172.20.10.2:8000/api';
-
-// CORS and Network Testing Function
-export const testCorsConnection = async () => {
-  try {
-    console.log(`🧪 Testing CORS connection to: ${BASE_URL}/cors-test`);
-    
-    const response = await fetch(`${BASE_URL}/cors-test`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-    
-    // Test the handleApiResponse function to see if it correctly detects auth issues
-    await handleApiResponse(response);
-    
-    console.log(`📊 CORS test status: ${response.status}`);
-    
-    // Log all response headers
-    console.log('📋 Response headers:');
-    response.headers.forEach((value, key) => {
-      console.log(`  ${key}: ${value}`);
-    });
-    
-    const text = await response.text();
-    console.log(`📝 Response body: ${text}`);
-    
-    if (response.ok) {
-      return {
-        success: true,
-        status: response.status,
-        data: text.length > 0 ? JSON.parse(text) : null
-      };
-    } else {
-      return {
-        success: false,
-        status: response.status,
-        error: text
-      };
-    }
-  } catch (error) {
-    console.error('❌ CORS test error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
 
 
 export const login = async (email, password) => {
@@ -199,51 +148,6 @@ export const login = async (email, password) => {
     };
   }
 };
-
-// // Add this to your API service
-// export const testCorsConnection = async () => {
-//   try {
-//     console.log(`🧪 Testing CORS connection to: ${BASE_URL}/cors-test`);
-    
-//     const response = await fetch(`${BASE_URL}/cors-test`, {
-//       method: 'GET',
-//       headers: {
-//         'Accept': 'application/json',
-//       },
-//     });
-    
-//     console.log(`📊 CORS test status: ${response.status}`);
-    
-//     // Log all response headers
-//     console.log('📋 Response headers:');
-//     response.headers.forEach((value, key) => {
-//       console.log(`  ${key}: ${value}`);
-//     });
-    
-//     const text = await response.text();
-//     console.log(`📝 Response body: ${text}`);
-    
-//     if (response.ok) {
-//       return {
-//         success: true,
-//         status: response.status,
-//         data: JSON.parse(text)
-//       };
-//     } else {
-//       return {
-//         success: false,
-//         status: response.status,
-//         error: text
-//       };
-//     }
-//   } catch (error) {
-//     console.error('❌ CORS test error:', error);
-//     return {
-//       success: false,
-//       error: error.message
-//     };
-//   }
-// };
 
 export const logout = async () => {
   try {
@@ -880,32 +784,10 @@ export const deleteLogo = async () => {
   }
 };
 
-export const getAuthHeaders = async () => {
-  try {
-    const token = await AsyncStorage.getItem('userToken');
-    if (!token) {
-      return { 
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      };
-    }
-    
-    return {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    };
-  } catch (error) {
-    console.error('Error getting auth headers:', error);
-    return { 
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    };
-  }
-};
+// getAuthHeaders is now imported from authService.js
 
 /**Catalog data fetch */
-export const getCatalog = async (token, page = 1, filters = {}) => {
+export const getCatalog = async (token = null, page = 1, filters = {}) => {
   try {
     // Build query parameters from filters
     const queryParams = new URLSearchParams();
@@ -918,17 +800,13 @@ export const getCatalog = async (token, page = 1, filters = {}) => {
       }
     });
     
-    // Construct the URL
-    const url = `${BASE_URL}/franchisee/catalog?${queryParams.toString()}`;
+    // Construct the URL with query parameters
+    const url = `/franchisee/catalog?${queryParams.toString()}`;
     
     console.log('Fetching catalog from:', url);
     
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.get(url);
     
     console.log('Catalog API response status:', response.status);
     console.log('Catalog API response structure:', Object.keys(response.data));
@@ -954,19 +832,13 @@ export const getCatalog = async (token, page = 1, filters = {}) => {
   }
 };
 
-export const toggleFavorite = async (token, productId) => {
+export const toggleFavorite = async (token = null, productId) => {
   try {
     console.log(`Toggling favorite for product ID: ${productId}`);
     
-    // Use the correct endpoint path from your PHP controller
-    const response = await axios.post(`${BASE_URL}/franchisee/toggle-favorite`, {
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.post('/franchisee/toggle-favorite', {
       product_id: productId,
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
     });
     
     console.log('Toggle favorite response:', response.data);
@@ -984,13 +856,72 @@ export const toggleFavorite = async (token, productId) => {
   }
 };
 
-export const addToCart = async (token, productId, variantId = null, quantity = 1) => {
+/**
+ * Add an item to the cart with robust inventory checking
+ * @param {string} token - Authorization token
+ * @param {number|string} productId - The product ID to add
+ * @param {number|string|null} variantId - Optional variant ID
+ * @param {number} quantity - Quantity to add (default: 1)
+ * @param {object} currentCartItems - Optional array of current cart items for local inventory checking
+ * @returns {Promise<object>} Response with success status, warnings, and inventory information
+ */
+export const addToCart = async (token = null, productId, variantId = null, quantity = 1, currentCartItems = []) => {
   try {
     console.log(`🛒 Adding to cart - Product ID: ${productId}, Variant ID: ${variantId}, Quantity: ${quantity}`);
     
+    // First, perform a local inventory check if we have current cart items and inventory data
+    let adjustedQuantity = quantity;
+    let localInventoryAdjusted = false;
+    let maxAvailable = null;
+    let cartItem = null;
+    
+    if (currentCartItems && currentCartItems.length > 0) {
+      console.log('🔍 Performing local inventory check before API call');
+      
+      // Find the relevant item in the cart
+      cartItem = currentCartItems.find(item => 
+        (variantId && item.variant_id === variantId) || 
+        (!variantId && item.product_id === productId && !item.variant_id)
+      );
+      
+      // Find product inventory data
+      const productInventory = cartItem?.product?.inventory_count;
+      const variantInventory = cartItem?.variant?.inventory_count;
+      
+      if (productInventory !== undefined || variantInventory !== undefined) {
+        // Calculate how much more can be added
+        const inventoryCount = variantId ? variantInventory : productInventory;
+        const currentQuantity = cartItem ? cartItem.quantity : 0;
+        
+        if (inventoryCount !== undefined) {
+          maxAvailable = inventoryCount - currentQuantity;
+          
+          // If requested quantity exceeds available, adjust it
+          if (quantity > maxAvailable) {
+            console.log(`⚠️ Local inventory check: Requested ${quantity}, but only ${maxAvailable} available`);
+            adjustedQuantity = Math.max(0, maxAvailable);
+            localInventoryAdjusted = true;
+          }
+        }
+      }
+    }
+    
+    // If local inventory check determined we can't add any items, return early
+    if (localInventoryAdjusted && adjustedQuantity <= 0) {
+      console.log('❌ Cannot add item - no inventory available');
+      return {
+        success: false,
+        inventory_limited: true,
+        max_available: 0,
+        message: 'This item is out of stock'
+      };
+    }
+    
+    // Prepare the payload with the potentially adjusted quantity
     const payload = {
       product_id: productId,
-      quantity: quantity
+      quantity: adjustedQuantity,
+      check_inventory: true   // Add inventory checking to prevent exceeding available stock
     };
     
     // Only include variant_id if it's provided
@@ -998,18 +929,17 @@ export const addToCart = async (token, productId, variantId = null, quantity = 1
       payload.variant_id = variantId;
     }
     
-    // Use the correct endpoint path from your PHP controller
-    const response = await axios.post(`${BASE_URL}/franchisee/cart/add`, payload, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-    });
+    // Log if quantity was adjusted
+    if (localInventoryAdjusted) {
+      console.log(`📝 Adjusted quantity from ${quantity} to ${adjustedQuantity} due to inventory limits`);
+    }
+    
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.post('/franchisee/cart/add', payload);
     
     console.log('✅ Add to cart response:', response.data);
     
-    // Use extractCartCount to get consistent cart count
+    // Process the API response
     if (response.data && typeof response.data === 'object') {
       // Make sure we have a success flag
       if (!('success' in response.data)) {
@@ -1020,9 +950,17 @@ export const addToCart = async (token, productId, variantId = null, quantity = 1
       const cartCount = extractCartCount(response.data);
       console.log(`📊 Extracted cart count from add response: ${cartCount}`);
       response.data.items_count = cartCount;
+      
+      // Add information about local inventory adjustments
+      if (localInventoryAdjusted) {
+        response.data.inventory_limited = true;
+        response.data.requested_quantity = quantity;
+        response.data.adjusted_quantity = adjustedQuantity;
+        response.data.max_available = maxAvailable;
+      }
     }
     
-    // If successful, return the response
+    // If successful, return the enhanced response
     return response.data;
   } catch (error) {
     console.error('❌ addToCart error details:', error);
@@ -1042,34 +980,55 @@ export const addToCart = async (token, productId, variantId = null, quantity = 1
       throw new Error('Authentication error: Your session has expired.');
     }
     
+    // Check for inventory-related error messages
     const errorMessage = error.response?.data?.message || 'Failed to add to cart.';
     console.error('addToCart error message:', errorMessage);
     
-    return { 
-      success: false, 
+    // Detect inventory-related errors
+    const isInventoryError = 
+      errorMessage.includes('inventory') || 
+      errorMessage.includes('stock') || 
+      errorMessage.includes('available');
+    
+    // Pass through backend inventory data if available
+    const errorResponse = {
+      success: false,
+      inventory_limited: isInventoryError,
       message: errorMessage
     };
+    
+    // Include backend inventory fields if they exist
+    if (error.response?.data?.remaining_inventory !== undefined) {
+      errorResponse.remaining_inventory = error.response.data.remaining_inventory;
+    }
+    if (error.response?.data?.product_cart_quantity !== undefined) {
+      errorResponse.product_cart_quantity = error.response.data.product_cart_quantity;
+    }
+    if (error.response?.data?.requested_quantity !== undefined) {
+      errorResponse.requested_quantity = error.response.data.requested_quantity;
+    }
+      
+    return errorResponse;
   }
 };
 
-export const getCart = async (token) => {
+export const getCart = async (token = null) => {
   console.log('🛒 getCart: Starting fetching cart data');
   try {
+    // If no token was provided, get one from auth service
     if (!token) {
-      console.log('⛔ getCart: No token provided');
-      // Notify about token issue using the event system
-      sessionEventEmitter.emit('sessionExpiring');
-      throw new Error('Authentication error: No authentication token found');
+      token = await getAuthToken();
+      if (!token) {
+        console.log('⛔ getCart: No token available');
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: No authentication token found');
+      }
     }
     
     try {
       console.log('🚀 getCart: Making API request');
-      const response = await axios.get(`${BASE_URL}/franchisee/cart`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
+      // Use the axios instance with automatic token handling
+      const response = await axiosInstance.get('/franchisee/cart');
       
       // Successfully got cart data
       console.log('✅ getCart: Successfully received data');
@@ -1097,23 +1056,8 @@ export const getCart = async (token) => {
         message: 'Empty cart'
       };
     } catch (axiosError) {
-      // Handle axios errors
+      // Handle axios errors - now handled by axios interceptors
       console.log('🛑 Axios error on getCart:', axiosError);
-      
-      // Check if it's an authentication error (401)
-      if (axiosError.response && axiosError.response.status === 401) {
-        console.log('🔐 Authentication error (401) detected in getCart');
-        sessionEventEmitter.emit('sessionExpiring');
-        throw new Error('Authentication error: Your session has expired.');
-      }
-      
-      // Check for HTML response (redirect to login page)
-      const contentType = axiosError.response?.headers?.['content-type'];
-      if (contentType && contentType.includes('text/html')) {
-        console.log('🔐 HTML response detected in getCart (likely login redirect)');
-        sessionEventEmitter.emit('sessionExpiring');
-        throw new Error('Authentication error: Your session has expired.');
-      }
       
       // Return error data from API if available
       if (axiosError.response?.data) {
@@ -1148,28 +1092,28 @@ export const updateCartItem = async (itemId, quantity) => {
   
   try {
     console.log(`🔄 Updating cart item ${itemId} to quantity ${quantity}`);
-    const token = await AsyncStorage.getItem('userToken');
     
+    // Get a valid token with automatic refresh if needed
+    const token = await getAuthToken();
     if (!token) {
       console.log(`⛔ No token available for updating item ${itemId}`);
-      // Notify about token issue using the event system
       sessionEventEmitter.emit('sessionExpiring');
       throw new Error('Authentication error: No authentication token found');
     }
     
-    console.log(`🔑 Using token for updating item ${itemId}: ${token.substring(0, 15)}...`);
+    console.log(`🔑 Using token for updating item ${itemId}`);
     
-    // Use axios instead of fetch for this specific call
-    // Axios handles JSON content-type better, especially with Laravel responses
+    // Use axios instance with interceptors for authentication handling
     try {
-      // Prepare the request payload
+      // Prepare the request payload with inventory checking
       const payload = { 
         items: [
           {
             id: itemId,           // Using 'id' instead of 'item_id' based on API error
             quantity: quantity
           }
-        ]
+        ],
+        check_inventory: true     // Add inventory checking to prevent exceeding available stock
       };
       
       console.log(`🚀 Making API call to update item ${itemId}`);
@@ -1177,19 +1121,15 @@ export const updateCartItem = async (itemId, quantity) => {
       
       // The API expects an "items" array with objects containing 'id' (not 'item_id') and 'quantity'
       // Based on error messages: "The items field is required" and "The items.0.id field is required"
-      console.log(`📌 Using cart update endpoint: ${BASE_URL}/franchisee/cart/update`);
+      console.log(`📌 Using cart update endpoint: /franchisee/cart/update`);
       
       let response;
       try {
-        response = await axios.post(
-          `${BASE_URL}/franchisee/cart/update`, 
+        // Use axiosInstance with centralized token management
+        response = await axiosInstance.post(
+          '/franchisee/cart/update', 
           payload,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/json',
-              'Content-Type': 'application/json'
-            },
             timeout: 10000 // 10 second timeout
           }
         );
@@ -1264,7 +1204,6 @@ export const updateCartItem = async (itemId, quantity) => {
       
       // Default error message
       console.log(`⚠️ Default error for updating item ${itemId}`);
-      throw new Error(`Failed to update item ${itemId} in cart`);
     }
   } catch (error) {
     console.error(`❌ Error updating item ${itemId} in cart:`, error.message);
@@ -1308,15 +1247,8 @@ export const removeCartItem = async (itemId) => {
     // Axios handles JSON content-type better, especially with Laravel responses
     try {
       console.log(`🚀 Making API call to remove item ${itemId}`);
-      const response = await axios.post(`${BASE_URL}/franchisee/cart/remove`, 
-        { item_id: itemId },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
+      // Use axiosInstance with centralized token management
+      const response = await axiosInstance.post('/franchisee/cart/remove', { item_id: itemId }
       );
       
       console.log(`✅ Remove from cart success for item ${itemId}:`, response.data);
@@ -1401,17 +1333,12 @@ export const removeCartItem = async (itemId) => {
   }
 };
 
-export const getProductDetails = async (token, productId) => {
+export const getProductDetails = async (token = null, productId) => {
   try {
     console.log(`Fetching details for product ID: ${productId}`);
     
-    // Use the new API endpoint for mobile app
-    const response = await axios.get(`${BASE_URL}/franchisee/products/${productId}/details`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.get(`/franchisee/products/${productId}/details`);
     
     console.log('Product details response status:', response.status);
     
@@ -1441,3 +1368,656 @@ export const getProductDetails = async (token, productId) => {
   }
 };
 
+/**
+ * Get pending orders with optional status filtering
+ * @param {string} status - Optional status filter (pending, processing, packed, shipped)
+ * @param {number} page - Page number for pagination
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} API response
+ */
+export const getPendingOrders = async (status = null, page = 1, perPage = 10) => {
+  try {
+    console.log(`🚀 getPendingOrders - Function called with status: ${status}`);
+    
+    // Build params
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (page) params.append('page', page);
+    if (perPage) params.append('per_page', perPage);
+    
+    const url = `/franchisee/orders/pending${params.toString() ? '?' + params.toString() : ''}`;
+    console.log('🌐 Making request to:', url);
+    
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.get(url);
+    
+    console.log('📊 Pending Orders Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Orders retrieved successfully');
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to retrieve orders'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in getPendingOrders:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while fetching orders'
+    };
+  }
+};
+
+/**
+ * Get order history with optional filters
+ * @param {Object} filters - Filter parameters
+ * @param {number} page - Page number for pagination
+ * @param {number} perPage - Items per page
+ * @returns {Promise<Object>} API response
+ */
+export const getOrderHistory = async (filters = {}, page = 1, perPage = 15) => {
+  try {
+    console.log('🚀 getOrderHistory - Function called');
+    
+    // Build params
+    const params = new URLSearchParams();
+    if (page) params.append('page', page);
+    if (perPage) params.append('per_page', perPage);
+    
+    // Add filters
+    Object.keys(filters).forEach(key => {
+      if (filters[key]) {
+        params.append(key, filters[key]);
+      }
+    });
+    
+    const url = `/franchisee/orders/history${params.toString() ? '?' + params.toString() : ''}`;
+    console.log('🌐 Making request to:', url);
+    
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.get(url);
+    
+    console.log('📊 Order History Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Order history retrieved successfully');
+      
+      // Process date fields for each order if we have orders array
+      if (response.data.orders && Array.isArray(response.data.orders)) {
+        response.data.orders = response.data.orders.map(order => {
+          // Process each order to ensure we have the right date fields
+          let processedOrder = { ...order };
+          
+          // For delivered orders, check for delivered_at field or use updated_at as fallback
+          if (processedOrder.status === 'delivered') {
+            if (!processedOrder.delivered_at && processedOrder.updated_at) {
+              processedOrder.delivered_at = processedOrder.updated_at;
+              console.log(`Set delivered_at to updated_at for order ${processedOrder.id}`);
+            }
+          }
+          
+          // For rejected orders, check for rejected_at field or use updated_at as fallback
+          if (processedOrder.status === 'rejected') {
+            if (!processedOrder.rejected_at && processedOrder.updated_at) {
+              processedOrder.rejected_at = processedOrder.updated_at;
+              console.log(`Set rejected_at to updated_at for order ${processedOrder.id}`);
+            }
+          }
+          
+          return processedOrder;
+        });
+      }
+      
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to retrieve order history'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in getOrderHistory:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while fetching order history'
+    };
+  }
+};
+
+/**
+ * Get order details
+ * @param {number} orderId - ID of the order to retrieve
+ * @returns {Promise<Object>} API response
+ */
+export const getOrderDetails = async (orderId) => {
+  try {
+    console.log(`🚀 getOrderDetails - Function called for order ID: ${orderId}`);
+    
+    const url = `/franchisee/orders/${orderId}`;
+    console.log('🌐 Making request to:', url);
+    
+    // Use axiosInstance with centralized token management
+    const response = await axiosInstance.get(url);
+    
+    console.log('📊 Order Details Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Order details retrieved successfully');
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to retrieve order details'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in getOrderDetails:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while fetching order details'
+    };
+  }
+};
+
+/**
+ * Update order status
+ * @param {number} orderId - ID of the order to update
+ * @param {string} status - New status to set (pending, processing, packed, shipped, delivered, cancelled, rejected)
+ * @returns {Promise<Object>} API response
+ */
+export const updateOrderStatus = async (orderId, status) => {
+  try {
+    console.log(`🚀 updateOrderStatus - Function called for order ID: ${orderId}, new status: ${status}`);
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.error('⛔ No auth token found in AsyncStorage!');
+      return { 
+        success: false, 
+        error: 'Authentication token missing'
+      };
+    }
+    
+    const url = `${BASE_URL}/franchisee/orders/${orderId}/status/${status}`;
+    console.log('🌐 Making request to:', url);
+    
+    const response = await axios.patch(url, {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      }
+    });
+    
+    console.log('📊 Update Order Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Order status updated successfully');
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to update order status'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in updateOrderStatus:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while updating order status'
+    };
+  }
+};
+
+/**
+ * Repeat a previous order
+ * @param {number} orderId - ID of the order to repeat
+ * @returns {Promise<Object>} API response
+ */
+export const repeatOrder = async (orderId) => {
+  try {
+    console.log(`🚀 repeatOrder - Function called for order ID: ${orderId}`);
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.error('⛔ No auth token found in AsyncStorage!');
+      return { 
+        success: false, 
+        error: 'Authentication token missing'
+      };
+    }
+    
+    // Use the dedicated API endpoint for mobile
+    const url = `${BASE_URL}/franchisee/orders/${orderId}/repeat-api`;
+    console.log('🌐 Making repeat order request to:', url);
+    
+    const response = await axios.post(url, 
+      { 
+        check_inventory: true,  // Add this parameter to request stock information
+        return_cart_items: true // Request server to return the cart items directly
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json'
+        }
+      }
+    );
+    
+    console.log('📊 Repeat Order Status:', response.status);
+    console.log('📊 Repeat Order Response:', response.data);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Order repeat API call successful');
+      
+      // Check if we have cart items in the response
+      const itemsAdded = response.data.cart_items || [];
+      console.log(`✅ ${itemsAdded.length} items were added to cart`);
+      
+      // Check if there are any inventory warnings
+      if (response.data.warnings && response.data.warnings.length > 0) {
+        // Log warnings for debugging
+        console.log('⚠️ Inventory warnings:', response.data.warnings);
+      }
+      
+      return {
+        success: true,
+        cart_items: itemsAdded,
+        warnings: response.data.warnings || [],
+        items_count: response.data.items_count || itemsAdded.length
+      };
+    } else {
+      console.error('❌ API request failed:', response.data.error || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.error || 'Failed to repeat order',
+        warnings: response.data.warnings || [],
+        cart_items: []
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in repeatOrder:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    // Check if we have additional error details in the response
+    if (err.response && err.response.data) {
+      console.log('❌ Server error details:', err.response.data);
+      
+      // Return with warnings if available
+      return { 
+        success: false, 
+        error: err.response.data.message || err.message || 'An error occurred while repeating the order',
+        warnings: err.response.data.warnings || []
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while repeating the order'
+    };
+  }
+};
+
+/**
+ * Get order invoice
+ * @param {number} orderId - ID of the order to get invoice for
+ * @returns {Promise<Object>} API response
+ */
+export const getOrderInvoice = async (orderId) => {
+  try {
+    console.log(`🚀 getOrderInvoice - Function called for order ID: ${orderId}`);
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.error('⛔ No auth token found in AsyncStorage!');
+      return { 
+        success: false, 
+        error: 'Authentication token missing'
+      };
+    }
+    
+    const url = `${BASE_URL}/franchisee/orders/${orderId}/invoice`;
+    console.log('🌐 Making request to:', url);
+    
+    const response = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      }
+    });
+    
+    console.log('📊 Order Invoice Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Invoice retrieved successfully');
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to retrieve invoice'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in getOrderInvoice:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while retrieving the invoice'
+    };
+  }
+};
+
+/**
+ * Dismiss welcome banner
+ * @returns {Promise<Object>} API response
+ */
+export const dismissWelcomeBanner = async () => {
+  try {
+    console.log('🚀 dismissWelcomeBanner - Function called');
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.error('⛔ No auth token found in AsyncStorage!');
+      return { 
+        success: false, 
+        error: 'Authentication token missing'
+      };
+    }
+    
+    const url = `${BASE_URL}/franchisee/dismiss-welcome`;
+    console.log('🌐 Making request to:', url);
+    
+    const response = await axios.post(url, {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json'
+      }
+    });
+    
+    console.log('📊 Dismiss Welcome Banner Status:', response.status);
+    
+    // Process the response
+    if (response.data.success) {
+      console.log('✅ Welcome banner dismissed successfully');
+      return response.data;
+    } else {
+      console.error('❌ API request failed:', response.data.message || 'Unknown error');
+      return { 
+        success: false, 
+        error: response.data.message || 'Failed to dismiss welcome banner'
+      };
+    }
+  } catch (err) {
+    console.error('🔥 Exception in dismissWelcomeBanner:', err);
+    
+    // Check if it's an authentication error (401)
+    if (err.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return { 
+      success: false, 
+      error: err.message || 'An error occurred while dismissing welcome banner'
+    };
+  }
+};
+
+// Replace the updateCartItemQuantity function in your api.js file with this version:
+
+export const updateCartItemQuantity = async (itemId, quantity) => {
+  console.log(`🔄 updateCartItemQuantity - itemId: ${itemId}, quantity: ${quantity}`);
+  
+  try {
+    // Get a valid token
+    const token = await getAuthToken();
+    if (!token) {
+      console.log(`⛔ No token available for updating item ${itemId}`);
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: No authentication token found');
+    }
+    
+    console.log(`🚀 Making API call to update single item ${itemId}`);
+    
+    try {
+      // Use the new single item update endpoint
+      const response = await axiosInstance.post('/franchisee/cart/update-item', {
+        item_id: itemId,
+        quantity: quantity
+      });
+      
+      console.log(`📊 Response status: ${response.status}`);
+      console.log(`📊 Response headers:`, response.headers);
+      console.log(`📊 Response data type:`, typeof response.data);
+      
+      // Check if response is HTML (login redirect) - this is the key fix
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+        console.log(`🔐 HTML response detected for item ${itemId} - session expired`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check if response is not an object or is empty
+      if (!response.data || typeof response.data !== 'object') {
+        console.log(`❌ Invalid response format for item ${itemId}:`, typeof response.data);
+        console.log(`❌ Response data preview:`, String(response.data).substring(0, 100));
+        throw new Error('Invalid response from server - expected JSON but got ' + typeof response.data);
+      }
+      
+      console.log(`✅ Valid JSON response for item ${itemId}:`, response.data);
+      
+      // Ensure consistent response structure
+      if (!('success' in response.data)) {
+        response.data.success = true;
+      }
+      
+      // Extract cart count consistently
+      const cartCount = extractCartCount(response.data);
+      if (cartCount >= 0) {
+        response.data.items_count = cartCount;
+      }
+      
+      return response.data;
+      
+    } catch (axiosError) {
+      console.error(`🛑 Axios error for item ${itemId}:`, axiosError.message);
+      
+      // Check for network/connection errors
+      if (!axiosError.response) {
+        console.log(`🌐 Network error for item ${itemId}`);
+        throw new Error('Network error: Unable to connect to server');
+      }
+      
+      console.log(`🔍 Error response status: ${axiosError.response.status}`);
+      console.log(`🔍 Error response headers:`, axiosError.response.headers);
+      
+      // Check if it's an authentication error (401)
+      if (axiosError.response.status === 401) {
+        console.log(`🔐 Authentication error (401) detected for item ${itemId}`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check for HTML response in error (redirect to login page)
+      const contentType = axiosError.response.headers?.['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.log(`🔐 HTML content-type detected for item ${itemId} (likely login redirect)`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Check if error response data is HTML string
+      if (typeof axiosError.response.data === 'string' && axiosError.response.data.includes('<!DOCTYPE html>')) {
+        console.log(`🔐 HTML error response data detected for item ${itemId} - session expired`);
+        sessionEventEmitter.emit('sessionExpiring');
+        throw new Error('Authentication error: Your session has expired.');
+      }
+      
+      // Return API error message if available and it's a proper JSON response
+      if (axiosError.response.data && typeof axiosError.response.data === 'object' && axiosError.response.data.message) {
+        return {
+          success: false,
+          message: axiosError.response.data.message,
+          was_adjusted: axiosError.response.data.was_adjusted || false,
+          final_quantity: axiosError.response.data.final_quantity,
+          item_removed: axiosError.response.data.item_removed || false
+        };
+      }
+      
+      // Default error for unhandled cases
+      throw axiosError;
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error updating single item ${itemId}:`, error.message);
+    
+    // Handle authentication errors
+    if (error.message && error.message.includes('Authentication error')) {
+      throw error; // Let this bubble up to be handled by the UI
+    }
+    
+    // For other errors, return a structured error response
+    return {
+      success: false,
+      message: error.message || `Failed to update item ${itemId}`
+    };
+  }
+};
+
+// Updated placeOrder method 
+
+export const placeOrder = async (orderData, token = null) => {
+  try {
+    console.log('🚀 placeOrder - Function called');
+    console.log('📦 Order data:', orderData);
+    
+    // Get token from storage or use provided token
+    const authToken = token || await AsyncStorage.getItem('userToken');
+    
+    if (!authToken) {
+      console.error('⛔ No auth token found for placing order!');
+      return {
+        success: false,
+        error: 'Authentication token not found'
+      };
+    }
+
+    console.log('🔑 Auth token found for placing order');
+    console.log('🌐 Making request to:', `${BASE_URL}/franchisee/cart/place-order`);
+
+    // Use the cart controller's placeOrder method endpoint
+    const response = await fetch(`${BASE_URL}/franchisee/cart/place-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(orderData),
+    });
+
+    console.log('📊 Place Order API Status:', response.status);
+
+    // Get response text first to handle both JSON and potential error responses
+    const responseText = await response.text();
+    console.log('📄 Raw response:', responseText.substring(0, 200) + '...');
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error('❌ JSON parsing error:', jsonError);
+      return {
+        success: false,
+        error: 'Invalid response from server',
+        message: 'Server returned invalid format'
+      };
+    }
+
+    if (response.ok && data.success) {
+      console.log('✅ Order placed successfully');
+      return {
+        success: true,
+        data: data,
+        order_id: data.order_id,
+        total: data.total,
+        message: data.message || 'Order placed successfully'
+      };
+    } else {
+      console.error('❌ Order placement failed:', data.message || 'Unknown error');
+      return {
+        success: false,
+        message: data.message || `HTTP error! status: ${response.status}`,
+        error: data.message || `Failed to place order (${response.status})`,
+        details: data.details || null
+      };
+    }
+
+  } catch (error) {
+    console.error('🔥 Exception in placeOrder:', error);
+    
+    // Check if it's an authentication error (401)
+    if (error.response?.status === 401) {
+      console.log('🔐 Authentication error (401) detected');
+      sessionEventEmitter.emit('sessionExpiring');
+    }
+    
+    return {
+      success: false,
+      message: error.message || 'Failed to place order',
+      error: error.message || 'Network or server error occurred'
+    };
+  }
+};

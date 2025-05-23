@@ -17,6 +17,13 @@ import FallbackIcon from './icon/FallbackIcon';
 import { getProductDetails, addToCart, getCart } from '../services/api';
 import { cartEventEmitter } from './FranchiseeLayout';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  addToCartWithQuantityManagement, 
+  incrementQuantityWithCheck, 
+  calculateMaxQuantity, 
+  getInventoryStatus,
+  getCartItemInfo
+} from '../utils/quantityManagement';
 
 const AddToCartModal = ({ visible, productId, onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -72,11 +79,7 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
           // Set cart items state
           setCartItems(cartItems);
           
-          // Check if the current product or any of its variants are already in the cart
-          if (cartItems.length > 0) {
-            console.log('Product in cart check - Product ID:', productId);
-            console.log('Cart items:', cartItems);
-          }
+          console.log('Cart items loaded:', cartItems.length);
         } else {
           console.error('Failed to get cart:', cartResponse.message);
         }
@@ -94,28 +97,26 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
   const handleAddToCart = async () => {
     if (!product) return;
     
-    try {
-      setAddingToCart(true);
-      
-      const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        Alert.alert('Error', 'Not authenticated');
-        setAddingToCart(false);
-        return;
-      }
-      
-      // Determine if we're adding the main product or a variant
-      const productToAdd = selectedVariant ? selectedVariant.id : product.id;
-      const variantId = selectedVariant ? selectedVariant.id : null;
-      
-      console.log(`Adding to cart: Product=${product.id}, Variant=${variantId}, Quantity=${quantity}`);
-      
-      const response = await addToCart(token, product.id, variantId, quantity);
-      
-      if (response.success) {
-        // Determine cart count from response
+    setAddingToCart(true);
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      Alert.alert('Error', 'Not authenticated');
+      setAddingToCart(false);
+      return;
+    }
+    
+    // Use centralized quantity management
+    await addToCartWithQuantityManagement({
+      product,
+      selectedVariant,
+      quantity,
+      cartItems,
+      userToken: token,
+      addToCartAPI: addToCart,
+      onSuccess: ({ response, actualQuantityAdded, productName, successMessage, wasAdjusted }) => {
+        // Handle cart count update from various response formats
         let cartCount = 0;
-        
         if (response.cart && typeof response.cart.items_count === 'number') {
           cartCount = response.cart.items_count;
         } else if (response.cart && Array.isArray(response.cart.items)) {
@@ -124,6 +125,8 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
           cartCount = response.cart_items.length;
         } else if (typeof response.items_count === 'number') {
           cartCount = response.items_count;
+        } else if (typeof response.cart_count === 'number') {
+          cartCount = response.cart_count;
         }
         
         // Emit cart update event
@@ -131,107 +134,58 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
           cartEventEmitter.emit('cartUpdated', cartCount);
         } else {
           // If we can't determine cart count, refetch cart
-          const cartResponse = await getCart(token);
-          if (cartResponse.success && cartResponse.cart) {
-            const updatedCount = cartResponse.cart.items_count || 
-                              (Array.isArray(cartResponse.cart.items) ? cartResponse.cart.items.length : 0);
-            cartEventEmitter.emit('cartUpdated', updatedCount);
-          }
+          getCart(token).then(cartResponse => {
+            if (cartResponse.success) {
+              let updatedCount = 0;
+              if (cartResponse.cart && typeof cartResponse.cart.items_count === 'number') {
+                updatedCount = cartResponse.cart.items_count;
+              } else if (cartResponse.cart_items && Array.isArray(cartResponse.cart_items)) {
+                updatedCount = cartResponse.cart_items.length;
+              } else if (Array.isArray(cartResponse.cart?.items)) {
+                updatedCount = cartResponse.cart.items.length;
+              }
+              cartEventEmitter.emit('cartUpdated', updatedCount);
+            }
+          });
         }
         
-        // Success message
+        // Show success alert with appropriate message
+        const alertTitle = wasAdjusted ? 'Added with Adjustment' : 'Added to Cart';
         Alert.alert(
-          'Added to Cart',
-          selectedVariant 
-            ? `${quantity} x ${product.name} - ${selectedVariant.name} added to cart` 
-            : `${quantity} x ${product.name} added to cart`,
-          [
-            { 
-              text: 'Continue Shopping', 
-              onPress: () => onClose(), 
-              style: 'cancel'
-            }
-          ]
+          alertTitle,
+          successMessage,
+          [{ text: 'Continue Shopping', onPress: () => onClose() }]
         );
-      } else {
-        Alert.alert('Error', response.message || 'Failed to add item to cart');
+        
+        setAddingToCart(false);
+      },
+      onError: (errorMessage, title = 'Error') => {
+        Alert.alert(title, errorMessage);
+        setAddingToCart(false);
       }
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      Alert.alert('Error', 'Failed to add item to cart');
-    } finally {
-      setAddingToCart(false);
-    }
+    });
   };
 
   const incrementQuantity = () => {
-    // Check if increasing quantity would exceed inventory
-    const maxQuantity = selectedVariant 
-      ? selectedVariant.inventory_count 
-      : (product ? product.inventory_count : 0);
-      
-    // Find item in cart if it exists
-    const cartItem = cartItems.find(item => {
-      if (selectedVariant) {
-        return item.variant_id === selectedVariant.id;
-      } else {
-        return item.product_id === product.id && !item.variant_id;
+    // Use centralized quantity increment logic
+    incrementQuantityWithCheck({
+      product,
+      selectedVariant,
+      currentQuantity: quantity,
+      cartItems,
+      onSuccess: (newQuantity) => {
+        setQuantity(newQuantity);
+      },
+      onError: (errorMessage, title) => {
+        Alert.alert(title, errorMessage, [{ text: 'OK' }]);
       }
     });
-    
-    // Calculate how many more items can be added
-    const inCartQuantity = cartItem ? cartItem.quantity : 0;
-    const availableToAdd = maxQuantity - inCartQuantity;
-    
-    if (quantity < availableToAdd) {
-      setQuantity(quantity + 1);
-    } else {
-      Alert.alert('Maximum Quantity', 'You cannot add more of this item to your cart due to inventory limitations.');
-    }
   };
 
   const decrementQuantity = () => {
     if (quantity > 1) {
       setQuantity(quantity - 1);
     }
-  };
-
-  const getStockStatusInfo = (item) => {
-    const inventoryCount = item.inventory_count || 0;
-    
-    if (inventoryCount <= 0) {
-      return { label: 'Out of Stock', color: '#dc3545', icon: 'times-circle' };
-    } else if (inventoryCount <= 10) {
-      return { label: `Low Stock (${inventoryCount} left)`, color: '#ffc107', icon: 'exclamation-circle' };
-    } else {
-      return { label: `In Stock (${inventoryCount} available)`, color: '#198754', icon: 'check-circle' };
-    }
-  };
-
-  const getCurrentCartInfo = () => {
-    if (!product) return null;
-    
-    // Find main product in cart
-    const mainProductInCart = cartItems.find(item => 
-      item.product_id === product.id && (!item.variant_id || item.variant_id === null)
-    );
-    
-    // Find selected variant in cart
-    const selectedVariantInCart = selectedVariant 
-      ? cartItems.find(item => item.variant_id === selectedVariant.id)
-      : null;
-    
-    const cartItem = selectedVariant ? selectedVariantInCart : mainProductInCart;
-    
-    if (cartItem) {
-      return {
-        inCart: true,
-        quantity: cartItem.quantity,
-        total: cartItem.total || (cartItem.price * cartItem.quantity)
-      };
-    }
-    
-    return { inCart: false };
   };
 
   const renderVariantSelector = () => {
@@ -245,9 +199,9 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.variantList}>
           {product.variants.map(variant => {
             const isSelected = selectedVariant && selectedVariant.id === variant.id;
-            const isOutOfStock = variant.inventory_count <= 0;
-            const cartItem = cartItems.find(item => item.variant_id === variant.id);
-            const inCartQuantity = cartItem ? cartItem.quantity : 0;
+            const inventoryStatus = getInventoryStatus(variant);
+            const isOutOfStock = inventoryStatus.status === 'out_of_stock';
+            const cartItemInfo = getCartItemInfo(product, variant, cartItems);
             
             return (
               <TouchableOpacity
@@ -279,19 +233,20 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
                 
                 <View style={styles.variantInfo}>
                   <Text style={styles.variantName} numberOfLines={2}>{variant.name}</Text>
-                  <Text style={styles.variantPrice}>${variant.price.toFixed(2)}</Text>
+                  <Text style={styles.variantPrice}>
+                    ${(variant.price_adjustment || variant.price || 0).toFixed(2)}
+                  </Text>
                   
-                  {inCartQuantity > 0 && (
-                    <Text style={styles.inCartTag}>{inCartQuantity} in cart</Text>
+                  {cartItemInfo.inCart && (
+                    <Text style={styles.inCartTag}>{cartItemInfo.quantity} in cart</Text>
                   )}
                   
-                  {isOutOfStock ? (
-                    <Text style={styles.outOfStockText}>Out of Stock</Text>
-                  ) : (
-                    <Text style={styles.variantStock}>
-                      {variant.inventory_count} available
-                    </Text>
-                  )}
+                  <Text style={[
+                    styles.variantStock,
+                    { color: inventoryStatus.color }
+                  ]}>
+                    {inventoryStatus.label}
+                  </Text>
                 </View>
               </TouchableOpacity>
             );
@@ -301,31 +256,13 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
     );
   };
 
-  // Calculate max quantity that can be added
-  const calculateMaxQuantity = () => {
-    if (!product) return 0;
-    
-    const inventoryCount = selectedVariant 
-      ? selectedVariant.inventory_count 
-      : product.inventory_count;
-      
-    // Find item in cart if it exists
-    const cartItem = cartItems.find(item => {
-      if (selectedVariant) {
-        return item.variant_id === selectedVariant.id;
-      } else {
-        return item.product_id === product.id && (!item.variant_id || item.variant_id === null);
-      }
-    });
-    
-    const inCartQuantity = cartItem ? cartItem.quantity : 0;
-    const availableToAdd = inventoryCount - inCartQuantity;
-    
-    return availableToAdd;
-  };
-
-  const cartInfo = getCurrentCartInfo();
-  const maxQuantity = calculateMaxQuantity();
+  // Get current cart information
+  const cartInfo = getCartItemInfo(product, selectedVariant, cartItems);
+  const maxQuantity = calculateMaxQuantity(product, selectedVariant, cartItems);
+  
+  // Get inventory status for the current item (product or selected variant)
+  const currentItem = selectedVariant || product;
+  const inventoryStatus = currentItem ? getInventoryStatus(currentItem) : null;
 
   return (
     <Modal
@@ -385,17 +322,21 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
                 )}
                 
                 <Text style={styles.productPrice}>
-                  ${(selectedVariant ? selectedVariant.price : product.price).toFixed(2)}
+                  ${selectedVariant 
+                    ? (selectedVariant.price_adjustment || selectedVariant.price || 0).toFixed(2)
+                    : (product.price || product.base_price || 0).toFixed(2)
+                  }
                 </Text>
                 
                 {/* Stock Status */}
-                {selectedVariant ? (
+                {inventoryStatus && (
                   <View style={styles.stockStatus}>
-                    {renderStockStatus(selectedVariant)}
-                  </View>
-                ) : (
-                  <View style={styles.stockStatus}>
-                    {renderStockStatus(product)}
+                    <View style={[styles.stockStatusBadge, { backgroundColor: `${inventoryStatus.color}20` }]}>
+                      <FallbackIcon name={inventoryStatus.icon} iconType="FontAwesome" size={14} color={inventoryStatus.color} />
+                      <Text style={[styles.stockStatusText, { color: inventoryStatus.color }]}>
+                        {inventoryStatus.label}
+                      </Text>
+                    </View>
                   </View>
                 )}
                 
@@ -475,7 +416,12 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total:</Text>
                 <Text style={styles.totalPrice}>
-                  ${((selectedVariant ? selectedVariant.price : product.price) * quantity).toFixed(2)}
+                  ${(
+                    (selectedVariant 
+                      ? (selectedVariant.price_adjustment || selectedVariant.price || 0)
+                      : (product.price || product.base_price || 0)
+                    ) * quantity
+                  ).toFixed(2)}
                 </Text>
               </View>
             </ScrollView>
@@ -509,18 +455,6 @@ const AddToCartModal = ({ visible, productId, onClose }) => {
       </SafeAreaView>
     </Modal>
   );
-  
-  // Helper function to render stock status
-  function renderStockStatus(item) {
-    const status = getStockStatusInfo(item);
-    
-    return (
-      <View style={[styles.stockStatusBadge, { backgroundColor: `${status.color}20` }]}>
-        <FallbackIcon name={status.icon} iconType="FontAwesome" size={14} color={status.color} />
-        <Text style={[styles.stockStatusText, { color: status.color }]}>{status.label}</Text>
-      </View>
-    );
-  }
 };
 
 const styles = StyleSheet.create({
@@ -715,13 +649,6 @@ const styles = StyleSheet.create({
   },
   variantStock: {
     fontSize: 12,
-    color: '#198754',
-    marginTop: 2,
-  },
-  outOfStockText: {
-    fontSize: 12,
-    color: '#dc3545',
-    fontWeight: '500',
     marginTop: 2,
   },
   inCartTag: {

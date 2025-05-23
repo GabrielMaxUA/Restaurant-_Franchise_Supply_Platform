@@ -16,11 +16,13 @@ import {
   Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getCatalog, toggleFavorite, addToCart, getCart, getProductDetails } from '../services/api'; // Add getProductDetails import
+import { getCatalog, toggleFavorite, addToCart, getCart, getProductDetails } from '../services/api';
+import { addToCartWithQuantityManagement } from '../utils/quantityManagement';
 import { cartEventEmitter } from '../components/FranchiseeLayout';
 import FallbackIcon from '../components/icon/FallbackIcon';
 import FranchiseeLayout from '../components/FranchiseeLayout';
-
+import AddToCartModal from '../components/AddToCartModal';
+import { API_BASE_URL } from '../services/axiosInstance';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width / 2) - 15; // 2 cards per row with spacing
@@ -42,7 +44,7 @@ const CatalogScreen = ({ navigation }) => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   
-  // Add to cart modal state
+  // Product detail and add to cart modal state
   const [addToCartModalVisible, setAddToCartModalVisible] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
 
@@ -124,9 +126,7 @@ const CatalogScreen = ({ navigation }) => {
         
         if (!url.startsWith('http')) {
           console.log(`Found a relative image URL: ${url}`);
-          
-          // Define your actual base URL - local XAMPP address
-          const API_BASE_URL = 'http://127.0.0.1:8000';
+
           
           // If path starts with /storage (Laravel public storage)
           if (url.includes('/storage/') || url.includes('storage/')) {
@@ -257,8 +257,77 @@ const CatalogScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddToCart = async (productId, quantity = 1) => {
-    // Show the Add to Cart modal instead of directly adding to cart
+  const handleAddToCart = async (productId, quantity = 1, directAdd = false) => {
+    try {
+      // If not direct add, show the product detail modal
+      if (!directAdd) {
+        // Just open the modal for adding to cart or viewing details
+        showProductDetails(productId);
+        return;
+      }
+      
+      // Find the product in our list
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        console.error(`Product with ID ${productId} not found`);
+        return;
+      }
+
+      // Get user token
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        Alert.alert('Error', 'You need to be logged in to add items to your cart');
+        return;
+      }
+
+      // Get current cart to check if product is already there
+      const cartResponse = await getCart(token);
+      let currentCartItems = [];
+      
+      if (cartResponse.success) {
+        if (cartResponse.cart_items && Array.isArray(cartResponse.cart_items)) {
+          currentCartItems = cartResponse.cart_items;
+        } else if (cartResponse.cart && cartResponse.cart.items) {
+          currentCartItems = cartResponse.cart.items;
+        }
+      }
+
+      // Use centralized quantity management
+      await addToCartWithQuantityManagement({
+        product,
+        selectedVariant: null,
+        quantity,
+        cartItems: currentCartItems,
+        userToken: token,
+        addToCartAPI: addToCart,
+        onSuccess: ({ response, actualQuantityAdded, productName, successMessage }) => {
+          // Update cart count in the header
+          if (response.items_count !== undefined) {
+            cartEventEmitter.emit('cartUpdated', response.items_count);
+          } else if (cartResponse.success) {
+            // Refetch cart to get updated count
+            getCart(token).then(updatedCartResponse => {
+              if (updatedCartResponse.success && updatedCartResponse.items_count) {
+                cartEventEmitter.emit('cartUpdated', updatedCartResponse.items_count);
+              }
+            });
+          }
+          
+          // Show success alert
+          Alert.alert('Added to Cart', successMessage);
+        },
+        onError: (errorMessage, title = 'Error') => {
+          Alert.alert(title, errorMessage);
+        }
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert('Error', 'Failed to add product to cart. Please try again.');
+    }
+  };
+  
+  // Show the product details modal
+  const showProductDetails = (productId) => {
     setSelectedProductId(productId);
     setAddToCartModalVisible(true);
   };
@@ -283,7 +352,7 @@ const CatalogScreen = ({ navigation }) => {
     return (
       <TouchableOpacity 
         style={styles.card}
-        onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
+        onPress={() => showProductDetails(item.id)}
         activeOpacity={0.7}
       >
         <View style={styles.cardImageContainer}>
@@ -294,9 +363,7 @@ const CatalogScreen = ({ navigation }) => {
               resizeMode="cover"
               onError={() => {
                 console.log(`Image failed to load for product ${item.id}: ${item.image_url}`);
-                // For debugging purposes, log the URL that failed
               }}
-              onLoad={() => console.log(`Image loaded successfully for ${item.id}`)}
             />
           ) : (
             <View style={styles.noImageContainer}>
@@ -315,7 +382,6 @@ const CatalogScreen = ({ navigation }) => {
               iconType="FontAwesome" 
               size={18} 
               color={item.is_favorite ? '#dc3545' : '#ffffff'} 
-              style={styles.favoriteIcon}
             />
           </TouchableOpacity>
         </View>
@@ -362,7 +428,7 @@ const CatalogScreen = ({ navigation }) => {
             disabled={!item.is_purchasable || item.stock_status === 'out_of_stock'}
             onPress={(e) => {
               e.stopPropagation(); // Prevent navigating to product detail
-              navigation.navigate('ProductDetail', { productId: item.id });
+              showProductDetails(item.id);
             }}
           >
             <FallbackIcon name="cart-plus" iconType="FontAwesome" size={16} color="#ffffff" />
@@ -577,6 +643,18 @@ const CatalogScreen = ({ navigation }) => {
 
       {renderCategoryModal()}
       {renderSortModal()}
+      
+      {/* AddToCartModal for product details */}
+      {addToCartModalVisible && selectedProductId && (
+        <AddToCartModal
+          visible={addToCartModalVisible}
+          productId={selectedProductId}
+          onClose={() => {
+            setAddToCartModalVisible(false);
+            setSelectedProductId(null);
+          }}
+        />
+      )}
     </FranchiseeLayout>
   );
 };

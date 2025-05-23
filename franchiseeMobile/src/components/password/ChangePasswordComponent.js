@@ -15,8 +15,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 
-// Import the BASE_URL from your api.js file
-import { BASE_URL } from '../../services';
+// Import the BASE_URL 
+import { BASE_URL } from '../services/axiosInstance';
 
 /**
  * ChangePasswordComponent - A reusable component for password changing functionality
@@ -27,10 +27,10 @@ import { BASE_URL } from '../../services';
  * @param {boolean} props.isModal - Whether this component is being used within a modal
  * @param {Object} props.navigation - Navigation object (optional, used when component is a screen)
  */
-const ChangePasswordComponent = ({ 
-  onSuccess, 
-  onCancel, 
-  isModal = false, 
+const ChangePasswordComponent = ({
+  onSuccess,
+  onCancel,
+  isModal = false,
   navigation = null
 }) => {
   // State variables
@@ -53,7 +53,7 @@ const ChangePasswordComponent = ({
       ...passwords,
       [field]: value
     });
-    
+
     // Clear validation error when user types
     if (errors[field]) {
       setErrors({
@@ -85,50 +85,50 @@ const ChangePasswordComponent = ({
   const updatePassword = async () => {
     try {
       console.log('🔐 Starting password update process');
-      
+
       // Clear previous errors
       setErrors({});
-      
+
       // Client-side validation
       if (!passwords.current_password) {
         setErrors({ current_password: ['Current password is required'] });
         return;
       }
-      
+
       if (!passwords.new_password) {
         setErrors({ new_password: ['New password is required'] });
         return;
       }
-      
+
       if (passwords.new_password.length < 8) {
         setErrors({ new_password: ['Password must be at least 8 characters'] });
         return;
       }
-      
+
       if (passwords.new_password !== passwords.new_password_confirmation) {
         setErrors({ new_password_confirmation: ['Password confirmation does not match'] });
         return;
       }
-      
+
       // Set loading state
       setLoading(true);
-      
+
       // Get auth token
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         console.error('⛔ No auth token found in AsyncStorage!');
         Alert.alert('Authentication Error', 'Please log in again.');
-        
+
         // Navigate to login if available
         if (navigation) {
           navigation.navigate('Login');
         }
         return;
       }
-      
+
       console.log('🔑 Auth token found for password update');
       console.log('🌐 Making request to:', `${BASE_URL}/franchisee/profile/password`);
-      
+
       // Send API request
       const response = await fetch(`${BASE_URL}/franchisee/profile/password`, {
         method: 'POST',
@@ -143,9 +143,9 @@ const ChangePasswordComponent = ({
           new_password_confirmation: passwords.new_password_confirmation
         })
       });
-      
+
       console.log('📊 Password Update API Status:', response.status);
-      
+
       // Handle authentication issues
       if (response.status === 401) {
         console.error('🔒 Authentication error during password update');
@@ -154,34 +154,34 @@ const ChangePasswordComponent = ({
           text1: 'Session Expired',
           text2: 'Please log in again'
         });
-        
+
         if (navigation) {
           navigation.navigate('Login');
         }
         return;
       }
-      
+
       // Parse response
       const data = await response.json();
       console.log('📡 Password Update API Response received');
-      
+
       if (response.ok && data.success) {
         console.log('✅ Password updated successfully');
-        
+
         // Reset form
         setPasswords({
           current_password: '',
           new_password: '',
           new_password_confirmation: ''
         });
-        
+
         // Show success message
         Toast.show({
           type: 'success',
           text1: 'Success',
           text2: 'Password updated successfully'
         });
-        
+
         // Call success callback or navigate back
         if (onSuccess) {
           setTimeout(() => {
@@ -194,11 +194,11 @@ const ChangePasswordComponent = ({
         }
       } else {
         console.error('❌ Password update failed:', data.message || data.error || 'Unknown error');
-        
+
         // Handle validation errors
         if (response.status === 422 && data.errors) {
           setErrors(data.errors);
-          
+
           // Show the first validation error
           const firstError = Object.values(data.errors)[0][0];
           Toast.show({
@@ -261,24 +261,24 @@ const ChangePasswordComponent = ({
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={handleBack}
           >
             <Icon name="arrow-back" size={24} color="#2c7be5" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Change Password</Text>
         </View>
-        
+
         <View style={styles.card}>
           <View style={styles.securityInfoContainer}>
             <Icon name="shield-checkmark-outline" size={40} color="#2c7be5" />
             <Text style={styles.securityInfoText}>
-              Create a strong password that includes uppercase letters, 
+              Create a strong password that includes uppercase letters,
               lowercase letters, numbers, and special characters for better security.
             </Text>
           </View>
-          
+
           {/* Password Form */}
           <View style={styles.formContainer}>
             {/* Current Password */}
@@ -287,7 +287,7 @@ const ChangePasswordComponent = ({
               <View style={styles.passwordInputContainer}>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     styles.passwordInput,
                     errors.current_password && styles.inputError
                   ]}
@@ -296,14 +296,14 @@ const ChangePasswordComponent = ({
                   onChangeText={(text) => handleChange('current_password', text)}
                   placeholder="Enter current password"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => togglePasswordVisibility('current')}
                 >
-                  <Icon 
-                    name={passwordVisible.current ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#6c757d" 
+                  <Icon
+                    name={passwordVisible.current ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6c757d"
                   />
                 </TouchableOpacity>
               </View>
@@ -311,14 +311,14 @@ const ChangePasswordComponent = ({
                 <Text style={styles.errorText}>{errors.current_password[0]}</Text>
               )}
             </View>
-            
+
             {/* New Password */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>New Password</Text>
               <View style={styles.passwordInputContainer}>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     styles.passwordInput,
                     errors.new_password && styles.inputError
                   ]}
@@ -327,14 +327,14 @@ const ChangePasswordComponent = ({
                   onChangeText={(text) => handleChange('new_password', text)}
                   placeholder="Enter new password"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => togglePasswordVisibility('new')}
                 >
-                  <Icon 
-                    name={passwordVisible.new ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#6c757d" 
+                  <Icon
+                    name={passwordVisible.new ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6c757d"
                   />
                 </TouchableOpacity>
               </View>
@@ -342,59 +342,59 @@ const ChangePasswordComponent = ({
                 <Text style={styles.errorText}>{errors.new_password[0]}</Text>
               )}
             </View>
-            
+
             {/* Password Requirements */}
             <View style={styles.passwordRequirements}>
               <Text style={styles.requirementTitle}>Password must contain:</Text>
               <View style={styles.requirementRow}>
-                <Icon 
-                  name={meetsRequirement('uppercase') ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={meetsRequirement('uppercase') ? "#28a745" : "#6c757d"} 
+                <Icon
+                  name={meetsRequirement('uppercase') ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={meetsRequirement('uppercase') ? "#28a745" : "#6c757d"}
                 />
                 <Text style={styles.requirementText}>At least one uppercase letter</Text>
               </View>
               <View style={styles.requirementRow}>
-                <Icon 
-                  name={meetsRequirement('lowercase') ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={meetsRequirement('lowercase') ? "#28a745" : "#6c757d"} 
+                <Icon
+                  name={meetsRequirement('lowercase') ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={meetsRequirement('lowercase') ? "#28a745" : "#6c757d"}
                 />
                 <Text style={styles.requirementText}>At least one lowercase letter</Text>
               </View>
               <View style={styles.requirementRow}>
-                <Icon 
-                  name={meetsRequirement('number') ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={meetsRequirement('number') ? "#28a745" : "#6c757d"} 
+                <Icon
+                  name={meetsRequirement('number') ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={meetsRequirement('number') ? "#28a745" : "#6c757d"}
                 />
                 <Text style={styles.requirementText}>At least one number</Text>
               </View>
               <View style={styles.requirementRow}>
-                <Icon 
-                  name={meetsRequirement('special') ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={meetsRequirement('special') ? "#28a745" : "#6c757d"} 
+                <Icon
+                  name={meetsRequirement('special') ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={meetsRequirement('special') ? "#28a745" : "#6c757d"}
                 />
                 <Text style={styles.requirementText}>At least one special character</Text>
               </View>
               <View style={styles.requirementRow}>
-                <Icon 
-                  name={meetsRequirement('length') ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={meetsRequirement('length') ? "#28a745" : "#6c757d"} 
+                <Icon
+                  name={meetsRequirement('length') ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={meetsRequirement('length') ? "#28a745" : "#6c757d"}
                 />
                 <Text style={styles.requirementText}>Minimum 8 characters</Text>
               </View>
             </View>
-            
+
             {/* Confirm Password */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirm New Password</Text>
               <View style={styles.passwordInputContainer}>
                 <TextInput
                   style={[
-                    styles.input, 
+                    styles.input,
                     styles.passwordInput,
                     errors.new_password_confirmation && styles.inputError
                   ]}
@@ -403,47 +403,47 @@ const ChangePasswordComponent = ({
                   onChangeText={(text) => handleChange('new_password_confirmation', text)}
                   placeholder="Confirm new password"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => togglePasswordVisibility('confirm')}
                 >
-                  <Icon 
-                    name={passwordVisible.confirm ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#6c757d" 
+                  <Icon
+                    name={passwordVisible.confirm ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6c757d"
                   />
                 </TouchableOpacity>
               </View>
               {errors.new_password_confirmation && (
                 <Text style={styles.errorText}>{errors.new_password_confirmation[0]}</Text>
               )}
-              {passwords.new_password && 
-               passwords.new_password_confirmation && 
-               passwords.new_password !== passwords.new_password_confirmation && (
-                <Text style={styles.errorText}>Passwords do not match</Text>
-              )}
+              {passwords.new_password &&
+                passwords.new_password_confirmation &&
+                passwords.new_password !== passwords.new_password_confirmation && (
+                  <Text style={styles.errorText}>Passwords do not match</Text>
+                )}
             </View>
-            
+
             {/* Buttons */}
             <View style={styles.buttonRow}>
               {/* Cancel Button (only in modal mode) */}
               {isModal && (
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
+                <TouchableOpacity
+                  style={styles.cancelButton}
                   onPress={handleBack}
                   disabled={loading}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               )}
-              
+
               {/* Update Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.updateButton, 
+                  styles.updateButton,
                   loading && styles.buttonDisabled,
                   isModal ? { flex: 1 } : { width: '100%' }
-                ]} 
+                ]}
                 onPress={updatePassword}
                 disabled={loading}
               >

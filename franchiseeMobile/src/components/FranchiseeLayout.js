@@ -13,62 +13,146 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FallbackIcon from './icon/FallbackIcon';
-import { logout as apiLogout, getCart, BASE_URL } from '../services/api';
+import { logout as apiLogout, getCart} from '../services/api';
 import EventEmitter from 'eventemitter3';
 import { Alert } from 'react-native';
-
+import { BASE_URL } from '../services/axiosInstance';
 export const cartEventEmitter = new EventEmitter();
-
-// Add a new event emitter for session handling
 export const sessionEventEmitter = new EventEmitter();
 
-// Global API response interceptor for handling 401 errors consistently
-export const handleApiResponse = async (response, navigation) => {
-  // Check if it's a fetch Response object or an axios response object
-  const isFetchResponse = response && typeof response.headers.get === 'function';
-  const isAxiosResponse = response && response.headers && typeof response.headers['content-type'] === 'string';
+// ============================================================================
+// GLOBAL ACTIVITY & TOKEN MANAGEMENT SYSTEM
+// ============================================================================
+
+// Activity tracking variables
+let lastUserActivity = Date.now();
+let lastActivityLog = 0; // Track when we last logged activity to prevent spam
+const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes in milliseconds
+const ACTIVITY_LOG_THROTTLE = 5000; // Only log activity every 5 seconds to prevent spam
+let inactivityLogoutTimer = null;
+let tokenRefreshInProgress = false;
+let logoutInProgress = false;
+
+// User activity tracking function with throttling
+const updateUserActivity = (source = 'unknown') => {
+  const now = Date.now();
+  const timeSinceLastActivity = now - lastUserActivity;
+  const wasInactive = timeSinceLastActivity > INACTIVITY_TIMEOUT;
+  const shouldLog = (now - lastActivityLog) > ACTIVITY_LOG_THROTTLE || wasInactive;
   
-  if (isFetchResponse) {
-    // Handle HTML responses (often login redirects) for fetch API
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('text/html')) {
-      console.error('Received HTML response instead of JSON (likely session expired)');
-      sessionEventEmitter.emit('sessionExpiring');
-      throw new Error('Authentication error: Your session has expired.');
-    }
-    
-    // Handle 401 Unauthorized responses for fetch API
-    if (response.status === 401) {
-      console.error('401 Unauthorized response received');
-      sessionEventEmitter.emit('sessionExpiring');
-      throw new Error('Authentication error: Your session has expired.');
-    }
-  } else if (isAxiosResponse) {
-    // Handle HTML responses for axios
-    const contentType = response.headers['content-type'];
-    if (contentType && contentType.includes('text/html')) {
-      console.error('Received HTML response instead of JSON (likely session expired)');
-      sessionEventEmitter.emit('sessionExpiring');
-      throw new Error('Authentication error: Your session has expired.');
-    }
-    
-    // Handle 401 Unauthorized responses for axios
-    if (response.status === 401) {
-      console.error('401 Unauthorized response received');
-      sessionEventEmitter.emit('sessionExpiring');
-      throw new Error('Authentication error: Your session has expired.');
-    }
-  } else {
-    console.warn('Unknown response type in handleApiResponse');
+  lastUserActivity = now;
+  
+  // Only log if enough time has passed or user was inactive
+  if (shouldLog) {
+    lastActivityLog = now;
+    console.log('🔄 User activity detected:', new Date(now).toLocaleTimeString());
+    console.log(`📍 Activity source: ${source}`);
+    console.log(`📊 USER STATE: ${wasInactive ? 'INACTIVE → ACTIVE' : 'ACTIVE (continued)'}`);
+    console.log(`⏱️ Time since last activity: ${(timeSinceLastActivity / 1000).toFixed(1)}s`);
   }
   
-  return response;
+  // Always clear and restart timer, but only log if we should
+  if (inactivityLogoutTimer) {
+    clearTimeout(inactivityLogoutTimer);
+    if (shouldLog) {
+      console.log('⏰ Cleared previous inactivity timer');
+    }
+  }
+  
+  // Start new inactivity timer
+  scheduleInactivityLogout(shouldLog);
 };
 
-// Create a global session state management
-let isSessionExpiring = false;
-let isSessionExpired = false;
-let tokenRefreshInProgress = false;
+// Schedule inactivity logout
+const scheduleInactivityLogout = (shouldLog = true) => {
+  if (logoutInProgress) {
+    if (shouldLog) console.log('🚫 Logout already in progress, skipping inactivity timer');
+    return;
+  }
+  
+  if (shouldLog) {
+    const timeoutMinutes = INACTIVITY_TIMEOUT / (60 * 1000);
+    console.log(`⏰ INACTIVITY TIMER: Scheduling logout in ${timeoutMinutes} minutes`);
+    console.log(`📅 LOGOUT SCHEDULED FOR: ${new Date(Date.now() + INACTIVITY_TIMEOUT).toLocaleTimeString()}`);
+  }
+  
+  inactivityLogoutTimer = setTimeout(() => {
+    console.log('🕒 ===============================================');
+    console.log('🕒 15 MINUTES OF INACTIVITY DETECTED - LOGGING OUT');
+    console.log('🕒 ===============================================');
+    handleInactivityLogout();
+  }, INACTIVITY_TIMEOUT);
+};
+
+// Handle inactivity logout
+const handleInactivityLogout = async () => {
+  if (logoutInProgress) {
+    console.log('🚫 Logout already in progress');
+    return;
+  }
+  
+  logoutInProgress = true;
+  
+  try {
+    // Clear any timers
+    if (inactivityLogoutTimer) {
+      clearTimeout(inactivityLogoutTimer);
+      inactivityLogoutTimer = null;
+    }
+    
+    console.log('🕒 Performing inactivity logout');
+    
+    // Try to logout from server
+    try {
+      await apiLogout();
+      console.log('✅ Server logout successful');
+    } catch (e) {
+      console.log('⚠️ Server logout failed, continuing with local logout:', e.message);
+    }
+    
+    // Clear local storage
+    await AsyncStorage.multiRemove(['userToken', 'userData']);
+    
+    // Emit session expiration event for other components
+    sessionEventEmitter.emit('sessionExpiring');
+    
+    // Show inactivity alert and navigate to login
+    Alert.alert(
+      'Session Expired',
+      'You have been automatically logged out due to 15 minutes of inactivity.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Use the global navigation reference
+            if (globalNavigationRef.current) {
+              globalNavigationRef.current.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            }
+          }
+        }
+      ],
+      { cancelable: false }
+    );
+    
+  } catch (error) {
+    console.error('❌ Error during inactivity logout:', error);
+    // Still navigate to login even if there was an error
+    if (globalNavigationRef.current) {
+      globalNavigationRef.current.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    }
+  } finally {
+    logoutInProgress = false;
+  }
+};
+
+// Global navigation reference for logout function
+let globalNavigationRef = { current: null };
 
 // Helper function to decode JWT without dependencies
 const decodeJWT = (token) => {
@@ -76,15 +160,11 @@ const decodeJWT = (token) => {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     
-    // For React Native environment
     try {
-      // React Native environment: use Buffer
       const { Buffer } = require('buffer');
       const decodedData = Buffer.from(base64, 'base64').toString('utf8');
       return JSON.parse(decodedData);
     } catch (e) {
-      // Web environment: use atob
-      console.error('Error using Buffer, trying atob:', e);
       const jsonPayload = decodeURIComponent(
         atob(base64)
           .split('')
@@ -99,34 +179,23 @@ const decodeJWT = (token) => {
   }
 };
 
-// Helper function for detecting if token is expired or about to expire
-const isTokenExpiredOrExpiring = (token, bufferSeconds = 300) => {
-  try {
-    if (!token) return true;
-    
-    const decoded = decodeJWT(token);
-    if (!decoded || !decoded.exp) return true;
-    
-    // Check if token is expired or will expire within buffer (default 5 minutes)
-    const currentTime = Math.floor(Date.now() / 1000);
-    return decoded.exp <= (currentTime + bufferSeconds);
-  } catch (error) {
-    console.error('Token expiration check error:', error);
-    return true; // Assume expired on error
-  }
-};
-
-// Function to refresh token
-const refreshToken = async (navigation) => {
-  // Prevent multiple concurrent refresh attempts
+// Simplified token refresh function
+const refreshToken = async () => {
   if (tokenRefreshInProgress) {
     console.log('🔄 Token refresh already in progress, skipping this request');
     return null;
   }
   
+  if (logoutInProgress) {
+    console.log('🚫 Logout in progress, skipping token refresh');
+    return null;
+  }
+  
   try {
     tokenRefreshInProgress = true;
-    console.log('🔄 Attempting to refresh authentication token');
+    console.log('🔄 ===============================================');
+    console.log('🔄 STARTING TOKEN REFRESH PROCESS');
+    console.log('🔄 ===============================================');
     
     const oldToken = await AsyncStorage.getItem('userToken');
     if (!oldToken) {
@@ -134,97 +203,258 @@ const refreshToken = async (navigation) => {
       throw new Error('No token found');
     }
     
-    // Add retry logic for token refresh attempts
-    let retryCount = 0;
-    const maxRetries = 2;
-    let response = null;
-    let data = null;
+    // Check current token info
+    const decoded = decodeJWT(oldToken);
+    if (decoded && decoded.exp) {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeRemaining = decoded.exp - currentTime;
+      const minutesRemaining = Math.floor(timeRemaining / 60);
+      const secondsRemaining = timeRemaining % 60;
+      
+      console.log(`🕐 CURRENT TOKEN INFO:`);
+      console.log(`   ⏱️ Time remaining: ${minutesRemaining}m ${secondsRemaining}s`);
+      console.log(`   📅 Expires at: ${new Date(decoded.exp * 1000).toLocaleString()}`);
+    }
     
-    while (retryCount <= maxRetries) {
+    // Check if user is still active (within last 15 minutes)
+    const timeSinceActivity = Date.now() - lastUserActivity;
+    const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+    const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+    const userStillActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+    
+    console.log(`👤 USER ACTIVITY CHECK:`);
+    console.log(`   ⏱️ Time since last activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+    console.log(`   📊 User state: ${userStillActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+    console.log(`   🔄 Refresh decision: ${userStillActive ? 'PROCEED' : 'ABORT (logout instead)'}`);
+    
+    if (!userStillActive) {
+      console.log('🕒 User has been inactive too long, not refreshing token');
+      console.log('🕒 Initiating inactivity logout instead...');
+      handleInactivityLogout();
+      return null;
+    }
+    
+    // Make token refresh API call
+    console.log(`🌐 Making API call to: ${BASE_URL}/auth/refresh`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${oldToken}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      const responseText = await response.text();
+      let data;
+      
       try {
-        console.log(`🔄 Token refresh attempt ${retryCount + 1} of ${maxRetries + 1}`);
-        
-        // Make token refresh API call
-        response = await fetch(`${BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${oldToken}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          // Shorter timeout for faster retry
-          timeout: 5000
-        });
-        
-        // Try to parse the response as JSON
-        try {
-          const responseText = await response.text();
-          if (responseText) {
-            data = JSON.parse(responseText);
-          } else {
-            data = { success: false, message: 'Empty response received' };
-          }
-        } catch (parseError) {
-          console.error('❌ Error parsing refresh response:', parseError);
-          data = { success: false, message: 'Invalid response format' };
-        }
-        
-        // If successful, we can break the retry loop
-        if (response.ok && data.success && data.token) {
-          break;
-        }
-        
-        // If not successful, log and retry
-        console.warn(`❌ Token refresh attempt ${retryCount + 1} failed: ${data.message || 'Unknown error'}`);
-        retryCount++;
-        
-        // Wait before retrying (exponential backoff)
-        if (retryCount <= maxRetries) {
-          const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 5000);
-          console.log(`⏱️ Waiting ${backoffMs}ms before retry ${retryCount + 1}`);
-          await new Promise(resolve => setTimeout(resolve, backoffMs));
-        }
-      } catch (fetchError) {
-        console.error(`❌ Fetch error during refresh attempt ${retryCount + 1}:`, fetchError);
-        retryCount++;
-        
-        // Wait before retrying
-        if (retryCount <= maxRetries) {
-          const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 5000);
-          await new Promise(resolve => setTimeout(resolve, backoffMs));
-        }
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('❌ Response is not valid JSON:', responseText.substring(0, 100));
+        throw new Error('Invalid JSON response from server');
       }
+      
+      console.log(`📡 API RESPONSE:`);
+      console.log(`   🔢 Status: ${response.status}`);
+      console.log(`   ✅ Success: ${data?.success || false}`);
+      console.log(`   💬 Message: ${data?.message || 'No message'}`);
+      
+      if (response.ok && data && data.success && data.token) {
+        // Check new token info
+        const newDecoded = decodeJWT(data.token);
+        if (newDecoded && newDecoded.exp) {
+          const currentTime = Math.floor(Date.now() / 1000);
+          const newTimeRemaining = newDecoded.exp - currentTime;
+          const newMinutesRemaining = Math.floor(newTimeRemaining / 60);
+          const newSecondsRemaining = newTimeRemaining % 60;
+          
+          console.log('✅ TOKEN REFRESH SUCCESSFUL!');
+          console.log(`🆕 NEW TOKEN INFO:`);
+          console.log(`   ⏱️ Time remaining: ${newMinutesRemaining}m ${newSecondsRemaining}s`);
+          console.log(`   📅 Expires at: ${new Date(newDecoded.exp * 1000).toLocaleString()}`);
+        }
+        
+        // Store the new token
+        await AsyncStorage.setItem('userToken', data.token);
+        
+        // Update user activity since we successfully refreshed
+        updateUserActivity('token_refresh');
+        
+        // Broadcast token refresh event
+        sessionEventEmitter.emit('tokenRefreshed', data.token);
+        
+        return data.token;
+      } else {
+        const errorMessage = data?.message || `HTTP ${response.status}`;
+        console.error('❌ TOKEN REFRESH FAILED:', errorMessage);
+        
+        // If token refresh failed with 401, likely due to inactivity on server side
+        if (response.status === 401) {
+          console.log('🕒 Token refresh failed with 401, likely due to server-side inactivity');
+          console.log('🕒 Initiating inactivity logout...');
+          handleInactivityLogout();
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        console.error('❌ Token refresh request timed out (10s)');
+        throw new Error('Token refresh request timed out');
+      }
+      
+      console.error('❌ Network error during token refresh:', fetchError.message);
+      throw fetchError;
     }
     
-    // Process the final response
-    if (response && response.ok && data && data.success && data.token) {
-      console.log('✅ Token refreshed successfully');
-      
-      // Store the new token
-      await AsyncStorage.setItem('userToken', data.token);
-      
-      // Broadcast token refresh event
-      sessionEventEmitter.emit('tokenRefreshed', data.token);
-      
-      // Reset the inactivity timer since we have a fresh token
-      clearTimeout(inactivityTimerRef.current);
-      inactivityTimerRef.current = setTimeout(() => {
-        handleSessionExpiration();
-      }, 15 * 60 * 1000);
-      
-      return data.token;
-    } else {
-      const errorMessage = data?.message || 'Unknown error';
-      console.error('❌ Token refresh failed after all attempts:', errorMessage);
-      throw new Error(errorMessage || 'Token refresh failed');
-    }
   } catch (error) {
-    console.error('🔥 Token refresh error:', error);
+    console.error('🔥 TOKEN REFRESH ERROR:', error.message);
     return null;
   } finally {
     tokenRefreshInProgress = false;
+    console.log('🔄 ===============================================');
+    console.log('🔄 TOKEN REFRESH PROCESS COMPLETED');
+    console.log('🔄 ===============================================');
   }
 };
+
+// Check and refresh token if needed
+const checkAndRefreshToken = async () => {
+  if (logoutInProgress) {
+    console.log('🚫 Logout in progress, skipping token check');
+    return;
+  }
+  
+  try {
+    console.log('🔍 ===============================================');
+    console.log('🔍 STARTING TOKEN VALIDATION CHECK');
+    console.log('🔍 ===============================================');
+    
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      console.log('⚠️ No token found, redirecting to login');
+      if (globalNavigationRef.current) {
+        globalNavigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+      return;
+    }
+    
+    // Decode token to check expiration
+    const decoded = decodeJWT(token);
+    if (!decoded || !decoded.exp) {
+      console.log('⚠️ Invalid token format, redirecting to login');
+      handleInactivityLogout();
+      return;
+    }
+    
+    // Calculate seconds until expiration
+    const currentTime = Math.floor(Date.now() / 1000);
+    const expiresInSeconds = decoded.exp - currentTime;
+    const minutesRemaining = Math.floor(expiresInSeconds / 60);
+    const secondsRemaining = expiresInSeconds % 60;
+    
+    // Check user activity status
+    const timeSinceActivity = Date.now() - lastUserActivity;
+    const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+    const secondsSinceActivityRemainder = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+    const userIsActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+    
+    console.log(`🕐 TOKEN STATUS:`);
+    console.log(`   ⏱️ Time remaining: ${minutesRemaining}m ${secondsRemaining}s`);
+    console.log(`   📅 Expires at: ${new Date(decoded.exp * 1000).toLocaleString()}`);
+    console.log(`   🔄 Issued at: ${new Date(decoded.iat * 1000).toLocaleString()}`);
+    
+    console.log(`👤 USER STATUS:`);
+    console.log(`   ⏱️ Time since activity: ${minutesSinceActivity}m ${secondsSinceActivityRemainder}s`);
+    console.log(`   📊 State: ${userIsActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+    console.log(`   📅 Last activity: ${new Date(lastUserActivity).toLocaleString()}`);
+    
+    // If token is expired or expiring very soon (less than 1 minute), handle expiration
+    if (expiresInSeconds <= 60) {
+      console.log('⚠️ ==========================================');
+      console.log('⚠️ TOKEN EXPIRED OR EXPIRING VERY SOON (<1min)');
+      console.log('⚠️ ==========================================');
+      handleInactivityLogout();
+      return;
+    }
+    
+    // If token will expire in the next 10 minutes, refresh it proactively
+    if (expiresInSeconds <= 600) {
+      console.log('🔄 ==========================================');
+      console.log('🔄 TOKEN EXPIRING SOON (<10min) - REFRESHING');
+      console.log('🔄 ==========================================');
+      const newToken = await refreshToken();
+      
+      if (!newToken) {
+        // If refresh failed and token is expiring soon, logout
+        if (expiresInSeconds <= 120) {
+          console.log('⚠️ Token refresh failed and current token expiring very soon');
+          handleInactivityLogout();
+        }
+      }
+    } else {
+      console.log('✅ ==========================================');
+      console.log('✅ TOKEN IS VALID - NO ACTION NEEDED');
+      console.log('✅ ==========================================');
+    }
+  } catch (error) {
+    console.error('❌ Token validation error:', error);
+  }
+};
+
+// Global API response interceptor for handling 401 errors consistently
+export const handleApiResponse = async (response) => {
+  const isFetchResponse = response && typeof response.headers?.get === 'function';
+  const isAxiosResponse = response && response.headers && typeof response.headers['content-type'] === 'string';
+  
+  if (isFetchResponse) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html')) {
+      console.error('Received HTML response instead of JSON (likely session expired)');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+    
+    if (response.status === 401) {
+      console.error('401 Unauthorized response received');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+  } else if (isAxiosResponse) {
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('text/html')) {
+      console.error('Received HTML response instead of JSON (likely session expired)');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+    
+    if (response.status === 401) {
+      console.error('401 Unauthorized response received');
+      sessionEventEmitter.emit('sessionExpiring');
+      throw new Error('Authentication error: Your session has expired.');
+    }
+  }
+  
+  return response;
+};
+
+// ============================================================================
+// HEADER BAR COMPONENT
+// ============================================================================
 
 const HeaderBar = ({ title, cartCount = 0, onLogout }) => {
   const navigation = useNavigation();
@@ -237,6 +467,7 @@ const HeaderBar = ({ title, cartCount = 0, onLogout }) => {
         style={styles.iconButton} 
         onPress={() => {
           console.log('🛒 Cart icon clicked, navigating to Cart screen');
+          updateUserActivity('cart_icon_click'); // Register user activity
           navigation.navigate('Cart');
         }}
       >
@@ -251,7 +482,13 @@ const HeaderBar = ({ title, cartCount = 0, onLogout }) => {
       </TouchableOpacity>
       <Text style={styles.title}>{title || 'Dashboard'}</Text>
       <View style={styles.rightContainer}>
-        <TouchableOpacity style={styles.iconButton} onPress={onLogout}>
+        <TouchableOpacity 
+          style={styles.iconButton} 
+          onPress={() => {
+            updateUserActivity('logout_button_click'); // Register user activity
+            onLogout();
+          }}
+        >
           <FallbackIcon name="logout" iconType="MaterialIcons" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -259,24 +496,26 @@ const HeaderBar = ({ title, cartCount = 0, onLogout }) => {
   );
 };
 
+// ============================================================================
+// MAIN FRANCHISEE LAYOUT COMPONENT
+// ============================================================================
+
 const FranchiseeLayout = ({ title, children }) => {
   const navigation = useNavigation();
   const [showWelcome, setShowWelcome] = useState(true);
   const [userData, setUserData] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [cartCount, setCartCount] = useState(0);
-  const inactivityTimerRef = useRef(null);
-  const lastSessionCheckRef = useRef(Date.now());
+  const [isUserActive, setIsUserActive] = useState(true);
+  
+  // Set global navigation reference
+  globalNavigationRef.current = navigation;
 
   const fetchCartCount = useCallback(async () => {
-    // Don't fetch cart if session is expired
-    if (isSessionExpired) {
-      console.log('👮 fetchCartCount: Session is expired, skipping cart fetch');
-      return;
-    }
-    
     console.log('🚀 fetchCartCount: Fetching cart count data');
     try {
+      updateUserActivity('cart_fetch'); // Register activity when fetching cart
+      
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         console.log('⛔ fetchCartCount: No token available');
@@ -303,130 +542,38 @@ const FranchiseeLayout = ({ title, children }) => {
     }
   }, []);
 
-  // Function to handle session expiration
-  const handleSessionExpiration = async () => {
-    // Only proceed if we haven't already shown the alert
-    if (isSessionExpiring || isSessionExpired) {
+  // Manual logout function
+  const handleLogout = async () => {
+    if (logoutInProgress) {
+      console.log('🚫 Logout already in progress');
       return;
     }
     
-    console.log('⏰ User inactive - auto logout');
-    isSessionExpiring = true;
+    logoutInProgress = true;
     
-    // Notify all components about session expiration
-    sessionEventEmitter.emit('sessionExpiring');
-    
-    Alert.alert(
-      'Session Expired',
-      'Your session has expired. Please log in again to continue.',
-      [
-        {
-          text: 'OK',
-          onPress: async () => {
-            // Set global session expired flag
-            isSessionExpired = true;
-            
-            // Clear all timers
-            clearTimeout(inactivityTimerRef.current);
-            
-            // Perform logout
-            try {
-              await apiLogout();
-            } catch (e) {
-              console.log('Server logout failed during auto-logout');
-            }
-            
-            // Clear user data
-            await AsyncStorage.multiRemove(['userToken', 'userData']);
-            
-            // Reset to login screen
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-            
-            // Reset status flags after navigation
-            setTimeout(() => {
-              isSessionExpiring = false;
-              isSessionExpired = false;
-            }, 1000);
-          }
-        }
-      ],
-      { cancelable: false }
-    );
-  };
-
-  const startInactivityTimer = () => {
-    // Don't set timer if session is expired or expiring
-    if (isSessionExpiring || isSessionExpired) {
-      console.log('⏱️ Not starting inactivity timer: session is already expiring or expired');
-      return;
-    }
-    
-    // Clear any existing timers first
-    if (inactivityTimerRef.current) {
-      console.log('⏱️ Clearing existing inactivity timer');
-      clearTimeout(inactivityTimerRef.current);
-    }
-    
-    // Set a longer timeout for inactivity (30 minutes)
-    const inactivityTimeoutMs = 30 * 60 * 1000; // 30 minutes
-    console.log(`⏱️ Starting new inactivity timer: ${inactivityTimeoutMs/60000} minutes`);
-    
-    inactivityTimerRef.current = setTimeout(() => {
-      console.log('⏰ Inactivity timer expired - starting session expiration process');
-      handleSessionExpiration();
-    }, inactivityTimeoutMs); 
-  };
-
-  const handleUserActivity = async () => {
-    // Don't restart timer if session is expired or expiring
-    if (isSessionExpiring || isSessionExpired) {
-      return;
-    }
-    
-    // Throttle activity tracking to avoid excessive processing
-    const now = Date.now();
-    if (now - lastSessionCheckRef.current > 10000) { // Only update every 10 seconds
-      console.log('👆 User activity detected - updating last activity timestamp');
-      lastSessionCheckRef.current = now;
-      
-      // Reset the inactivity timer
-      startInactivityTimer();
-      
-      // Check token expiration once per minute (less frequent than activity tracking)
-      if (now % (60 * 1000) < 10000) {
-        try {
-          const token = await AsyncStorage.getItem('userToken');
-          if (!token) {
-            console.log('⚠️ No token found during activity check');
-            return;
-          }
-          
-          // ALWAYS refresh token proactively for active users rather than waiting for it to expire
-          // This will prevent the 15-minute auto-logout for active users
-          console.log('🔄 Proactively refreshing token for active user');
-          
-          const newToken = await refreshToken(navigation);
-          if (newToken) {
-            console.log('✅ Token refreshed successfully during user activity');
-            // Since we have a fresh token, we can reset the inactivity timer
-            startInactivityTimer();
-          } else {
-            console.warn('⚠️ Token refresh failed during user activity');
-            // Check if the current token is expired or about to expire
-            if (token && isTokenExpiredOrExpiring(token, 60)) { // 1 minute buffer
-              console.error('🔥 Token refresh failed and token is expiring soon');
-              // Only show the expiration alert if token is actually about to expire
-              handleSessionExpiration();
-            }
-          }
-        } catch (error) {
-          console.error('Token check error during activity:', error);
-        }
+    try {
+      // Clear inactivity timer since user is manually logging out
+      if (inactivityLogoutTimer) {
+        clearTimeout(inactivityLogoutTimer);
+        inactivityLogoutTimer = null;
       }
+      
+      try {
+        await apiLogout();
+      } catch (e) {
+        console.log('Server logout failed');
+      }
+      
+      await AsyncStorage.multiRemove(['userToken', 'userData']);
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    } finally {
+      logoutInProgress = false;
     }
+  };
+
+  const toggleMenu = () => {
+    updateUserActivity('menu_toggle'); // Register activity when toggling menu
+    setShowMenu(prev => !prev);
   };
 
   useEffect(() => {
@@ -439,49 +586,12 @@ const FranchiseeLayout = ({ title, children }) => {
       try {
         console.log('🔍 Checking welcome banner status');
         const closed = await AsyncStorage.getItem('welcomeBannerClosed');
-        // If welcomeBannerClosed is null/undefined or not 'true', we should show the welcome banner
         const shouldShow = closed !== 'true';
         console.log(`${shouldShow ? '🎉 Will show' : '🚫 Will not show'} welcome banner`);
         setShowWelcome(shouldShow);
       } catch (error) {
         console.error('Error checking welcome banner status:', error);
-        // Default to showing the banner if there's an error
         setShowWelcome(true);
-      }
-    };
-
-    // Function to check token validity and refresh if needed
-    const checkAndRefreshToken = async () => {
-      try {
-        const token = await AsyncStorage.getItem('userToken');
-        
-        // If no token, redirect to login
-        if (!token) {
-          console.log('⚠️ No token found, redirecting to login');
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          });
-          return;
-        }
-        
-        // Check if token is expired or about to expire
-        if (isTokenExpiredOrExpiring(token)) {
-          console.log('⚠️ Token expired or expiring soon, attempting refresh');
-          const newToken = await refreshToken(navigation);
-          
-          // If refresh failed, handle session expiration
-          if (!newToken) {
-            console.log('⚠️ Token refresh failed, user needs to login again');
-            handleSessionExpiration();
-          } else {
-            console.log('✅ Token successfully refreshed');
-          }
-        } else {
-          console.log('✅ Token is valid');
-        }
-      } catch (error) {
-        console.error('Token validation error:', error);
       }
     };
 
@@ -489,96 +599,142 @@ const FranchiseeLayout = ({ title, children }) => {
     fetchUser();
     fetchCartCount();
     checkWelcome();
-    startInactivityTimer();
+    
+    // Register initial user activity and start inactivity timer
+    updateUserActivity('app_initialization');
+    
+    // Initial token check
     checkAndRefreshToken();
     
-    // Set up periodic token refresh checks (every 5 minutes)
-    const tokenCheckInterval = setInterval(() => {
-      checkAndRefreshToken();
-    }, 5 * 60 * 1000);
+    // Set up periodic token checks (every 2 minutes)
+    const backgroundTokenCheckInterval = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastUserActivity;
+      const userActive = timeSinceActivity < INACTIVITY_TIMEOUT;
+      const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+      const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+      
+      console.log('⏰ ==========================================');
+      console.log('⏰ BACKGROUND TOKEN CHECK');
+      console.log('⏰ ==========================================');
+      console.log(`👤 User state: ${userActive ? '✅ ACTIVE' : '❌ INACTIVE'}`);
+      console.log(`⏱️ Time since activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+      console.log(`🔄 Action: ${userActive ? 'Checking token' : 'Waiting for activity'}`);
+      
+      setIsUserActive(userActive);
+      
+      if (userActive) {
+        console.log('✅ User still active - proceeding with token check');
+        checkAndRefreshToken();
+      } else {
+        console.log('❌ User inactive - skipping token check (inactivity timer will handle logout)');
+      }
+      
+      console.log('⏰ ==========================================');
+    }, 2 * 60 * 1000); // Check every 2 minutes
 
     // Listen for app state changes
     const subscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'active') {
-        // When app becomes active again, check token and inactivity
-        const now = Date.now();
-        const timeInBackground = now - lastSessionCheckRef.current;
-        
-        console.log(`🔍 App returned to foreground after ${Math.round(timeInBackground/1000)} seconds in background`);
-        
-        // Extend the background time allowance to avoid unnecessary logouts
-        // Only expire session after 30 minutes of inactivity instead of 15
-        if (timeInBackground > 30 * 60 * 1000) {
-          console.log('⏰ App was in background for more than 30 minutes - expiring session');
-          handleSessionExpiration();
-        } else {
-          // Otherwise proactively refresh the token and reset activity timer
-          console.log('🔄 App returned from background - refreshing token');
-          checkAndRefreshToken();
-          
-          // Treat returning to the app as a user activity
-          handleUserActivity();
-        }
-        
-        lastSessionCheckRef.current = now;
+        console.log('📱 ==========================================');
+        console.log('📱 APP RETURNED TO FOREGROUND');
+        console.log('📱 ==========================================');
+        console.log('🔄 Registering user activity and checking token');
+        updateUserActivity('app_foreground'); // This will reset the inactivity timer
+        setIsUserActive(true);
+        checkAndRefreshToken();
+        fetchCartCount();
       } else if (nextState === 'background') {
-        // Store the timestamp when app goes to background
-        console.log('📱 App moved to background - saving timestamp');
-        lastSessionCheckRef.current = Date.now();
+        const timeSinceActivity = Date.now() - lastUserActivity;
+        const minutesSinceActivity = Math.floor(timeSinceActivity / (60 * 1000));
+        const secondsSinceActivity = Math.floor((timeSinceActivity % (60 * 1000)) / 1000);
+        
+        console.log('📱 ==========================================');
+        console.log('📱 APP WENT TO BACKGROUND');
+        console.log('📱 ==========================================');
+        console.log(`⏱️ Time since last activity: ${minutesSinceActivity}m ${secondsSinceActivity}s`);
+        console.log('⏰ Inactivity timer continues running in background');
       }
     });
 
     const updateCart = (count) => {
-      console.log(`🛒 FranchiseeLayout cartEventEmitter received update with count: ${count}`);
-      setCartCount(count);
+      console.log('🛒 Cart update event received - registering user activity');
+      updateUserActivity('cart_update_event'); // Register activity when cart is updated
+      if (count !== undefined) {
+        console.log(`🛒 FranchiseeLayout cartEventEmitter received update with count: ${count}`);
+        setCartCount(count);
+      } else {
+        console.log('🛒 FranchiseeLayout refreshing cart count from API');
+        fetchCartCount();
+      }
     };
     cartEventEmitter.on('cartUpdated', updateCart);
     
-    // Listen for logout events from other components
-    const handleGlobalSessionExpiration = () => {
-      clearTimeout(inactivityTimerRef.current);
+    // Listen for token refresh events
+    const handleTokenRefreshed = () => {
+      console.log('✅ Token refreshed event received - updating UI');
+      updateUserActivity('token_refresh_event'); // Register activity on token refresh
+      fetchCartCount();
     };
-    sessionEventEmitter.on('sessionExpiring', handleGlobalSessionExpiration);
+    sessionEventEmitter.on('tokenRefreshed', handleTokenRefreshed);
+
+    // Listen for user activity events from other components
+    const handleUserActivity = () => {
+      console.log('📡 External user activity event received');
+      updateUserActivity('external_event'); // This will reset the inactivity timer
+      setIsUserActive(true);
+    };
+    sessionEventEmitter.on('userActivity', handleUserActivity);
+
+    // Listen for session expiring events
+    const handleSessionExpiring = () => {
+      console.log('🕒 Session expiring event received');
+      handleInactivityLogout();
+    };
+    sessionEventEmitter.on('sessionExpiring', handleSessionExpiring);
 
     return () => {
-      clearTimeout(inactivityTimerRef.current);
-      clearInterval(tokenCheckInterval);
+      // Clear all timers
+      if (inactivityLogoutTimer) {
+        clearTimeout(inactivityLogoutTimer);
+      }
+      clearInterval(backgroundTokenCheckInterval);
+      
+      // Remove event listeners
       cartEventEmitter.off('cartUpdated', updateCart);
-      sessionEventEmitter.off('sessionExpiring', handleGlobalSessionExpiration);
+      sessionEventEmitter.off('tokenRefreshed', handleTokenRefreshed);
+      sessionEventEmitter.off('userActivity', handleUserActivity);
+      sessionEventEmitter.off('sessionExpiring', handleSessionExpiring);
       subscription.remove();
     };
   }, [fetchCartCount, navigation]);
 
   useFocusEffect(
     useCallback(() => {
-      // Don't fetch cart if session is expired
-      if (!isSessionExpired) {
-        fetchCartCount();
-      }
+      console.log('🎯 Screen focused - registering user activity and fetching cart');
+      updateUserActivity('screen_focus'); // Register activity when screen comes into focus
+      fetchCartCount();
       return () => {};
     }, [fetchCartCount])
   );
 
-  const handleLogout = async () => {
-    try {
-      await apiLogout();
-    } catch (e) {
-      console.log('Server logout failed');
-    }
-    await AsyncStorage.multiRemove(['userToken', 'userData']);
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-  };
-
-  const toggleMenu = () => setShowMenu(prev => !prev);
-
   return (
-    <View style={styles.wrapper} onTouchStart={handleUserActivity}>
+    <View 
+      style={styles.wrapper}
+      onTouchStart={() => updateUserActivity('touch_start')}
+      onMoveShouldSetResponder={() => {
+        updateUserActivity('touch_move');
+        return false; // Don't consume the touch event
+      }}
+    >
       <StatusBar barStyle="light-content" backgroundColor="#0066cc" />
       
       {/* Header section */}
       <View style={styles.headerContainer}>
         <HeaderBar title={title} cartCount={cartCount} onLogout={handleLogout} />
-        <TouchableOpacity style={styles.arrowContainer} onPress={toggleMenu}>
+        <TouchableOpacity 
+          style={styles.arrowContainer} 
+          onPress={toggleMenu}
+        >
           <View style={styles.arrowBackground}>
             <FallbackIcon name={showMenu ? "up" : "down"} iconType="AntDesign" size={20} color="#fff" />
           </View>
@@ -592,7 +748,7 @@ const FranchiseeLayout = ({ title, children }) => {
             <TouchableOpacity 
               style={styles.menuItem} 
               onPress={() => {
-                handleUserActivity();
+                updateUserActivity('profile_navigation'); // Register activity on navigation
                 navigation.navigate('Profile');
               }}
             >
@@ -602,8 +758,8 @@ const FranchiseeLayout = ({ title, children }) => {
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                handleUserActivity();
-                navigation.navigate('Orders');
+                updateUserActivity('orders_navigation'); // Register activity on navigation
+                navigation.navigate('OrdersScreen');
               }}
             >
               <FallbackIcon name="inbox" iconType="AntDesign" size={24} color="#fff" />
@@ -612,7 +768,7 @@ const FranchiseeLayout = ({ title, children }) => {
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                handleUserActivity();
+                updateUserActivity('catalog_navigation'); // Register activity on navigation
                 navigation.navigate('Catalog');
               }}
             >
@@ -622,7 +778,7 @@ const FranchiseeLayout = ({ title, children }) => {
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={() => {
-                handleUserActivity();
+                updateUserActivity('dashboard_navigation'); // Register activity on navigation
                 navigation.navigate('Dashboard');
               }}
             >
@@ -649,7 +805,7 @@ const FranchiseeLayout = ({ title, children }) => {
           <TouchableOpacity
             style={styles.closeButton}
             onPress={async () => {
-              handleUserActivity();
+              updateUserActivity('welcome_banner_close'); // Register activity on banner close
               setShowWelcome(false);
               await AsyncStorage.setItem('welcomeBannerClosed', 'true');
             }}
@@ -666,6 +822,10 @@ const FranchiseeLayout = ({ title, children }) => {
     </View>
   );
 };
+
+// ============================================================================
+// STYLES
+// ============================================================================
 
 const styles = StyleSheet.create({
   wrapper: { 

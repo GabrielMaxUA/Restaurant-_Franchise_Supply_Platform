@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ActivityIndicator, 
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
   RefreshControl,
   Image, // Added Image import
   Alert // Added Alert import for testing
@@ -16,6 +16,7 @@ import { getDashboardData, logout } from '../services/api';
 import FranchiseeLayout from '../components/FranchiseeLayout';
 import Card from './Card';
 import FallbackIcon from '../components/icon/FallbackIcon';
+import { BASE_URL } from '../services/axiosInstance';
 
 const DashboardScreen = () => {
   // State for dashboard data
@@ -28,7 +29,7 @@ const DashboardScreen = () => {
     incoming_deliveries: 0,
     pending_orders_change: 0
   });
-  
+
   // Chart data state
   const [charts, setCharts] = useState({
     weekly_spending: Array(7).fill(0),
@@ -36,7 +37,7 @@ const DashboardScreen = () => {
     weekly_orders: Array(7).fill(0),
     monthly_orders: Array(12).fill(0)
   });
-  
+
   // Other state
   const [recentOrders, setRecentOrders] = useState([]);
   const [popularProducts, setPopularProducts] = useState([]);
@@ -44,13 +45,13 @@ const DashboardScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  
+
   // Cart state
   const [cartCount, setCartCount] = useState(0);
-  
+
   // Added image error state
   const [imageLoadErrors, setImageLoadErrors] = useState({});
-  
+
   const navigation = useNavigation();
 
   // Function to handle image errors
@@ -62,141 +63,139 @@ const DashboardScreen = () => {
     }));
   };
 
-// Function to fetch dashboard data from API
-const fetchData = async () => {
-  setLoading(true);
-  try {
-    console.log('📊 Dashboard - Fetching data...');
-    const result = await getDashboardData();
-    console.log('📊 Dashboard - API result:', result?.success);
-    
-    if (result && result.success && result.data) {
-      console.log('📊 Dashboard - Success! Updating state with data');
-      
-      // Process stats data
-      if (result.data.stats) {
-        console.log('📊 Stats found in response');
-        setStats(result.data.stats);
-      }
-      
-      // Process charts data
-      if (result.data.charts) {
-        console.log('📊 Charts found in response');
-        setCharts(result.data.charts);
-      }
-      
-      // Process recent orders
-      if (result.data.recent_orders && result.data.recent_orders.length > 0) {
-        console.log('📊 Orders found in response:', result.data.recent_orders.length);
-        setRecentOrders(result.data.recent_orders);
-      }
-      
-      // Process popular products - UPDATED FOR IMAGE HANDLING
-   // Replace the product image handling section in your fetchData function
+  // Function to fetch dashboard data from API
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      console.log('📊 Dashboard - Fetching data...');
+      const result = await getDashboardData();
+      console.log('📊 Dashboard - API result:', result?.success);
 
-// Process popular products - FIXED IMAGE HANDLING
-if (result.data.popular_products && result.data.popular_products.length > 0) {
-  console.log('📊 Products found in response:', result.data.popular_products.length);
-  
-  // Log all products to see their structure
-  console.log('📊 Products data structure sample:', 
-    JSON.stringify(result.data.popular_products[0], null, 2));
-  
-  // Add checking and debugging for image URLs
-  const productsWithImages = result.data.popular_products.map(product => {
-    // Log each product's image URL for debugging
-    console.log(`Product ID ${product.id} - Image URL: ${product.image_url}`);
-    
-    // Check if the image URL is valid
-    if (!product.image_url) {
-      console.log(`Product ID ${product.id} has no image URL`);
-      // Provide a default placeholder image instead of leaving it undefined
-      product.image_url = 'https://via.placeholder.com/150';
-    } else if (!product.image_url.startsWith('http')) {
-      console.log(`Product ID ${product.id} has a relative image URL: ${product.image_url}`);
-      
-      // Define your actual base URL - local XAMPP address
-      const API_BASE_URL = 'http://127.0.0.1:8000';
-      
-      // If path starts with /storage (Laravel public storage)
-      if (product.image_url.includes('/storage/') || product.image_url.includes('storage/')) {
-        let storagePath = product.image_url;
-        
-        // Clean up the path to ensure proper format
-        if (storagePath.startsWith('/')) {
-          product.image_url = `${API_BASE_URL}${storagePath}`;
-        } else {
-          product.image_url = `${API_BASE_URL}/${storagePath}`;
+      if (result && result.success && result.data) {
+        console.log('📊 Dashboard - Success! Updating state with data');
+
+        // Process stats data
+        if (result.data.stats) {
+          console.log('📊 Stats found in response');
+          setStats(result.data.stats);
         }
-      } 
-      // If path is a direct product-images path
-      else if (product.image_url.includes('product-images')) {
-        // Add the /storage/ prefix that Laravel's asset() would add
-        product.image_url = `${API_BASE_URL}/storage/${product.image_url.replace('product-images', 'product-images/')}`;
-      }
-      // For other relative URLs
-      else {
-        product.image_url = `${API_BASE_URL}/${product.image_url}`;
-      }
-      
-      console.log(`Converted to absolute URL: ${product.image_url}`);
-    }
-    
-    // Return the product with possibly updated image URL
-    return product;
-  });
 
-  
-  // Reset image errors when loading new products
-  setImageLoadErrors({});
-  
-  // Set the processed products in state
-  setPopularProducts(productsWithImages);
-}
-      
-      // Process cart data
-      if (result.data.cart) {
-        console.log('🛒 Cart found in response - items:', result.data.cart.items_count);
-        // Set cart count for badge
-        setCartCount(result.data.cart.items_count);
-        
-        // Store cart data in AsyncStorage for other screens
-        await AsyncStorage.setItem('cartData', JSON.stringify(result.data.cart));
+        // Process charts data
+        if (result.data.charts) {
+          console.log('📊 Charts found in response');
+          setCharts(result.data.charts);
+        }
+
+        // Process recent orders
+        if (result.data.recent_orders && result.data.recent_orders.length > 0) {
+          console.log('📊 Orders found in response:', result.data.recent_orders.length);
+          setRecentOrders(result.data.recent_orders);
+        }
+
+        // Process popular products - UPDATED FOR IMAGE HANDLING
+        // Replace the product image handling section in your fetchData function
+
+        // Process popular products - FIXED IMAGE HANDLING
+        if (result.data.popular_products && result.data.popular_products.length > 0) {
+          console.log('📊 Products found in response:', result.data.popular_products.length);
+
+          // Log all products to see their structure
+          console.log('📊 Products data structure sample:',
+            JSON.stringify(result.data.popular_products[0], null, 2));
+
+          // Add checking and debugging for image URLs
+          const productsWithImages = result.data.popular_products.map(product => {
+            // Log each product's image URL for debugging
+            console.log(`Product ID ${product.id} - Image URL: ${product.image_url}`);
+
+            // Check if the image URL is valid
+            if (!product.image_url) {
+              console.log(`Product ID ${product.id} has no image URL`);
+              // Provide a default placeholder image instead of leaving it undefined
+              product.image_url = 'https://via.placeholder.com/150';
+            } else if (!product.image_url.startsWith('http')) {
+              console.log(`Product ID ${product.id} has a relative image URL: ${product.image_url}`);
+
+
+              // If path starts with /storage (Laravel public storage)
+              if (product.image_url.includes('/storage/') || product.image_url.includes('storage/')) {
+                let storagePath = product.image_url;
+
+                // Clean up the path to ensure proper format
+                if (storagePath.startsWith('/')) {
+                  product.image_url = `${BASE_URL}${storagePath}`;
+                } else {
+                  product.image_url = `${BASE_URL}/${storagePath}`;
+                }
+              }
+              // If path is a direct product-images path
+              else if (product.image_url.includes('product-images')) {
+                // Add the /storage/ prefix that Laravel's asset() would add
+                product.image_url = `${BASE_URL}/storage/${product.image_url.replace('product-images', 'product-images/')}`;
+              }
+              // For other relative URLs
+              else {
+                product.image_url = `${BASE_URL}/${product.image_url}`;
+              }
+
+              console.log(`Converted to absolute URL: ${product.image_url}`);
+            }
+
+            // Return the product with possibly updated image URL
+            return product;
+          });
+
+
+          // Reset image errors when loading new products
+          setImageLoadErrors({});
+
+          // Set the processed products in state
+          setPopularProducts(productsWithImages);
+        }
+
+        // Process cart data
+        if (result.data.cart) {
+          console.log('🛒 Cart found in response - items:', result.data.cart.items_count);
+          // Set cart count for badge
+          setCartCount(result.data.cart.items_count);
+
+          // Store cart data in AsyncStorage for other screens
+          await AsyncStorage.setItem('cartData', JSON.stringify(result.data.cart));
+        } else {
+          console.log('🛒 No cart in response');
+          setCartCount(0);
+        }
+
+        // Process user data
+        if (result.data.user) {
+          console.log('👤 User data found in response');
+          setUser(result.data.user);
+        }
+
+        // Show welcome banner on first login
+        const alreadyWelcomed = await AsyncStorage.getItem('welcomed');
+        if (!alreadyWelcomed) {
+          setShowWelcome(true);
+          await AsyncStorage.setItem('welcomed', 'yes');
+        }
       } else {
-        console.log('🛒 No cart in response');
-        setCartCount(0);
+        // Handle error
+        console.error('📊 Dashboard - API error:', result?.error || 'Unknown error');
+        alert('Error loading dashboard data. Please try again.');
       }
-      
-      // Process user data
-      if (result.data.user) {
-        console.log('👤 User data found in response');
-        setUser(result.data.user);
-      }
-      
-      // Show welcome banner on first login
-      const alreadyWelcomed = await AsyncStorage.getItem('welcomed');
-      if (!alreadyWelcomed) {
-        setShowWelcome(true);
-        await AsyncStorage.setItem('welcomed', 'yes');
-      }
-    } else {
-      // Handle error
-      console.error('📊 Dashboard - API error:', result?.error || 'Unknown error');
-      alert('Error loading dashboard data. Please try again.');
+    } catch (error) {
+      console.error('❌ Error fetching dashboard data:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  } catch (error) {
-    console.error('❌ Error fetching dashboard data:', error);
-    alert('Network error. Please check your connection and try again.');
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
+  };
 
   // Load data on component mount
   useEffect(() => {
     fetchData();
-    
+
     // Listen for cart updates from other screens
     const unsubscribe = navigation.addListener('focus', () => {
       // Check for updated cart count when screen is focused
@@ -211,10 +210,10 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
           console.error('Error checking cart updates:', error);
         }
       };
-      
+
       checkCartUpdate();
     });
-    
+
     return unsubscribe;
   }, [navigation]);
 
@@ -223,7 +222,7 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
     setRefreshing(true);
     fetchData();
   };
-  
+
   // Function to render product image with improved debugging
   const renderProductImage = (product) => {
     if (!product.image_url) {
@@ -234,10 +233,10 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
         </View>
       );
     }
-    
+
     // Log the image URL being rendered
     console.log(`Rendering image for product ${product.id}: ${product.image_url}`);
-    
+
     return (
       <View style={styles.productImageContainer}>
         <Image
@@ -253,18 +252,18 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
       </View>
     );
   };
-  
+
   // Calculate total spending for charts
   const calculateTotalSpending = (data) => {
     if (!data || data.length === 0) return 0;
-    
+
     // Filter out any non-numeric values and sum the remaining ones
     const validData = data.filter(val => typeof val === 'number' && !isNaN(val));
-    
+
     if (validData.length === 0) {
       return 0;
     }
-    
+
     const total = validData.reduce((total, value) => total + value, 0);
     return total;
   };
@@ -280,24 +279,24 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
   // Get total spending for current view
   const getTotalSpending = () => {
     let spendingData;
-    
+
     if (currentView === 'weekly') {
       spendingData = charts.weekly_spending;
     } else {
       spendingData = charts.monthly_spending;
     }
-    
+
     const total = calculateTotalSpending(spendingData);
     return formatCurrency(total);
   };
 
   // Get color for order status badge
   const getOrderStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'pending': return '#ffc107';
       case 'processing': return '#17a2b8';
       case 'shipped': return '#007bff';
-      case 'out_for_delivery': 
+      case 'out_for_delivery':
       case 'delivered': return '#28a745';
       case 'cancelled': return '#6c757d';
       case 'rejected': return '#dc3545';
@@ -320,30 +319,30 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
   // Main dashboard
   return (
     <FranchiseeLayout title="Dashboard">
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#28a745"]} />
         }
       >
-                <Card style={styles.section}>
+        <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.quickAction, styles.primaryAction]}
               onPress={() => navigation.navigate('Catalog')}
             >
               <FallbackIcon name="shoppingcart" iconType="AntDesign" size={24} color="#fff" />
               <Text style={styles.quickActionText}>Place Order</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickAction}
-              onPress={() => navigation.navigate('OrdersPending')}
+              onPress={() => navigation.navigate('OrdersScreen')}
             >
               <FallbackIcon name="car" iconType="AntDesign" size={24} color="#17a2b8" />
               <Text style={styles.quickActionText}>Track Orders</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.quickAction, styles.logoutAction]}
               onPress={async () => {
                 try {
@@ -370,13 +369,13 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Order Activity</Text>
             <View style={styles.chartToggle}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleButton, currentView === 'weekly' && styles.toggleActive]}
                 onPress={() => setCurrentView('weekly')}
               >
                 <Text style={[styles.toggleText, currentView === 'weekly' && styles.toggleActiveText]}>Weekly</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleButton, currentView === 'monthly' && styles.toggleActive]}
                 onPress={() => setCurrentView('monthly')}
               >
@@ -396,28 +395,28 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
             <Text style={styles.chartTitle}>
               {currentView === 'weekly' ? 'Weekly' : 'Monthly'} Spending Overview
             </Text>
-            
+
             <View style={styles.barChartContainer}>
-              {(currentView === 'weekly' ? 
-                ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : 
+              {(currentView === 'weekly' ?
+                ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] :
                 ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
               ).map((label, index) => {
                 // Get values based on current view
-                let values = currentView === 'weekly' 
-                  ? charts.weekly_spending 
+                let values = currentView === 'weekly'
+                  ? charts.weekly_spending
                   : charts.monthly_spending;
-                
+
                 // Ensure value exists for this index
                 const value = values && index < values.length ? values[index] : 0;
-                
+
                 // Find the maximum value for scaling
                 const maxValue = values && values.length > 0 ? Math.max(...values, 1) : 1;
-                
+
                 // Calculate bar height with better visualization for small values
-                const barHeight = value > 0 
-                  ? Math.max((value / maxValue) * 150, value > (maxValue * 0.1) ? 20 : 5) 
+                const barHeight = value > 0
+                  ? Math.max((value / maxValue) * 150, value > (maxValue * 0.1) ? 20 : 5)
                   : 0;
-                
+
                 return (
                   <View key={label} style={styles.barColumn}>
                     <View style={styles.barValueContainer}>
@@ -426,14 +425,14 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
                         {value > 0 ? (
                           <Text style={styles.barValueAbove}>${value.toFixed(0)}</Text>
                         ) : (
-                          <Text style={[styles.barValueAbove, {opacity: 0}]}>$0</Text>
+                          <Text style={[styles.barValueAbove, { opacity: 0 }]}>$0</Text>
                         )}
                       </View>
-                      
+
                       {/* The bar itself */}
                       <View style={[
-                        styles.bar, 
-                        { 
+                        styles.bar,
+                        {
                           height: barHeight,
                           backgroundColor: value > 0 ? '#28a745' : '#f0f0f0'
                         }
@@ -458,12 +457,12 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
             <View style={styles.statValueRow}>
               <Text style={styles.statValue}>${parseFloat(stats?.monthly_spending || 0).toFixed(2)}</Text>
               {stats?.spending_change !== undefined && (
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <FallbackIcon 
-                    name={stats.spending_change > 0 ? 'arrowup' : 'arrowdown'} 
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FallbackIcon
+                    name={stats.spending_change > 0 ? 'arrowup' : 'arrowdown'}
                     iconType="AntDesign"
                     size={12}
-                    color={stats.spending_change > 0 ? '#dc3545' : '#28a745'} 
+                    color={stats.spending_change > 0 ? '#dc3545' : '#28a745'}
                   />
                   <Text style={stats.spending_change > 0 ? styles.statNegative : styles.statPositive}>
                     {' '}{Math.abs(stats.spending_change)}%
@@ -483,12 +482,12 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
             <View style={styles.statValueRow}>
               <Text style={styles.statValue}>{stats?.pending_orders || 0}</Text>
               {stats?.pending_orders_change !== undefined && (
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <FallbackIcon 
-                    name={stats.pending_orders_change > 0 ? 'arrowup' : 'arrowdown'} 
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FallbackIcon
+                    name={stats.pending_orders_change > 0 ? 'arrowup' : 'arrowdown'}
                     iconType="AntDesign"
                     size={12}
-                    color={stats.pending_orders_change > 0 ? '#28a745' : '#dc3545'} 
+                    color={stats.pending_orders_change > 0 ? '#28a745' : '#dc3545'}
                   />
                   <Text style={stats.pending_orders_change > 0 ? styles.statPositive : styles.statNegative}>
                     {' '}{Math.abs(stats.pending_orders_change)}%
@@ -527,14 +526,14 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
         <Card style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Orders</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('OrdersPending')}>
+            <TouchableOpacity onPress={() => navigation.navigate('OrdersScreen')}>
               <Text style={styles.viewAll}>View All</Text>
             </TouchableOpacity>
           </View>
           {recentOrders.length > 0 ? (
             recentOrders.map(order => (
-              <TouchableOpacity 
-                key={order.id} 
+              <TouchableOpacity
+                key={order.id}
                 style={styles.orderItem}
                 onPress={() => navigation.navigate('OrderDetails', { orderId: order.id })}
               >
@@ -547,9 +546,9 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
                   <Text style={styles.orderTotal}>${parseFloat(order.total).toFixed(2)}</Text>
                 </View>
                 <View style={styles.orderStatusContainer}>
-                  <View 
+                  <View
                     style={[
-                      styles.orderStatus, 
+                      styles.orderStatus,
                       { backgroundColor: getOrderStatusColor(order.status) }
                     ]}
                   >
@@ -578,8 +577,8 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
               popularProducts.map(product => (
                 <View key={product.id} style={styles.productItem}>
                   {product.image_url ? (
-                    <Image 
-                      source={{ uri: product.image_url }} 
+                    <Image
+                      source={{ uri: product.image_url }}
                       style={styles.productImage}
                       resizeMode="cover"
                       onError={() => handleImageError(product.id)}
@@ -598,9 +597,9 @@ if (result.data.popular_products && result.data.popular_products.length > 0) {
                       </Text>
                     </View>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[
-                      styles.addToCartButton, 
+                      styles.addToCartButton,
                       (!product.inventory_count && !product.has_in_stock_variants) && styles.disabledButton
                     ]}
                     disabled={!product.inventory_count && !product.has_in_stock_variants}
@@ -637,7 +636,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#555',
   },
-  
+
   // Chart Card
   chartCard: {
     marginHorizontal: 15,
@@ -700,7 +699,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6c757d',
   },
-  
+
   // Chart Visualization
   simpleChartContainer: {
     padding: 15,
@@ -760,7 +759,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: 'center',
   },
-  
+
   // Stats Grid
   statsGrid: {
     flexDirection: 'row',
@@ -823,7 +822,7 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 2,
   },
-  
+
   // Section common styles
   section: {
     marginHorizontal: 15,
@@ -855,7 +854,7 @@ const styles = StyleSheet.create({
     padding: 15,
     color: '#6c757d',
   },
-  
+
   // Quick Actions
   quickActions: {
     flexDirection: 'row',
@@ -893,7 +892,7 @@ const styles = StyleSheet.create({
     color: '#dc3545',
     fontWeight: '500',
   },
-  
+
   // Order Items
   orderItem: {
     padding: 15,
@@ -942,7 +941,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
-  
+
   // Product Items
   productsContainer: {
     padding: 10,
@@ -1000,7 +999,7 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#dee2e6',
   },
-  
+
   // Icon row
   fallbackIconRow: {
     flexDirection: 'row',
