@@ -460,7 +460,7 @@ public function pendingOrders(Request $request)
         }
 
         // 👉 Otherwise: Render web Blade view
-        return view('warehouse.orders.index', [
+        return view('franchisee.pending_orders', [
             'orders' => $orders,
             'orderCounts' => $orderCounts,
             'pageTitle' => 'Pending Orders',

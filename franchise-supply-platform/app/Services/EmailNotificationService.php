@@ -2,121 +2,198 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
 use App\Mail\OrderConfirmationEmail;
-use App\Notifications\NewOrderNotification;
 
 class EmailNotificationService
 {
     /**
-     * Create a new email notification service instance.
+     * Send order status change notification to the franchisee.
+     *
+     * @param  \App\Models\Order  $order
+     * @param  string|null  $oldStatus
+     * @return bool
      */
-    public function __construct()
+    public function sendOrderStatusChangeNotification(Order $order, ?string $oldStatus = null): bool
     {
-        // No initialization needed for standard Laravel mail
+        $customerEmail = $order->user->email;
+        if (!$customerEmail || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            Log::warning('No valid customer email found for order status change notification', [
+                'order_id' => $order->id,
+                'status' => $order->status
+            ]);
+            return false;
+        }
+
+        // Check for duplicate email to prevent sending twice
+        $emailKey = "status_email_{$order->id}_{$order->status}_{$customerEmail}";
+        if ($this->isEmailAlreadySent($emailKey)) {
+            Log::info('Duplicate email prevented for order status change', [
+                'order_id' => $order->id,
+                'status' => $order->status,
+                'email' => $customerEmail
+            ]);
+            return true; // Return true since email was already sent
+        }
+
+        try {
+            // Get status details
+            $subject = $this->getEmailSubject($order->status);
+            $statusMessage = $this->getStatusMessage($order->status);
+            $statusColor = $this->getStatusColor($order->status);
+            $recipientName = $order->user->franchiseeProfile->contact_name ?? $order->user->username;
+            
+            // Create the email content
+            $emailData = [
+                'order' => $order,
+                'oldStatus' => $oldStatus,
+                'recipientName' => $recipientName,
+                'statusMessage' => $statusMessage,
+                'statusColor' => $statusColor,
+                'trackingUrl' => url('/franchisee/orders/' . $order->id . '/details')
+            ];
+
+            // Send the email using Laravel's mail system
+            Mail::send('emails.orders.status-change', $emailData, function ($message) use ($customerEmail, $recipientName, $subject) {
+                $message->to($customerEmail, $recipientName)
+                        ->subject($subject)
+                        ->from(config('mail.from.address'), config('mail.from.name'));
+            });
+
+            // Mark email as sent to prevent duplicates
+            $this->markEmailAsSent($emailKey);
+
+            Log::info('Order status change email sent successfully', [
+                'order_id' => $order->id,
+                'recipient' => $customerEmail,
+                'new_status' => $order->status,
+                'old_status' => $oldStatus
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to send order status change notification: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'status' => $order->status,
+                'old_status' => $oldStatus,
+                'exception' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 
     /**
-     * Send a new order notification to all admin users.
+     * Send a new order notification to admin users.
      *
      * @param  \App\Models\Order  $order
      * @return bool
      */
     public function sendAdminOrderNotification(Order $order): bool
     {
-        // Collect admin emails with fallbacks
-        $adminEmails = [];
-        
-        // Get admin emails from database
-        $dbAdminEmails = User::getAdminEmails();
-        Log::info('Found ' . count($dbAdminEmails) . ' admin emails in database');
-
-        // Add database emails if they exist
-        if (!empty($dbAdminEmails)) {
-            $adminEmails = array_merge($adminEmails, $dbAdminEmails);
+        // Check for duplicate to prevent sending twice for new orders
+        $emailKey = "admin_new_order_{$order->id}";
+        if ($this->isEmailAlreadySent($emailKey)) {
+            Log::info('Duplicate admin new order email prevented', ['order_id' => $order->id]);
+            return true;
         }
 
-        // Add fallback from environment if no admin emails found
+        $adminEmails = User::getAdminEmails();
+        
         if (empty($adminEmails)) {
-            $configAdminEmail = config('company.admin_notification_email') ?: env('ADMIN_EMAIL');
-            if ($configAdminEmail) {
-                Log::info('Using fallback admin email from config: ' . $configAdminEmail);
-                $adminEmails[] = $configAdminEmail;
-            }
-        }
-
-        // Remove duplicate emails and ensure valid format
-        $validAdminEmails = array_unique(array_filter($adminEmails, function($email) {
-            return filter_var($email, FILTER_VALIDATE_EMAIL);
-        }));
-        
-        if (empty($validAdminEmails)) {
-            Log::warning('No valid admin emails found for order notification');
+            Log::warning('No admin emails found for new order notification');
             return false;
         }
 
         try {
-            // Use Laravel mail system
-            foreach ($validAdminEmails as $email) {
-                $this->sendEmail([$email], new NewOrderNotification($order, true));
+            $emailData = [
+                'order' => $order,
+                'franchiseeName' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
+                'actionUrl' => url('/admin/orders/' . $order->id),
+                'actionText' => 'Review Order'
+            ];
+
+            foreach ($adminEmails as $email) {
+                Mail::send('emails.orders.new-order', $emailData, function ($message) use ($email, $order) {
+                    $message->to($email)
+                            ->subject('New Order #' . $order->id . ' - Requires Approval')
+                            ->from(config('mail.from.address'), config('mail.from.name'));
+                });
             }
+
+            // Mark email as sent
+            $this->markEmailAsSent($emailKey);
+
+            Log::info('Admin order notification sent successfully', [
+                'order_id' => $order->id,
+                'recipients' => $adminEmails
+            ]);
+
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to send admin order notification: ' . $e->getMessage());
+            Log::error('Failed to send admin order notification: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'exception' => $e->getMessage()
+            ]);
             return false;
         }
     }
 
     /**
-     * Send a new order notification to all warehouse users.
+     * Send a new order notification to warehouse users.
      *
      * @param  \App\Models\Order  $order
      * @return bool
      */
     public function sendWarehouseOrderNotification(Order $order): bool
     {
-        // Collect warehouse emails with fallbacks
-        $warehouseEmails = [];
-        
-        // Get warehouse emails from database
-        $dbWarehouseEmails = User::getWarehouseEmails();
-        Log::info('Found ' . count($dbWarehouseEmails) . ' warehouse emails in database');
-
-        // Add database emails if they exist
-        if (!empty($dbWarehouseEmails)) {
-            $warehouseEmails = array_merge($warehouseEmails, $dbWarehouseEmails);
+        // Check for duplicate to prevent sending twice for new orders
+        $emailKey = "warehouse_new_order_{$order->id}";
+        if ($this->isEmailAlreadySent($emailKey)) {
+            Log::info('Duplicate warehouse new order email prevented', ['order_id' => $order->id]);
+            return true;
         }
 
-        // Add fallback from environment if no warehouse emails found
+        $warehouseEmails = User::getWarehouseEmails();
+        
         if (empty($warehouseEmails)) {
-            $fallbackEmail = config('company.warehouse_notification_email') ?: env('WAREHOUSE_EMAIL');
-            if ($fallbackEmail) {
-                Log::info('Using fallback warehouse email from config: ' . $fallbackEmail);
-                $warehouseEmails[] = $fallbackEmail;
-            }
-        }
-
-        // Remove duplicate emails and ensure valid format
-        $validWarehouseEmails = array_unique(array_filter($warehouseEmails, function($email) {
-            return filter_var($email, FILTER_VALIDATE_EMAIL);
-        }));
-        
-        if (empty($validWarehouseEmails)) {
-            Log::warning('No valid warehouse emails found for order notification');
+            Log::warning('No warehouse emails found for new order notification');
             return false;
         }
 
         try {
-            // Use Laravel mail system
-            foreach ($validWarehouseEmails as $email) {
-                $this->sendEmail([$email], new NewOrderNotification($order, false));
+            $emailData = [
+                'order' => $order,
+                'franchiseeName' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
+                'actionUrl' => url('/warehouse/orders/' . $order->id),
+                'actionText' => 'View Order'
+            ];
+
+            foreach ($warehouseEmails as $email) {
+                Mail::send('emails.orders.new-order', $emailData, function ($message) use ($email, $order) {
+                    $message->to($email)
+                            ->subject('New Order #' . $order->id . ' - For Processing')
+                            ->from(config('mail.from.address'), config('mail.from.name'));
+                });
             }
+
+            // Mark email as sent
+            $this->markEmailAsSent($emailKey);
+
+            Log::info('Warehouse order notification sent successfully', [
+                'order_id' => $order->id,
+                'recipients' => $warehouseEmails
+            ]);
+
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to send warehouse order notification: ' . $e->getMessage());
+            Log::error('Failed to send warehouse order notification: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'exception' => $e->getMessage()
+            ]);
             return false;
         }
     }
@@ -135,137 +212,105 @@ class EmailNotificationService
             return false;
         }
 
-        try {
-            // Use Laravel mail system
-            return $this->sendEmail([$customerEmail], new OrderConfirmationEmail($order));
-        } catch (\Exception $e) {
-            Log::error('Failed to send customer order confirmation: ' . $e->getMessage());
-            return false;
+        // Check for duplicate to prevent sending twice for new orders
+        $emailKey = "customer_confirmation_{$order->id}_{$customerEmail}";
+        if ($this->isEmailAlreadySent($emailKey)) {
+            Log::info('Duplicate customer confirmation email prevented', [
+                'order_id' => $order->id,
+                'email' => $customerEmail
+            ]);
+            return true;
         }
-    }
 
-    /**
-     * Send a standard email through Laravel's mail system.
-     *
-     * @param  array  $to
-     * @param  object  $mailable
-     * @return bool
-     */
-    protected function sendEmail(array $to, $mailable): bool
-    {
         try {
-            Mail::to($to)->send($mailable);
-
-            // If no exception was thrown, consider it successful
-            Log::info('Email sent successfully', [
-                'to' => $to,
-                'subject' => $mailable->envelope->subject ?? 'Unknown subject',
-                'type' => get_class($mailable)
+            Mail::to($customerEmail)->send(new OrderConfirmationEmail($order));
+            
+            // Mark email as sent
+            $this->markEmailAsSent($emailKey);
+            
+            Log::info('Order confirmation email sent successfully', [
+                'order_id' => $order->id,
+                'recipient' => $customerEmail
             ]);
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Error sending email: ' . $e->getMessage(), [
-                'exception' => $e->getMessage(),
-                'to' => $to
+            Log::error('Failed to send order confirmation: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'exception' => $e->getMessage()
             ]);
             return false;
         }
     }
 
     /**
-     * Prepare template data for admin order notification.
-     *
-     * @param  \App\Models\Order  $order
-     * @return array
+     * Get email subject based on order status
      */
-    protected function prepareAdminTemplateData(Order $order): array
+    protected function getEmailSubject(string $status): string
     {
-        return [
-            'order_id' => $order->id,
-            'order_date' => $order->created_at->format('F j, Y, g:i a'),
-            'order_status' => ucfirst($order->status),
-            'order_total' => '$' . number_format($order->total_amount, 2),
-            'franchisee_name' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
-            'franchisee_email' => $order->user->email,
-            'franchisee_phone' => $order->user->phone,
-            'delivery_address' => $order->shipping_address,
-            'delivery_city' => $order->shipping_city,
-            'delivery_state' => $order->shipping_state,
-            'delivery_zip' => $order->shipping_zip,
-            'delivery_date' => $order->delivery_date ? date('F j, Y', strtotime($order->delivery_date)) : 'Not specified',
-            'is_express' => $order->delivery_preference === 'express',
-            'item_count' => $order->items->sum('quantity'),
-            'order_url' => url('/admin/orders/' . $order->id),
-            'recipient_type' => 'Admin'
+        $subjects = [
+            'pending' => 'Order Submitted - Awaiting Approval',
+            'approved' => 'Order Approved - Being Processed',
+            'rejected' => 'Order Rejected - Action Required',
+            'packed' => 'Order Packed - Ready for Shipping',
+            'shipped' => 'Order Shipped - On the Way',
+            'delivered' => 'Order Delivered - Thank You!',
+            'cancelled' => 'Order Cancelled'
         ];
+
+        return $subjects[$status] ?? 'Order Status Update';
     }
 
     /**
-     * Prepare template data for warehouse order notification.
-     *
-     * @param  \App\Models\Order  $order
-     * @return array
+     * Get status message for email
      */
-    protected function prepareWarehouseTemplateData(Order $order): array
+    protected function getStatusMessage(string $status): string
     {
-        return [
-            'order_id' => $order->id,
-            'order_date' => $order->created_at->format('F j, Y, g:i a'),
-            'order_status' => ucfirst($order->status),
-            'order_total' => '$' . number_format($order->total_amount, 2),
-            'franchisee_name' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
-            'franchisee_email' => $order->user->email,
-            'franchisee_phone' => $order->user->phone,
-            'delivery_address' => $order->shipping_address,
-            'delivery_city' => $order->shipping_city,
-            'delivery_state' => $order->shipping_state,
-            'delivery_zip' => $order->shipping_zip,
-            'delivery_date' => $order->delivery_date ? date('F j, Y', strtotime($order->delivery_date)) : 'Not specified',
-            'is_express' => $order->delivery_preference === 'express',
-            'item_count' => $order->items->sum('quantity'),
-            'order_url' => url('/warehouse/orders/' . $order->id),
-            'recipient_type' => 'Warehouse'
+        $messages = [
+            'pending' => 'Your order has been submitted and is awaiting approval from our team.',
+            'approved' => 'Great news! Your order has been approved and is now being processed.',
+            'rejected' => 'Unfortunately, your order has been rejected. Please contact our support team for more information.',
+            'packed' => 'Your order has been packed and is ready for shipping.',
+            'shipped' => 'Your order has been shipped and is on its way to you!',
+            'delivered' => 'Your order has been delivered successfully. Thank you for your business!',
+            'cancelled' => 'Your order has been cancelled.'
         ];
+
+        return $messages[$status] ?? 'Your order status has been updated.';
     }
 
     /**
-     * Prepare template data for customer order confirmation.
-     *
-     * @param  \App\Models\Order  $order
-     * @return array
+     * Get status color for email styling
      */
-    protected function prepareCustomerTemplateData(Order $order): array
+    protected function getStatusColor(string $status): string
     {
-        // Format delivery time
-        $deliveryTimeMap = [
-            'morning' => 'Morning (8:00 AM - 12:00 PM)',
-            'afternoon' => 'Afternoon (12:00 PM - 4:00 PM)',
-            'evening' => 'Evening (4:00 PM - 8:00 PM)',
+        $colors = [
+            'pending' => '#ffa500',
+            'approved' => '#28a745',
+            'rejected' => '#dc3545',
+            'packed' => '#17a2b8',
+            'shipped' => '#007bff',
+            'delivered' => '#28a745',
+            'cancelled' => '#6c757d'
         ];
-        $deliveryTime = $deliveryTimeMap[$order->delivery_time] ?? $order->delivery_time ?? 'Not specified';
-        
-        // Calculate order subtotal and shipping
-        $shippingCost = $order->shipping_cost ?? 0;
-        $subtotal = $order->total_amount - $shippingCost;
-        
-        return [
-            'recipient_name' => $order->user->franchiseeProfile->contact_name ?? $order->user->username,
-            'order_id' => $order->id,
-            'order_date' => $order->created_at->format('F j, Y, g:i a'),
-            'order_total' => '$' . number_format($order->total_amount, 2),
-            'delivery_address' => $order->shipping_address,
-            'delivery_city' => $order->shipping_city,
-            'delivery_state' => $order->shipping_state,
-            'delivery_zip' => $order->shipping_zip,
-            'delivery_date' => $order->delivery_date ? date('F j, Y', strtotime($order->delivery_date)) : 'Not specified',
-            'delivery_time' => $deliveryTime,
-            'is_express' => $order->delivery_preference === 'express',
-            'subtotal' => '$' . number_format($subtotal, 2),
-            'shipping_cost' => '$' . number_format($shippingCost, 2),
-            'tracking_url' => url('/franchisee/orders/' . $order->id . '/details'),
-        ];
+
+        return $colors[$status] ?? '#333333';
     }
 
-    // Remove the usesSendGrid method as we're now using standard Laravel mail
+    /**
+     * Check if an email has already been sent to prevent duplicates
+     */
+    private function isEmailAlreadySent(string $emailKey): bool
+    {
+        return Cache::has($emailKey);
+    }
+
+    /**
+     * Mark an email as sent to prevent duplicates
+     */
+    private function markEmailAsSent(string $emailKey): void
+    {
+        // Store in cache for 24 hours to prevent duplicates within a day
+        Cache::put($emailKey, true, now()->addHours(24));
+    }
 }

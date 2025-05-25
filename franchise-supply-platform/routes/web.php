@@ -32,6 +32,47 @@ Route::get('/test-push', function (PushNotificationService $pushService) {
   return $pushService->sendTestNotification($token) ? '✅ Sent' : '❌ Failed';
 });
 
+// Test route to check notification system
+Route::get('/test-notifications', function (App\Services\TwilioNotificationService $twilioService) {
+    $order = App\Models\Order::with(['user.franchiseeProfile', 'items'])->first();
+    if (!$order) {
+        return '❌ No orders found to test with';
+    }
+    
+    try {
+        $results = $twilioService->sendOrderStatusNotification($order, 'pending');
+        $status = [];
+        $status[] = 'Email: ' . ($results['email'] ? '✅' : '❌');
+        $status[] = 'SMS: ' . ($results['sms'] ? '✅' : '❌');
+        $status[] = 'WhatsApp: ' . ($results['whatsapp'] ? '✅' : '❌');
+        
+        return 'Notification Test Results:<br>' . implode('<br>', $status);
+    } catch (\Exception $e) {
+        return '❌ Error: ' . $e->getMessage();
+    }
+});
+
+// Test route to simulate order status change
+Route::get('/test-status-change', function () {
+    $order = App\Models\Order::with(['user.franchiseeProfile', 'items'])->first();
+    if (!$order) {
+        return '❌ No orders found to test with';
+    }
+    
+    $oldStatus = $order->status;
+    $newStatus = $oldStatus === 'pending' ? 'approved' : 'pending';
+    
+    try {
+        // Simulate admin updating order status
+        $order->status = $newStatus;
+        $order->save(); // This should trigger OrderObserver and send notifications
+        
+        return "✅ Order #{$order->id} status changed from '{$oldStatus}' to '{$newStatus}'<br>Check logs for notification results.";
+    } catch (\Exception $e) {
+        return '❌ Error: ' . $e->getMessage();
+    }
+});
+
 // Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'webLogin'])->name('login.submit');

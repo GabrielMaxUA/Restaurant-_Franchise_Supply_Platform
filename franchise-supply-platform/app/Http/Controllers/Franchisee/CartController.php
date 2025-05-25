@@ -13,8 +13,7 @@ use App\Models\CartItem;
 use App\Models\User;
 use App\Models\OrderNotification;
 use App\Services\InventoryService;
-use App\Services\EmailNotificationService;
-use App\Services\WhatsAppNotificationService;
+use App\Services\TwilioNotificationService;
 use Illuminate\Support\Facades\Auth;
 
 class CartController extends Controller

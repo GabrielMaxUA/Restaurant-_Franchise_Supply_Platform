@@ -6,6 +6,7 @@ use App\Events\OrderSaved;
 use App\Models\OrderNotification;
 use App\Models\User;
 use App\Services\PushNotificationService;
+use App\Services\EmailNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
@@ -15,7 +16,8 @@ class CreateOrderNotification
      * Create the event listener.
      */
     public function __construct(
-        private PushNotificationService $pushNotificationService
+        private PushNotificationService $pushNotificationService,
+        private EmailNotificationService $emailNotificationService
     ) {
         //
     }
@@ -30,6 +32,14 @@ class CreateOrderNotification
         // If this is a new order, notify all admins and warehouse staff
         if (!$event->statusChanged && $order->wasRecentlyCreated) {
             $this->notifyStaffAboutNewOrder($order);
+            
+            // Send email notifications to admin and warehouse about new order
+            $this->emailNotificationService->sendAdminOrderNotification($order);
+            $this->emailNotificationService->sendWarehouseOrderNotification($order);
+            
+            // Send order confirmation to the franchisee
+            $this->emailNotificationService->sendCustomerOrderConfirmation($order);
+            
             return;
         }
         
@@ -41,6 +51,9 @@ class CreateOrderNotification
             
             // Send push notification to franchisee
             $this->pushNotificationService->sendOrderStatusNotification($order, $event->oldStatus);
+            
+            // Send email notification to franchisee about status change
+            $this->emailNotificationService->sendOrderStatusChangeNotification($order, $event->oldStatus);
             
             // Notify staff based on the new status
             $this->notifyStaffAboutStatusChange($order, $event->oldStatus);
