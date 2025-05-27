@@ -1,16 +1,45 @@
 @extends('layouts.' . (auth()->user()->isAdmin() ? 'admin' : (auth()->user()->isWarehouse() ? 'warehouse' : 'franchisee')))
 
+@section('title', 'Notification Center - Restaurant Franchise Supply Platform')
+@section('page-title', 'Notification Center')
+
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0 text-gray-800">Notifications</h1>
         
-        @if(auth()->user()->unreadNotifications()->count() > 0)
-        <a href="{{ route('notifications.mark-all-read') }}" class="btn btn-sm btn-primary">
-            <i class="fas fa-check-double me-1"></i> Mark all as read
-        </a>
-        @endif
+        <div class="d-flex gap-2">
+            @if(auth()->user()->unreadNotifications()->count() > 0)
+            <a href="{{ route('notifications.mark-all-read') }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-check-double me-1"></i> Mark all as read
+            </a>
+            @endif
+            
+            @if($notifications->where('is_read', true)->count() > 0)
+            <form action="{{ route('notifications.delete-all-read') }}" method="POST" class="d-inline" id="deleteAllReadForm">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="fas fa-trash me-1"></i> Delete all read
+                </button>
+            </form>
+            @endif
+        </div>
     </div>
+
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    
+    @if(session('info'))
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ session('info') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -78,7 +107,7 @@
                     </table>
                 </div>
                 <div class="mt-4">
-                    {{ $notifications->links() }}
+                    @include('components.pagination', ['items' => $notifications])
                 </div>
             @else
                 <div class="text-center py-5">
@@ -108,6 +137,18 @@
                 }
             });
         });
+        
+        // Delete all read confirmation
+        const deleteAllReadForm = document.getElementById('deleteAllReadForm');
+        if (deleteAllReadForm) {
+            deleteAllReadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (confirm('Are you sure you want to delete all read notifications?')) {
+                    this.submit();
+                }
+            });
+        }
     });
 </script>
 @endpush

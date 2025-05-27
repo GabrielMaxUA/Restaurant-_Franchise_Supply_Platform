@@ -382,7 +382,18 @@
                                     <td>{{ $order->created_at->format('M d, Y') }}</td>
                                     <td>${{ number_format($order->total_amount, 2) }}</td>
                                     <td class="text-center">
-                                        <span class="badge {{ $order->status == 'approved' ? 'bg-info' : ($order->status == 'packed' ? 'bg-primary' : 'bg-secondary') }}">
+                                        @php
+                                            $statusClass = match($order->status) {
+                                                'pending' => 'bg-secondary',
+                                                'approved', 'processing' => 'bg-info',
+                                                'packed' => 'bg-warning',
+                                                'shipped' => 'bg-primary',
+                                                'delivered' => 'bg-success',
+                                                'rejected', 'cancelled' => 'bg-danger',
+                                                default => 'bg-secondary'
+                                            };
+                                        @endphp
+                                        <span class="badge {{ $statusClass }}">
                                             {{ ucfirst($order->status) }}
                                         </span>
                                     </td>

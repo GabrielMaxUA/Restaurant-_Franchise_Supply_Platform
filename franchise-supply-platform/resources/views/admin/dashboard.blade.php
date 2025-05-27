@@ -101,19 +101,19 @@
                                     <td>${{ number_format($order->total_amount, 2) }}</td>
                                     <td>
                                         @if($order->status == 'pending')
-                                            <span class="badge bg-warning text-dark">Pending</span>
-                                        @elseif($order->status == 'approved')
-                                            <span class="badge bg-primary">Approved</span>
+                                            <span class="badge bg-secondary">Pending</span>
+                                        @elseif($order->status == 'approved' || $order->status == 'processing')
+                                            <span class="badge bg-info">{{ ucfirst($order->status) }}</span>
                                         @elseif($order->status == 'packed')
-                                            <span class="badge bg-info">Packed</span>
+                                            <span class="badge bg-warning">Packed</span>
                                         @elseif($order->status == 'shipped')
-                                            <span class="badge bg-success">Shipped</span>
+                                            <span class="badge bg-primary">Shipped</span>
                                         @elseif($order->status == 'delivered')
-                                            <span class="badge bg-secondary">Delivered</span>
-                                        @elseif($order->status == 'rejected')
-                                            <span class="badge bg-danger">Rejected</span>
+                                            <span class="badge bg-success">Delivered</span>
+                                        @elseif($order->status == 'rejected' || $order->status == 'cancelled')
+                                            <span class="badge bg-danger">{{ ucfirst($order->status) }}</span>
                                         @else
-                                            <span class="badge bg-danger">{{ is_string($order->status) ? ucfirst($order->status) : 'Unknown' }}</span>
+                                            <span class="badge bg-secondary">{{ is_string($order->status) ? ucfirst($order->status) : 'Unknown' }}</span>
                                         @endif
                                     </td>
                                     <td>{{ $order->created_at->format('M d, Y') }}</td>

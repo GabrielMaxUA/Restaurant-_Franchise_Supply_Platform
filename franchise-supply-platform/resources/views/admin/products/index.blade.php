@@ -76,6 +76,16 @@
     </div>
 </div>
 
+<!-- Bulk Actions -->
+<div class="bulk-actions alert alert-info d-flex justify-content-between align-items-center" id="bulkActions">
+    <div>
+        <span class="selected-count">0</span> item(s) selected
+    </div>
+    <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+        <i class="fas fa-trash me-2"></i>Delete Selected
+    </button>
+</div>
+
 <!-- Results section with filter summary -->
 <div class="card shadow">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -110,6 +120,9 @@
             <table class="table">
                 <thead class="table-light">
                     <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
                         <th class="text-center">Image</th>
                         <th>Product Information</th>
                         <th class="text-center">Category</th>
@@ -121,6 +134,9 @@
                 <tbody>
                     @forelse ($products as $product)
                         <tr class="product-row">
+                            <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle">
+                                <input type="checkbox" class="form-check-input bulk-select-checkbox" value="{{ $product->id }}">
+                            </td>
                             <td rowspan="{{ $product->variants->count() > 0 ? $product->variants->count() + 1 : 1 }}" class="align-middle text-center">
                                 @if($product->images->count() > 0)
                                     <img src="{{ asset('storage/' . $product->images->first()->image_url) }}"
@@ -188,7 +204,7 @@
                         
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-4">
+                            <td colspan="7" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="fas fa-search fa-3x mb-3"></i>
                                     <p class="mb-0">No products found matching your criteria</p>
@@ -206,15 +222,24 @@
         </div>
         
         <!-- Pagination -->
-        <div class="d-flex justify-content-center mt-4">
-            {{ $products->appends(request()->query())->links() }}
-        </div>
+        @include('components.pagination', ['items' => $products->appends(request()->query())])
     </div>
 </div>
 @endsection
 
 @section('styles')
 <style>
+    .bulk-select-checkbox {
+        cursor: pointer;
+    }
+    .bulk-actions {
+        display: none;
+        margin-bottom: 1rem;
+    }
+    .bulk-actions.show {
+        display: flex;
+    }
+    
     /* Table styling */
     .table {
         border-collapse: separate;
@@ -289,6 +314,81 @@
 
 @section('scripts')
 <script>
+    let selectedIds = [];
+    
+    // Select/Deselect all checkboxes
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.bulk-select-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkActions();
+    });
+    
+    // Individual checkbox change
+    document.querySelectorAll('.bulk-select-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActions);
+    });
+    
+    function updateBulkActions() {
+        selectedIds = [];
+        const checkboxes = document.querySelectorAll('.bulk-select-checkbox:checked');
+        checkboxes.forEach(checkbox => {
+            selectedIds.push(checkbox.value);
+        });
+        
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = bulkActions.querySelector('.selected-count');
+        
+        if (selectedIds.length > 0) {
+            bulkActions.classList.add('show');
+            selectedCount.textContent = selectedIds.length;
+        } else {
+            bulkActions.classList.remove('show');
+        }
+        
+        // Update select all checkbox state
+        const selectAll = document.getElementById('selectAll');
+        const totalCheckboxes = document.querySelectorAll('.bulk-select-checkbox').length;
+        selectAll.checked = selectedIds.length === totalCheckboxes && totalCheckboxes > 0;
+    }
+    
+    function bulkDelete() {
+        if (selectedIds.length === 0) return;
+        
+        if (confirm(`Are you sure you want to delete ${selectedIds.length} selected products?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route('admin.products.bulk-delete') }}';
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            
+            // Add method override for DELETE
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            // Add selected IDs
+            selectedIds.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'product_ids[]';
+                input.value = id;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
     document.addEventListener('DOMContentLoaded', function() {
         // Auto-submit form when select filters change
         const autoSubmitSelects = document.querySelectorAll('#category, #inventory, #sort');

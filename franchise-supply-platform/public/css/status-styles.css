@@ -1,0 +1,90 @@
+/* Global Status Badge Styles for Franchisee */
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    display: inline-block;
+    text-align: center;
+    min-width: 80px;
+}
+
+/* Status-specific colors */
+.status-pending {
+    background-color: #6c757d !important;
+    color: #ffffff !important;
+}
+
+.status-processing, .status-approved {
+    background-color: #0dcaf0 !important;
+    color: #ffffff !important;
+}
+
+.status-packed {
+    background-color: #ffc107 !important;
+    color: #000000 !important;
+}
+
+.status-shipped {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.status-delivered {
+    background-color: #198754 !important;
+    color: #ffffff !important;
+}
+
+.status-rejected, .status-cancelled {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+/* Modern card styling */
+.modern-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 2rem;
+}
+
+.modern-card-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 0;
+}
+
+.modern-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.modern-table {
+    margin: 0;
+}
+
+.modern-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    padding: 1rem 1.5rem;
+}
+
+.modern-table td {
+    border: none;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.modern-table tbody tr:hover {
+    background: #f8fafc;
+}

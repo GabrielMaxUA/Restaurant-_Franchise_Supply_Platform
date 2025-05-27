@@ -4,6 +4,7 @@
 @section('page-title', 'Order Details')
 
 @section('styles')
+    <link href="{{ asset('css/status-styles.css') }}" rel="stylesheet">
 <style>
     .order-details-card {
         border-radius: 10px;
@@ -124,77 +125,137 @@
         transform: translateY(-2px);
     }
 
-    .progress-track {
+    /* Order progress tracker styling - optimized for narrower container */
+    .order-tracker {
         display: flex;
-        align-items: center;
         justify-content: space-between;
+        align-items: center;
         position: relative;
-        margin: 30px 0 10px;
+        margin: 30px 0;
+        padding: 0 15px; /* Reduced padding for narrower container */
+        min-height: 70px; /* Reduced for smaller circles */
     }
 
-    .progress-line {
+    .order-tracker:before {
+        content: '';
         position: absolute;
-        top: 6px;
-        left: 0;
-        height: 4px;
-        width: 100%;
-        background-color: #dee2e6;
+        background: #e5e5e5;
+        height: 3px; /* Slightly thinner line */
+        width: calc(100% - 30px); /* Adjusted for reduced padding */
+        top: 15px; /* Adjusted for smaller circles (30px/2 = 15px) */
+        left: 15px; /* Match reduced padding */
         z-index: 1;
         border-radius: 2px;
     }
-
-    .progress-line-filled {
-        background-color: #28a745;
-        height: 4px;
-        border-radius: 2px;
-        z-index: 2;
-        position: absolute;
-        top: 6px;
-        left: 0;
-        transition: width 0.4s ease-in-out;
+    
+    .tracker-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 3;
+        flex: 1;
+        max-width: 20%;
     }
-
-    .progress-line-filled.rejected {
-        background-color: #dc3545;
-    }
-
-    .timeline-stage {
-        text-align: center;
-        width: 20%;
+    
+    .step-icon {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 30px; /* Reduced from 50px */
+        height: 30px; /* Reduced from 50px */
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #e5e5e5; /* Reduced border width */
+        margin-bottom: 8px; /* Reduced margin */
+        transition: all 0.3s ease;
+        color: #888;
+        font-size: 12px; /* Reduced font size */
         position: relative;
         z-index: 3;
     }
-
-    .stage-dot {
-        width: 16px;
-        height: 16px;
-        margin: 0 auto 8px;
-        border-radius: 50%;
-        background-color: #dee2e6;
-    }
-
-    .stage-dot.filled {
-        background-color: #28a745;
-    }
-
-    .stage-dot.rejected {
-        background-color: #dc3545;
-    }
-
-    .stage-label {
-        font-size: 0.85rem;
+    
+    .step-label {
+        font-size: 13px;
         font-weight: 500;
-        color: #495057;
+        color: #888;
+        text-align: center;
     }
-
-    .stage-label.rejected {
+    
+    .tracker-step.active .step-icon {
+        background: #4CAF50;
+        border-color: #4CAF50;
+        color: white;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    }
+    
+    .tracker-step.active .step-label {
+        color: #4CAF50;
+        font-weight: 600;
+    }
+    
+    .tracker-step.completed .step-icon {
+        background: #4CAF50;
+        border-color: #4CAF50;
+        color: white;
+    }
+    
+    .tracker-step.completed .step-label {
+        color: #4CAF50;
+    }
+    
+    /* Progress line styling */
+    .progress-line {
+        position: absolute;
+        top: 15px; /* Adjusted for smaller circles */
+        height: 3px; /* Slightly thinner line */
+        background: #4CAF50;
+        z-index: 2;
+        transition: width 0.5s ease, background-color 0.5s ease;
+        left: 15px; /* Match reduced padding */
+        border-radius: 2px;
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.1); /* Reduced shadow */
+    }
+    
+    /* Rejected order styling */
+    .order-tracker.rejected:before {
+        background: #e5e5e5;
+    }
+    
+    .progress-line.rejected {
+        background: #dc3545;
+    }
+    
+    .tracker-step.rejected .step-icon {
+        background: #dc3545;
+        border-color: #dc3545;
+        color: white;
+        box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+    }
+    
+    .tracker-step.rejected .step-label {
         color: #dc3545;
         font-weight: 600;
     }
-
-    .stage-date {
-        font-size: 0.8rem;
+    
+    .step-date {
+        font-size: 0.75rem;
         color: #6c757d;
+        margin-top: 2px;
+        min-height: 32px; /* Reserve space for date and time */
+        text-align: center;
+        line-height: 1.2;
+    }
+    
+    .step-date-day {
+        display: block;
+        font-weight: 500;
+    }
+    
+    .step-date-time {
+        display: block;
+        font-size: 0.7rem;
+        opacity: 0.8;
     }
 
     /* Rejected order action buttons container */
@@ -240,19 +301,19 @@
                     <div class="order-info">
                         <div class="order-number">Order #{{ $order->id }}</div>
                         @if($order->status == 'pending')
-                            <span class="badge rounded-pill bg-warning text-dark order-status-badge">Pending Approval</span>
-                        @elseif($order->status == 'approved')
-                            <span class="badge rounded-pill bg-primary order-status-badge">Awaiting Fulfillment</span>
+                            <span class="status-badge status-pending">Pending</span>
+                        @elseif($order->status == 'processing' || $order->status == 'approved')
+                            <span class="status-badge status-processing">Processing</span>
                         @elseif($order->status == 'packed')
-                            <span class="badge rounded-pill bg-info order-status-badge">In Progress</span>
+                            <span class="status-badge status-packed">Packed</span>
                         @elseif($order->status == 'shipped')
-                            <span class="badge rounded-pill bg-success order-status-badge">Shipped</span>
+                            <span class="status-badge status-shipped">Shipped</span>
                         @elseif($order->status == 'delivered')
-                            <span class="badge rounded-pill bg-success order-status-badge">Delivered</span>
+                            <span class="status-badge status-delivered">Delivered</span>
                         @elseif($order->status == 'rejected')
-                            <span class="badge rounded-pill bg-danger order-status-badge">Rejected</span>
+                            <span class="status-badge status-rejected">Rejected</span>
                         @else
-                            <span class="badge rounded-pill bg-secondary order-status-badge">{{ ucfirst($order->status) }}</span>
+                            <span class="status-badge status-secondary">{{ ucfirst($order->status) }}</span>
                         @endif
                     </div>
                 </div>
@@ -363,53 +424,127 @@
             <div class="card order-details-card">
                 <div class="card-header"><h5 class="card-title mb-0">Order Status</h5></div>
                 <div class="card-body">
-                    @if($order->status == 'rejected')
-                    <!-- Rejected Order Progress -->
-                    <div class="progress-track">
-                        <div class="progress-line"></div>
-                        <div class="progress-line-filled rejected" style="width: 100%;"></div>
-
-                        <!-- Pending Stage -->
-                        <div class="timeline-stage">
-                            <div class="stage-dot rejected"></div>
-                            <div class="stage-label rejected">Pending</div>
-                            <div class="stage-date">{{ $order->created_at->format('M j, Y g:i A') }}</div>
-                        </div>
-
-                        <!-- Rejected Stage -->
-                        <div class="timeline-stage">
-                            <div class="stage-dot rejected"></div>
-                            <div class="stage-label rejected">Rejected</div>
-                            <div class="stage-date">{{ $order->updated_at->format('M j, Y g:i A') }}</div>
-                        </div>
-                    </div>
-                    @else
-                    <!-- Normal Order Progress -->
-                    @php
-                        $statuses = ['pending', 'approved', 'packed', 'shipped', 'delivered'];
-                        $currentIndex = array_search($order->status, $statuses);
-                        $dates = [
-                            'pending' => $order->created_at,
-                            'approved' => $order->status != 'pending' ? $order->updated_at : null,
-                            'packed' => in_array($order->status, ['packed', 'shipped', 'delivered']) ? $order->updated_at : null,
-                            'shipped' => in_array($order->status, ['shipped', 'delivered']) ? $order->updated_at : null,
-                            'delivered' => $order->status == 'delivered' ? $order->updated_at : null
-                        ];
-                    @endphp
-
-                    <div class="progress-track">
-                        <div class="progress-line"></div>
-                        <div class="progress-line-filled" style="width: {{ ($currentIndex / (count($statuses) - 1)) * 100 }}%;"></div>
-
-                        @foreach($statuses as $index => $status)
-                            <div class="timeline-stage">
-                                <div class="stage-dot {{ $index <= $currentIndex ? 'filled' : '' }}"></div>
-                                <div class="stage-label">{{ ucfirst($status) }}</div>
-                                <div class="stage-date">{{ $dates[$status]?->format('M j, Y g:i A') ?? '' }}</div>
+                    <!-- Order Progress Tracker -->
+                    <div class="position-relative">
+                        <div class="order-tracker {{ in_array($order->status, ['rejected', 'cancelled']) ? 'rejected' : '' }}">
+                            <!-- Progress line that fills based on order status -->
+                            @php
+                                // Calculate progress width based on order status
+                                $progressWidth = 0;
+                                $progressColor = '#4CAF50'; // Default green
+                                $numSteps = 5; // Total number of steps in the progress bar
+                                
+                                // Calculate the width to reach each circle center for narrower container
+                                // The full width minus reduced padding is divided into 4 segments (between 5 circles)
+                                $containerWidth = 'calc(100% - 30px)';
+                                
+                                if($order->status == 'pending') {
+                                    $progressWidth = '0px'; // Stay at first circle
+                                }
+                                elseif($order->status == 'processing' || $order->status == 'approved') {
+                                    $progressWidth = 'calc((100% - 30px) * 0.25)'; // 25% of container width
+                                }
+                                elseif($order->status == 'packed') {
+                                    $progressWidth = 'calc((100% - 30px) * 0.5)'; // 50% of container width
+                                }
+                                elseif($order->status == 'shipped') {
+                                    $progressWidth = 'calc((100% - 30px) * 0.75)'; // 75% of container width
+                                }
+                                elseif($order->status == 'delivered') {
+                                    $progressWidth = 'calc(100% - 30px)'; // Full container width
+                                }
+                                elseif($order->status == 'rejected' || $order->status == 'cancelled') {
+                                    $progressWidth = 'calc((100% - 30px) * 0.25)'; // Stop at second circle
+                                    $progressColor = '#dc3545'; // Red for rejected/cancelled
+                                }
+                            @endphp
+                            <div class="progress-line" style="width: {{ $progressWidth }}; background-color: {{ $progressColor }};"></div>
+                            
+                            <!-- Step 1: Pending -->
+                            <div class="tracker-step {{ $order->status == 'pending' ? 'active' : ($order->status == 'rejected' || $order->status == 'cancelled' ? '' : 'completed') }}">
+                                <div class="step-icon">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </div>
+                                <div class="step-label">Pending</div>
+                                <div class="step-date">
+                                    <span class="step-date-day">{{ $order->created_at->format('M j, Y') }}</span>
+                                    <span class="step-date-time">{{ $order->created_at->format('g:i A') }}</span>
+                                </div>
                             </div>
-                        @endforeach
+
+                            <!-- Step 2: Processing/Approved -->
+                            <div class="tracker-step {{ $order->status == 'processing' || $order->status == 'approved' ? 'active' :
+                                        ($order->status == 'rejected' || $order->status == 'cancelled' ? 'rejected' :
+                                        (in_array($order->status, ['packed', 'shipped', 'delivered']) ? 'completed' : '')) }}">
+                                <div class="step-icon">
+                                    @if($order->status == 'rejected' || $order->status == 'cancelled')
+                                        <i class="fas fa-times"></i>
+                                    @else
+                                        <i class="fas fa-cogs"></i>
+                                    @endif
+                                </div>
+                                <div class="step-label">
+                                    @if($order->status == 'rejected')
+                                        Rejected
+                                    @elseif($order->status == 'cancelled')
+                                        Cancelled
+                                    @else
+                                        Approved
+                                    @endif
+                                </div>
+                                <div class="step-date">
+                                    @if(in_array($order->status, ['rejected', 'cancelled', 'processing', 'approved', 'packed', 'shipped', 'delivered']))
+                                        <span class="step-date-day">{{ $order->updated_at->format('M j, Y') }}</span>
+                                        <span class="step-date-time">{{ $order->updated_at->format('g:i A') }}</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Packed -->
+                            <div class="tracker-step {{ $order->status == 'packed' ? 'active' :
+                                        (in_array($order->status, ['shipped', 'delivered']) ? 'completed' : '') }}">
+                                <div class="step-icon">
+                                    <i class="fas fa-box"></i>
+                                </div>
+                                <div class="step-label">Packed</div>
+                                <div class="step-date">
+                                    @if(in_array($order->status, ['packed', 'shipped', 'delivered']))
+                                        <span class="step-date-day">{{ $order->updated_at->format('M j, Y') }}</span>
+                                        <span class="step-date-time">{{ $order->updated_at->format('g:i A') }}</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Shipped -->
+                            <div class="tracker-step {{ $order->status == 'shipped' ? 'active' :
+                                        ($order->status == 'delivered' ? 'completed' : '') }}">
+                                <div class="step-icon">
+                                    <i class="fas fa-shipping-fast"></i>
+                                </div>
+                                <div class="step-label">Shipped</div>
+                                <div class="step-date">
+                                    @if(in_array($order->status, ['shipped', 'delivered']))
+                                        <span class="step-date-day">{{ $order->updated_at->format('M j, Y') }}</span>
+                                        <span class="step-date-time">{{ $order->updated_at->format('g:i A') }}</span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Delivered -->
+                            <div class="tracker-step {{ $order->status == 'delivered' ? 'active' : '' }}">
+                                <div class="step-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="step-label">Delivered</div>
+                                <div class="step-date">
+                                    @if($order->status == 'delivered')
+                                        <span class="step-date-day">{{ $order->updated_at->format('M j, Y') }}</span>
+                                        <span class="step-date-time">{{ $order->updated_at->format('g:i A') }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    @endif
                 </div>
             </div>
 

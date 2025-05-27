@@ -259,7 +259,7 @@
                 <div class="card-footer">
                     <!-- Pagination -->
                     <div class="d-flex justify-content-center">
-                        {{ $products->appends(request()->all())->links() }}
+                        @include('components.pagination', ['items' => $products])
                     </div>
                 </div>
             </div>

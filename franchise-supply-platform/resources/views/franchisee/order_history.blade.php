@@ -5,6 +5,7 @@
 @section('page-title', 'Order History')
 
 @section('styles')
+    <link href="{{ asset('css/status-styles.css') }}" rel="stylesheet">
 <style>
     .order-card {
         transition: all 0.2s ease;
@@ -109,31 +110,6 @@
         width: 18px;
     }
     
-    /* Badge styles for different order statuses */
-    .badge.bg-rejected {
-        background-color: #dc3545 !important; /* Red for rejected status */
-    }
-    
-    .badge.bg-cancelled {
-        background-color: #6c757d !important; /* Gray for cancelled status */
-    }
-    
-    .badge.bg-processing {
-        background-color: #17a2b8 !important; /* Blue for processing status */
-    }
-    
-    .badge.bg-pending {
-        background-color: #ffc107 !important; /* Yellow for pending status */
-        color: #212529 !important;
-    }
-    
-    .badge.bg-shipped {
-        background-color: #007bff !important; /* Primary blue for shipped status */
-    }
-    
-    .badge.bg-out_for_delivery {
-        background-color: #6610f2 !important; /* Purple for out for delivery status */
-    }
 </style>
 @endsection
 
@@ -243,16 +219,18 @@
                                         <span class="mx-2">|</span>
                                         <span>{{ $order->created_at->format('h:i A') }}</span>
                                         <span class="ms-2 text-center">
-                                            @if($order->status == 'delivered')
-                                                <span class="badge bg-success">Delivered</span>
-                                            @elseif($order->status == 'rejected')
-                                                <span class="badge bg-rejected">Rejected</span>
-                                            @elseif($order->status == 'approved')
-                                                <span class="badge bg-primary">Approved</span>
+                                            @if($order->status == 'pending')
+                                                <span class="status-badge status-pending">Pending</span>
+                                            @elseif($order->status == 'approved' || $order->status == 'processing')
+                                                <span class="status-badge status-processing">{{ ucfirst($order->status) }}</span>
                                             @elseif($order->status == 'packed')
-                                                <span class="badge bg-info">Packed</span>
+                                                <span class="status-badge status-packed">Packed</span>
                                             @elseif($order->status == 'shipped')
-                                                <span class="badge bg-success">Shipped</span>
+                                                <span class="status-badge status-shipped">Shipped</span>
+                                            @elseif($order->status == 'delivered')
+                                                <span class="status-badge status-delivered">Delivered</span>
+                                            @elseif($order->status == 'rejected' || $order->status == 'cancelled')
+                                                <span class="status-badge status-rejected">{{ ucfirst($order->status) }}</span>
                                             @endif
                                         </span>
                                     </div>
@@ -301,7 +279,7 @@
             
             <!-- Pagination -->
             <div class="d-flex justify-content-center mt-4">
-                {{ $orders->appends(request()->all())->links() }}
+                @include('components.pagination', ['items' => $orders])
             </div>
         </div>
     </div>

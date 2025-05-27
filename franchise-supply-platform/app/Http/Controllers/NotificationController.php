@@ -77,6 +77,24 @@ class NotificationController extends Controller
     }
     
     /**
+     * Delete all read notifications.
+     */
+    public function deleteAllRead()
+    {
+        $deletedCount = OrderNotification::where('user_id', Auth::id())
+            ->where('is_read', true)
+            ->delete();
+            
+        if ($deletedCount > 0) {
+            return redirect()->route('notifications.index')
+                ->with('success', $deletedCount . ' read notification' . ($deletedCount > 1 ? 's' : '') . ' deleted.');
+        }
+        
+        return redirect()->route('notifications.index')
+            ->with('info', 'No read notifications to delete.');
+    }
+    
+    /**
      * Get unread notifications count for the current user.
      * Used for AJAX requests.
      */

@@ -5,6 +5,7 @@
 @section('page-title', 'Pending Orders')
 
 @section('styles')
+<link rel="stylesheet" href="{{ asset('css/status-styles.css') }}">
 <style>
   /* Order Summary styles */
 .order-summary-section {
@@ -38,13 +39,14 @@
 }
     /* Order card styling */
     .order-card {
-      translate: all 0.3s ease;
+        transition: all 0.3s ease;
         border-radius: 8px;
         overflow: hidden;
     }
     
     .order-card:hover {
-        translate: background-color:rgb(177, 178, 179);
+        background-color: #f8f9fa;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     
     /* Status badge styling */
@@ -62,7 +64,8 @@
         align-items: center;
         position: relative;
         margin: 30px 0;
-        padding: 0 10px;
+        padding: 0 25px; /* Increased padding to center circles */
+        min-height: 80px; /* Ensure minimum height for proper alignment */
     }
 
     .order-tracker:before {
@@ -70,10 +73,9 @@
         position: absolute;
         background: #e5e5e5;
         height: 4px;
-        width: 100%;
-        top: 50%;
-        transform: translateY(-50%);
-        left: 0;
+        width: calc(100% - 50px); /* Account for padding */
+        top: 25px; /* Fixed position to align with circle centers */
+        left: 25px; /* Match padding */
         z-index: 1;
         border-radius: 2px;
     }
@@ -84,8 +86,8 @@
         align-items: center;
         position: relative;
         z-index: 3; /* Increased z-index to appear above the progress line */
-        width: 20%; /* 20% for 5 equal steps */
-        margin-top: 35px;
+        flex: 1; /* Use flex to distribute evenly */
+        max-width: 20%; /* Limit max width */
     }
     
     .step-icon {
@@ -109,7 +111,6 @@
         font-size: 13px; /* Slightly smaller text */
         font-weight: 500;
         color: #888;
-        margin-top: 5px;
         text-align: center;
     }
     
@@ -138,13 +139,12 @@
     /* Progress line styling */
     .progress-line {
         position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 25px; /* Fixed position to align with circle centers */
         height: 4px;
         background: #4CAF50;
-        z-index: 1;
+        z-index: 2;
         transition: width 0.5s ease, background-color 0.5s ease;
-        left: 0;
+        left: 25px; /* Match tracker padding */
         border-radius: 2px;
         box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
     }
@@ -343,19 +343,19 @@
             <div class="card-body p-0">
                 <div class="row g-0 border-0 d-flex justify-content-center">
                     <div class="col-md-3 stat-card status-filter {{ request('status') == 'pending' ? 'active' : '' }}" data-status="pending">
-                        <div class="stat-number text-dark">{{ $order_counts['pending'] ?? 0 }}</div>
+                        <div class="stat-number text-secondary">{{ $orderCounts['pending'] ?? 0 }}</div>
                         <div class="stat-label">Pending</div>
                     </div>
                     <div class="col-md-3 stat-card status-filter {{ request('status') == 'processing' ? 'active' : '' }}" data-status="processing">
-                        <div class="stat-number text-info">{{ $order_counts['processing'] ?? 0 }}</div>
+                        <div class="stat-number text-info">{{ $orderCounts['processing'] ?? 0 }}</div>
                         <div class="stat-label">Processing</div>
                     </div>
                     <div class="col-md-3 stat-card status-filter {{ request('status') == 'packed' ? 'active' : '' }}" data-status="packed">
-                        <div class="stat-number text-secondary">{{ $order_counts['packed'] ?? 0 }}</div>
+                        <div class="stat-number text-warning">{{ $orderCounts['packed'] ?? 0 }}</div>
                         <div class="stat-label">Packed</div>
                     </div>
                     <div class="col-md-3 stat-card status-filter {{ request('status') == 'shipped' ? 'active' : '' }}" data-status="shipped">
-                        <div class="stat-number text-primary">{{ $order_counts['shipped'] ?? 0 }}</div>
+                        <div class="stat-number text-primary">{{ $orderCounts['shipped'] ?? 0 }}</div>
                         <div class="stat-label">Shipped</div>
                     </div>
                 </div>
@@ -394,15 +394,19 @@
                         <small class="text-muted">Placed on {{ $order->created_at->format('M d, Y, h:i A') }}</small>
                     </div>
                     <div class="d-flex align-items-center">
-                        <span class="status-badge me-3">
+                        <span class="me-3">
                             @if($order->status == 'pending')
-                                <span class="badge bg-warning text-dark px-3 py-2">Pending</span>
-                            @elseif($order->status == 'processing')
-                                <span class="badge bg-info px-3 py-2">Processing</span>
+                                <span class="status-badge status-pending">Pending</span>
+                            @elseif($order->status == 'processing' || $order->status == 'approved')
+                                <span class="status-badge status-processing">Processing</span>
                             @elseif($order->status == 'packed')
-                                <span class="badge bg-secondary px-3 py-2">Packed</span>
+                                <span class="status-badge status-packed">Packed</span>
                             @elseif($order->status == 'shipped')
-                                <span class="badge bg-primary px-3 py-2">Shipped</span>
+                                <span class="status-badge status-shipped">Shipped</span>
+                            @elseif($order->status == 'delivered')
+                                <span class="status-badge status-delivered">Delivered</span>
+                            @elseif($order->status == 'rejected')
+                                <span class="status-badge status-rejected">Rejected</span>
                             @endif
                         </span>
                         <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm btn-outline-success action-btn">
@@ -421,31 +425,32 @@
                                 $progressWidth = 0;
                                 $progressColor = '#4CAF50'; // Default green
                                 $numSteps = 5; // Total number of steps in the progress bar
-
-                                // Calculate position for each status (as percentage)
-                                $stepWidth = 100 / ($numSteps - 1); // Width for each step (0%, 25%, 50%, 75%, 100%)
-
+                                
+                                // Calculate the width to reach each circle center
+                                // The full width minus padding is divided into 4 segments (between 5 circles)
+                                $containerWidth = 'calc(100% - 50px)';
+                                
                                 if($order->status == 'pending') {
-                                    $progressWidth = $stepWidth * 0; // 0%
+                                    $progressWidth = '0px'; // Stay at first circle
                                 }
                                 elseif($order->status == 'processing' || $order->status == 'approved') {
-                                    $progressWidth = $stepWidth * 1; // 25%
+                                    $progressWidth = 'calc((100% - 50px) * 0.25)'; // 25% of container width
                                 }
                                 elseif($order->status == 'packed') {
-                                    $progressWidth = $stepWidth * 2; // 50%
+                                    $progressWidth = 'calc((100% - 50px) * 0.5)'; // 50% of container width
                                 }
                                 elseif($order->status == 'shipped') {
-                                    $progressWidth = $stepWidth * 3; // 75%
+                                    $progressWidth = 'calc((100% - 50px) * 0.75)'; // 75% of container width
                                 }
                                 elseif($order->status == 'delivered') {
-                                    $progressWidth = $stepWidth * 4; // 100%
+                                    $progressWidth = 'calc(100% - 50px)'; // Full container width
                                 }
                                 elseif($order->status == 'rejected' || $order->status == 'cancelled') {
-                                    $progressWidth = $stepWidth * 1; // 25% (at the approved stage)
+                                    $progressWidth = 'calc((100% - 50px) * 0.25)'; // Stop at second circle
                                     $progressColor = '#dc3545'; // Red for rejected/cancelled
                                 }
                             @endphp
-                            <div class="progress-line" style="width: {{ $progressWidth }}%; background-color: {{ $progressColor }}; z-index: 2;"></div>
+                            <div class="progress-line" style="width: {{ $progressWidth }}; background-color: {{ $progressColor }};"></div>
                             
                             <!-- Step 1: Pending -->
                             <div class="tracker-step {{ $order->status == 'pending' ? 'active' : ($order->status == 'rejected' || $order->status == 'cancelled' ? '' : 'completed') }}">
@@ -643,7 +648,7 @@
             
             <!-- Pagination -->
             <div class="d-flex justify-content-center mt-4">
-                {{ $orders->appends(request()->query())->links() }}
+                @include('components.pagination', ['items' => $orders])
             </div>
         </div>
     </div>

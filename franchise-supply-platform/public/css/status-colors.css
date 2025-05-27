@@ -1,0 +1,88 @@
+/* Consistent Order Status Colors */
+
+/* Status Badge Colors */
+.badge.status-pending {
+    background-color: #6c757d !important; /* Bootstrap secondary grey */
+    color: #fff !important;
+}
+
+.badge.status-processing,
+.badge.status-approved {
+    background-color: #0dcaf0 !important; /* Bootstrap info blue */
+    color: #fff !important;
+}
+
+.badge.status-packed {
+    background-color: #ffc107 !important; /* Bootstrap warning yellow */
+    color: #000 !important;
+}
+
+.badge.status-shipped {
+    background-color: #0d6efd !important; /* Bootstrap primary blue */
+    color: #fff !important;
+}
+
+.badge.status-delivered {
+    background-color: #198754 !important; /* Bootstrap success green */
+    color: #fff !important;
+}
+
+.badge.status-rejected,
+.badge.status-cancelled {
+    background-color: #dc3545 !important; /* Bootstrap danger red */
+    color: #fff !important;
+}
+
+/* Text Colors for Status */
+.text-status-pending {
+    color: #6c757d !important;
+}
+
+.text-status-processing,
+.text-status-approved {
+    color: #0dcaf0 !important;
+}
+
+.text-status-packed {
+    color: #ffc107 !important;
+}
+
+.text-status-shipped {
+    color: #0d6efd !important;
+}
+
+.text-status-delivered {
+    color: #198754 !important;
+}
+
+.text-status-rejected,
+.text-status-cancelled {
+    color: #dc3545 !important;
+}
+
+/* Border Colors for Status Cards */
+.border-status-pending {
+    border-color: #6c757d !important;
+}
+
+.border-status-processing,
+.border-status-approved {
+    border-color: #0dcaf0 !important;
+}
+
+.border-status-packed {
+    border-color: #ffc107 !important;
+}
+
+.border-status-shipped {
+    border-color: #0d6efd !important;
+}
+
+.border-status-delivered {
+    border-color: #198754 !important;
+}
+
+.border-status-rejected,
+.border-status-cancelled {
+    border-color: #dc3545 !important;
+}

@@ -159,9 +159,7 @@
         </div>
         
         <!-- Pagination Links -->
-        <div class="d-flex justify-content-center mt-4">
-            {{ $users->appends(request()->query())->links() }}
-        </div>
+        @include('components.pagination', ['items' => $users->appends(request()->query())])
     </div>
 </div>
 

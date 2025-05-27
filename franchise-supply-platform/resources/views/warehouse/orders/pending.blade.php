@@ -14,7 +14,7 @@
 <!-- Orders Table -->
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Orders Awaiting Fulfillment</h6>
+        <h6 class="m-0 font-weight-bold text-info">Orders Awaiting Fulfillment</h6>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -54,7 +54,7 @@
                                         @endif
                                     </small>
                                     @if($order->delivery_preference == 'express')
-                                        <br><span class="badge badge-danger">EXPRESS</span>
+                                        <br><span class="badge bg-danger">EXPRESS</span>
                                     @endif
                                 @else
                                     Not specified
@@ -88,9 +88,7 @@
         </div>
         
         <!-- Pagination -->
-        <div class="d-flex justify-content-center mt-4">
-            {{ $orders->links() }}
-        </div>
+        @include('components.pagination', ['items' => $orders])
     </div>
 </div>
 

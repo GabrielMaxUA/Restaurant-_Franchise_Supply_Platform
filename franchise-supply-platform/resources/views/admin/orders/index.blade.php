@@ -6,56 +6,6 @@
 @section('styles')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
-<style>
-    .pagination-wrapper {
-        padding: 1rem;
-        background-color: #f8f9fa;
-        border-top: 1px solid #dee2e6;
-        text-align: center;
-    }
-    .pagination-info {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-    }
-    .pagination {
-        display: inline-flex;
-        list-style: none;
-        padding-left: 0;
-        margin: 0;
-        border-radius: 0.375rem;
-        justify-content: center;
-    }
-    .page-item {
-        display: inline-block;
-    }
-    .page-link {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem 0.75rem;
-        margin-left: -1px;
-        line-height: 1.25;
-        color: #4e73df;
-        background-color: #fff;
-        border: 1px solid #dee2e6;
-        font-size: 0.875rem;
-        min-width: 40px;
-        text-align: center;
-    }
-    .page-item.active .page-link {
-        background-color: #4e73df;
-        color: #fff;
-        border-color: #4e73df;
-    }
-    .page-item.disabled .page-link {
-        color: #6c757d;
-        pointer-events: none;
-        background-color: #fff;
-        border-color: #dee2e6;
-    }
-</style>
 @endsection
 
 @section('content')
@@ -71,6 +21,65 @@
 @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>
 @endif
+
+<!-- Filter Section -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ route('admin.orders.index') }}" class="filters-form">
+            <div class="row align-items-end">
+                <!-- Search by Order Number -->
+                <div class="col-md-2 mb-3">
+                    <label for="order_number" class="form-label">Order #</label>
+                    <input type="text" class="form-control" id="order_number" name="order_number" 
+                           placeholder="Order number..." 
+                           value="{{ request('order_number') }}">
+                </div>
+                
+                <!-- Search by Customer Name -->
+                <div class="col-md-3 mb-3">
+                    <label for="username" class="form-label">Customer Name</label>
+                    <input type="text" class="form-control" id="username" name="username" 
+                           placeholder="Search customer..." 
+                           value="{{ request('username') }}">
+                </div>
+                
+                <!-- Search by Company Name -->
+                <div class="col-md-3 mb-3">
+                    <label for="company_name" class="form-label">Company Name</label>
+                    <input type="text" class="form-control" id="company_name" name="company_name" 
+                           placeholder="Search company..." 
+                           value="{{ request('company_name') }}">
+                </div>
+                
+                <!-- Status Filter -->
+                <div class="col-md-2 mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="packed" {{ request('status') == 'packed' ? 'selected' : '' }}>Packed</option>
+                        <option value="shipped" {{ request('status') == 'shipped' ? 'selected' : '' }}>Shipped</option>
+                        <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                        <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
+                    </select>
+                </div>
+                
+                <!-- Filter Actions -->
+                <div class="col-md-2 mb-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-fill">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <a href="{{ route('admin.orders.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-redo"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div class="data-table">
     <div class="table-responsive">
@@ -108,12 +117,14 @@
                     <td class="text-center">
                         @php
                             $badge = match($order->status) {
-                                'pending' => 'bg-warning text-dark',
+                                'pending' => 'bg-secondary',
                                 'approved' => 'bg-info',
-                                'packed' => 'bg-secondary',
+                                'processing' => 'bg-info',
+                                'packed' => 'bg-warning',
                                 'shipped' => 'bg-primary',
                                 'delivered' => 'bg-success',
                                 'rejected' => 'bg-danger',
+                                'cancelled' => 'bg-danger',
                                 default => 'bg-secondary',
                             };
                         @endphp
@@ -141,57 +152,7 @@
         </table>
     </div>
 
-    @if($orders->hasPages())
-        <div class="pagination-wrapper">
-            <div class="pagination-info">
-                Showing {{ $orders->firstItem() }} to {{ $orders->lastItem() }} of {{ $orders->total() }} results
-            </div>
-            <nav>
-                <ul class="pagination justify-content-center">
-                    {{-- Previous --}}
-                    @if ($orders->onFirstPage())
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="fas fa-angle-left"></i></span>
-                        </li>
-                    @else
-                        <li class="page-item">
-                            <a class="page-link" href="{{ $orders->previousPageUrl() }}" rel="prev">
-                                <i class="fas fa-angle-left"></i>
-                            </a>
-                        </li>
-                    @endif
-
-                    {{-- Pages --}}
-                    @foreach ($orders->links()->elements[0] as $page => $url)
-                        @if ($page == $orders->currentPage())
-                            <li class="page-item active"><span class="page-link">{{ $page }}</span></li>
-                        @else
-                            <li class="page-item"><a class="page-link" href="{{ $url }}">{{ $page }}</a></li>
-                        @endif
-                    @endforeach
-
-                    {{-- Next --}}
-                    @if ($orders->hasMorePages())
-                        <li class="page-item">
-                            <a class="page-link" href="{{ $orders->nextPageUrl() }}" rel="next">
-                                <i class="fas fa-angle-right"></i>
-                            </a>
-                        </li>
-                    @else
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="fas fa-angle-right"></i></span>
-                        </li>
-                    @endif
-                </ul>
-            </nav>
-        </div>
-    @else
-        <div class="pagination-wrapper">
-            <div class="pagination-info">
-                Showing {{ $orders->count() }} result{{ $orders->count() !== 1 ? 's' : '' }}
-            </div>
-        </div>
-    @endif
+    @include('components.pagination', ['items' => $orders])
 </div>
 @endsection
 

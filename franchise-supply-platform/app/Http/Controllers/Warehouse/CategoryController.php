@@ -8,9 +8,37 @@ use App\Models\Category;
 
 class CategoryController extends Controller 
 {
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::withCount('products')->orderBy('name')->get();
+        $query = Category::withCount('products');
+        
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        
+        // Sort functionality
+        $sortBy = $request->get('sort_by', 'name');
+        $sortOrder = $request->get('sort_order', 'asc');
+        
+        switch ($sortBy) {
+            case 'products_count':
+                $query->orderBy('products_count', $sortOrder);
+                break;
+            case 'created_at':
+                $query->orderBy('created_at', $sortOrder);
+                break;
+            case 'name':
+            default:
+                $query->orderBy('name', $sortOrder);
+                break;
+        }
+        
+        $categories = $query->paginate(15)->appends($request->query());
         
         // Check if this is a warehouse route
         $routeName = request()->route()->getName();
@@ -111,5 +139,26 @@ class CategoryController extends Controller
         
         return redirect()->route('admin.categories.index')
             ->with('success', 'Category deleted successfully.');
+    }
+    
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'category_ids' => 'required|array',
+            'category_ids.*' => 'exists:categories,id'
+        ]);
+        
+        // Delete selected categories
+        Category::whereIn('id', $validated['category_ids'])->delete();
+        
+        // Check if this is a warehouse route
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return redirect()->route('warehouse.categories.index')
+                ->with('success', count($validated['category_ids']) . ' categories deleted successfully.');
+        }
+        
+        return redirect()->route('admin.categories.index')
+            ->with('success', count($validated['category_ids']) . ' categories deleted successfully.');
     }
 }

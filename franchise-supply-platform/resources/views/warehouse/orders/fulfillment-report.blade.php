@@ -42,11 +42,11 @@
 <!-- Fulfillment Metrics Summary -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card border-left-primary shadow h-100 py-2">
+        <div class="card border-left-info shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
                             Waiting for Fulfillment</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $approvedCount }}</div>
                     </div>
@@ -76,11 +76,11 @@
     </div>
     
     <div class="col-md-3">
-        <div class="card border-left-info shadow h-100 py-2">
+        <div class="card border-left-primary shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                             Shipped</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $shippedCount }}</div>
                     </div>
@@ -174,7 +174,7 @@
                             <strong>{{ round($avgFulfillmentTime * 0.3, 1) }} hours</strong>
                         </div>
                         <div class="progress mb-2">
-                            <div class="progress-bar bg-primary" role="progressbar" style="width: 30%" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar bg-info" role="progressbar" style="width: 30%" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
                     
@@ -184,7 +184,7 @@
                             <strong>{{ round($avgFulfillmentTime * 0.2, 1) }} hours</strong>
                         </div>
                         <div class="progress mb-2">
-                            <div class="progress-bar bg-info" role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
                     
@@ -194,7 +194,7 @@
                             <strong>{{ round($avgFulfillmentTime * 0.5, 1) }} hours</strong>
                         </div>
                         <div class="progress">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
                 </div>

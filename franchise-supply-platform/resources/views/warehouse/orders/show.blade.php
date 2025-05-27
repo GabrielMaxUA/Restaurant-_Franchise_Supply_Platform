@@ -24,9 +24,9 @@
 
 <!-- Order Status Banner -->
 <div class="card mb-4
-    @if($order->status == 'approved') bg-primary text-white
+    @if($order->status == 'approved') bg-info text-white
     @elseif($order->status == 'packed') bg-warning
-    @elseif($order->status == 'shipped') bg-info text-white
+    @elseif($order->status == 'shipped') bg-primary text-white
     @elseif($order->status == 'delivered') bg-success text-white
     @elseif($order->status == 'rejected') bg-danger text-white
     @elseif($order->status == 'pending') bg-secondary text-white

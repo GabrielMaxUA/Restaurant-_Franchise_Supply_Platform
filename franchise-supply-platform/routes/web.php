@@ -116,6 +116,7 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::get('/mark-read/{id}', [NotificationController::class, 'markAsRead'])->name('mark-read');
         Route::get('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::delete('/delete-all-read', [NotificationController::class, 'deleteAllRead'])->name('delete-all-read');
         Route::delete('/{id}', [NotificationController::class, 'destroy'])->name('destroy');
         Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
         Route::get('/recent', [NotificationController::class, 'recent'])->name('recent');
@@ -153,6 +154,7 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
             Route::get('/', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('index');
             Route::get('/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('create');
             Route::post('/', [App\Http\Controllers\Admin\ProductController::class, 'store'])->name('store');
+            Route::delete('/bulk-delete', [App\Http\Controllers\Admin\ProductController::class, 'bulkDelete'])->name('bulk-delete');
             Route::get('/{product}', [App\Http\Controllers\Admin\ProductController::class, 'show'])->name('show');
             Route::get('/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('edit');
             Route::put('/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('update');
@@ -164,6 +166,7 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
             Route::get('/', [App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('index');
             Route::get('/create', [App\Http\Controllers\Admin\CategoryController::class, 'create'])->name('create');
             Route::post('/', [App\Http\Controllers\Admin\CategoryController::class, 'store'])->name('store');
+            Route::delete('/bulk-delete', [App\Http\Controllers\Admin\CategoryController::class, 'bulkDelete'])->name('bulk-delete');
             Route::get('/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'show'])->name('show');
             Route::get('/{category}/edit', [App\Http\Controllers\Admin\CategoryController::class, 'edit'])->name('edit');
             Route::put('/{category}', [App\Http\Controllers\Admin\CategoryController::class, 'update'])->name('update');
@@ -210,6 +213,7 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/products', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('warehouse.products.index');
         Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])->name('warehouse.products.create');
         Route::post('/products', [App\Http\Controllers\Admin\ProductController::class, 'store'])->name('warehouse.products.store');
+        Route::delete('/products/bulk-delete', [App\Http\Controllers\Admin\ProductController::class, 'bulkDelete'])->name('warehouse.products.bulk-delete');
         Route::get('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'show'])->name('warehouse.products.show');
         Route::get('/products/{product}/edit', [App\Http\Controllers\Admin\ProductController::class, 'edit'])->name('warehouse.products.edit');
         Route::put('/products/{product}', [App\Http\Controllers\Admin\ProductController::class, 'update'])->name('warehouse.products.update');
@@ -219,6 +223,7 @@ Route::middleware(['auth'])->middleware(CheckUserStatus::class)->group(function 
         Route::get('/categories', [App\Http\Controllers\Warehouse\CategoryController::class, 'index'])->name('warehouse.categories.index');
         Route::get('/categories/create', [App\Http\Controllers\Warehouse\CategoryController::class, 'create'])->name('warehouse.categories.create');
         Route::post('/categories', [App\Http\Controllers\Warehouse\CategoryController::class, 'store'])->name('warehouse.categories.store');
+        Route::delete('/categories/bulk-delete', [App\Http\Controllers\Warehouse\CategoryController::class, 'bulkDelete'])->name('warehouse.categories.bulk-delete');
         Route::get('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'show'])->name('warehouse.categories.show');
         Route::get('/categories/{category}/edit', [App\Http\Controllers\Warehouse\CategoryController::class, 'edit'])->name('warehouse.categories.edit');
         Route::put('/categories/{category}', [App\Http\Controllers\Warehouse\CategoryController::class, 'update'])->name('warehouse.categories.update');

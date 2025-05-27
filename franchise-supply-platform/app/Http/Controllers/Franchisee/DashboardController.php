@@ -66,9 +66,9 @@ class DashboardController extends Controller
         
         // Calculate key stats
         $stats = [
-            // Count pending orders
+            // Count pending orders (only orders with status 'pending')
             'pending_orders' => Order::where('user_id', $user->id)
-                ->whereIn('status', $activeStatuses)
+                ->where('status', 'pending')
                 ->count(),
                 
             // Calculate monthly spending
@@ -85,9 +85,9 @@ class DashboardController extends Controller
                 ->whereIn('status', ['shipped', 'out_for_delivery'])
                 ->count(),
                 
-            // Count last month pending orders for comparison
+            // Count last month pending orders for comparison (only orders with status 'pending')
             'last_month_pending_orders' => Order::where('user_id', $user->id)
-                ->whereIn('status', $activeStatuses)
+                ->where('status', 'pending')
                 ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
                 ->count(),
         ];
@@ -167,10 +167,11 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
             
-        // Add items_count to each order
+        // Add items_count and order_number to each order
         foreach ($recent_orders as $order) {
             $order->items_count = OrderItem::where('order_id', $order->id)->sum('quantity');
             $order->total = $order->total_amount; // Normalize field name for the view
+            $order->order_number = $order->order_number ?? 'ORD-' . str_pad($order->id, 3, '0', STR_PAD_LEFT);
         }
         
         // Get popular products (based on order frequency)
@@ -254,13 +255,13 @@ public function apiDashboard()
           $spendingChange = round((($monthlySpending - $lastMonthSpending) / $lastMonthSpending) * 100);
       }
 
-      // Calculate pending orders metrics
+      // Calculate pending orders metrics (only orders with status 'pending')
       $pendingOrders = Order::where('user_id', $user->id)
-          ->whereIn('status', $activeStatuses)
+          ->where('status', 'pending')
           ->count();
 
       $lastMonthPendingOrders = Order::where('user_id', $user->id)
-          ->whereIn('status', $activeStatuses)
+          ->where('status', 'pending')
           ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])
           ->count();
 

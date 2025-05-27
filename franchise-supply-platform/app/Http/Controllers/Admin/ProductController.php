@@ -747,6 +747,48 @@ public function update(Request $request, $product = null)
             ->with('success', 'Product deleted successfully.');
     }
     
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id'
+        ]);
+        
+        // Get products to delete
+        $products = Product::whereIn('id', $validated['product_ids'])->get();
+        
+        foreach ($products as $product) {
+            // Delete related images from storage
+            foreach ($product->images as $image) {
+                if (Storage::disk('public')->exists($image->image_url)) {
+                    Storage::disk('public')->delete($image->image_url);
+                }
+            }
+            
+            // Delete variant images
+            foreach ($product->variants as $variant) {
+                foreach ($variant->images as $image) {
+                    if (Storage::disk('public')->exists($image->image_url)) {
+                        Storage::disk('public')->delete($image->image_url);
+                    }
+                }
+            }
+        }
+        
+        // Delete selected products
+        Product::whereIn('id', $validated['product_ids'])->delete();
+        
+        // Check if this is a warehouse route
+        $routeName = request()->route()->getName();
+        if (strpos($routeName, 'warehouse.') === 0) {
+            return redirect()->route('warehouse.products.index')
+                ->with('success', count($validated['product_ids']) . ' products deleted successfully.');
+        }
+        
+        return redirect()->route('admin.products.index')
+            ->with('success', count($validated['product_ids']) . ' products deleted successfully.');
+    }
+    
     /**
      * Display products with low stock.
      */

@@ -258,32 +258,54 @@
         }
         
         .status-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
             text-transform: uppercase;
+            display: inline-block;
         }
         
-        .status-approved {
-            background-color: #1cc88a;
-            color: white;
+        .status-pending {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+        
+        .status-processing {
+            background-color: #cff4fc;
+            color: #055160;
+            border: 1px solid #b6effb;
         }
         
         .status-packed {
-            background-color: #36b9cc;
-            color: white;
+            background-color: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffecb5;
         }
         
         .status-shipped {
-            background-color: #4e73df;
-            color: white;
+            background-color: #cfe2ff;
+            color: #084298;
+            border: 1px solid #b5d3ff;
         }
         
         .status-delivered {
-            background-color: #1cc88a;
-            color: white;
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+        
+        .status-rejected {
+            background-color: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+        }
+        
+        .status-secondary {
+            background-color: #e2e3e5;
+            color: #41464b;
+            border: 1px solid #d3d6d8;
         }
         
         .company-logo {
@@ -343,12 +365,6 @@
                     <span class="invoice-info-label">Order #:</span> {{ $order->id }}
                 </div>
                 
-                <div class="invoice-info">
-                    <span class="invoice-info-label">Status:</span> 
-                    <span class="status-badge status-{{ strtolower($order->status) }}">
-                        {{ ucfirst($order->status) }}
-                    </span>
-                </div>
                 
                 <div class="invoice-dates">
                     <div class="invoice-info">
@@ -498,13 +514,11 @@
         </div>
         @endif
         
-        <div class="thank-you">
-            Thank You for Your Business!
-        </div>
-
         <!-- Footer -->
         <div class="footer">
-            <p>{{ config('company.invoice_footer_text', 'Thank you for your business!') }}</p>
+            <div class="thank-you">
+                Thank You for Your Business!
+            </div>
             <p>Invoice #{{ $invoiceNumber }} | Generated on {{ date('Y-m-d H:i:s') }}</p>
             @if($adminDetail && $adminDetail->tax_id)
                 <p>Tax ID: {{ $adminDetail->tax_id }}</p>
