@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
 use App\Mail\OrderConfirmationEmail;
+use App\Services\InvoiceService;
 
 class EmailNotificationService
 {
@@ -312,5 +313,94 @@ class EmailNotificationService
     {
         // Store in cache for 24 hours to prevent duplicates within a day
         Cache::put($emailKey, true, now()->addHours(24));
+    }
+
+    /**
+     * Send invoice email with PDF attachment when order is approved
+     *
+     * @param  \App\Models\Order  $order
+     * @return bool
+     */
+    public function sendInvoiceEmail(Order $order): bool
+    {
+        $customerEmail = $order->user->email;
+        if (!$customerEmail || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            Log::warning('No valid customer email found for invoice email', [
+                'order_id' => $order->id
+            ]);
+            return false;
+        }
+
+        // Check for duplicate email to prevent sending twice
+        $emailKey = "invoice_email_{$order->id}_{$customerEmail}";
+        if ($this->isEmailAlreadySent($emailKey)) {
+            Log::info('Duplicate invoice email prevented', [
+                'order_id' => $order->id,
+                'email' => $customerEmail
+            ]);
+            return true;
+        }
+
+        $invoiceService = new InvoiceService();
+        $invoicePath = null;
+
+        try {
+            // Generate the invoice PDF
+            $invoicePath = $invoiceService->generateInvoicePDF($order);
+            
+            if (!$invoicePath || !file_exists($invoicePath)) {
+                Log::error('Invoice PDF generation failed or file not found', [
+                    'order_id' => $order->id,
+                    'invoice_path' => $invoicePath
+                ]);
+                return false;
+            }
+
+            $recipientName = $order->user->franchiseeProfile->contact_name ?? $order->user->username;
+            $invoiceNumber = $order->invoice_number ?? config('company.invoice_prefix', 'INV-') . $order->id . '-' . date('Ymd');
+            
+            // Email data
+            $emailData = [
+                'order' => $order,
+                'recipientName' => $recipientName,
+                'invoiceNumber' => $invoiceNumber,
+                'trackingUrl' => url('/franchisee/orders/' . $order->id . '/details')
+            ];
+
+            // Send the email with attachment
+            Mail::send('emails.orders.invoice', $emailData, function ($message) use ($customerEmail, $recipientName, $invoicePath, $invoiceNumber) {
+                $message->to($customerEmail, $recipientName)
+                        ->subject('Invoice ' . $invoiceNumber . ' - Order Approved')
+                        ->from(config('mail.from.address'), config('mail.from.name'))
+                        ->attach($invoicePath, [
+                            'as' => 'invoice_' . $invoiceNumber . '.pdf',
+                            'mime' => 'application/pdf'
+                        ]);
+            });
+
+            // Mark email as sent to prevent duplicates
+            $this->markEmailAsSent($emailKey);
+
+            Log::info('Invoice email sent successfully', [
+                'order_id' => $order->id,
+                'recipient' => $customerEmail,
+                'invoice_number' => $invoiceNumber
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send invoice email', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        } finally {
+            // Clean up the temporary invoice file
+            if ($invoicePath && file_exists($invoicePath)) {
+                $invoiceService->deleteTemporaryInvoice($invoicePath);
+            }
+        }
     }
 }

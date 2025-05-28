@@ -27,6 +27,11 @@ class PushNotificationService
     public function sendOrderStatusNotification(Order $order, string $previousStatus = null)
     {
         $franchisee = $order->user;
+
+        Log::info('✅ Entered sendOrderStatusChangeNotification', [
+          'order_id' => $order->id,
+          'status' => $order->status
+      ]);
         
         if (!$franchisee || !$franchisee->fcm_token) {
             Log::info('No FCM token found for franchisee', ['user_id' => $franchisee?->id]);

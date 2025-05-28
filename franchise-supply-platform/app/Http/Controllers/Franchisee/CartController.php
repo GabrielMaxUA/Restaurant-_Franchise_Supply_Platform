@@ -723,18 +723,26 @@ public function placeOrder(Request $request)
         \Log::info("Order #{$order->id} ({$orderNumber}) placed successfully by user #" . Auth::id() . " with total: $" . $finalTotal);
 
         // Send success response
-        return $this->successResponse($request, [
-            'success' => true,
-            'message' => 'Order placed successfully!',
-            'order_id' => $order->id,
-            'order_number' => $orderNumber,
-            'total' => $finalTotal,
-            'subtotal' => $total,
-            'tax' => $tax,
-            'shipping_cost' => $shippingCost,
-            'items_count' => count($orderItems)
-        ]);
+     // Final response depending on request type
+if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+  return response()->json([
+      'success' => true,
+      'message' => 'Order placed successfully!',
+      'order_id' => $order->id,
+      'order_number' => $orderNumber,
+      'total' => $finalTotal,
+      'subtotal' => $total,
+      'tax' => $tax,
+      'shipping_cost' => $shippingCost,
+      'items_count' => count($orderItems)
+  ]);
+} else {
+  // Flash success for Blade and stay on cart page
+  return redirect()->route('franchisee.cart')->with('success', 'Your order has been placed successfully!');
 
+}
+
+       
     } catch (\Exception $e) {
         DB::rollBack();
         \Log::error('Order placement failed:', [

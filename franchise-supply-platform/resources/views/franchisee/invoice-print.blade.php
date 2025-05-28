@@ -528,7 +528,7 @@
         </div>
     </div>
     
-    <script>
+    <!-- <script>
         // Auto-print when page loads
         window.onload = function() {
             // Wait 1 second for styles to load
@@ -539,6 +539,6 @@
                 }
             }, 1000);
         };
-    </script>
+    </script> -->
 </body>
 </html>

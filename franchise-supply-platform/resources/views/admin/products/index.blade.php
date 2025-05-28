@@ -325,33 +325,39 @@
         updateBulkActions();
     });
     
-    // Individual checkbox change
-    document.querySelectorAll('.bulk-select-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', updateBulkActions);
+    // Individual checkbox change - use event delegation for dynamic content
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('bulk-select-checkbox')) {
+            updateBulkActions();
+        }
     });
     
     function updateBulkActions() {
-        selectedIds = [];
-        const checkboxes = document.querySelectorAll('.bulk-select-checkbox:checked');
-        checkboxes.forEach(checkbox => {
-            selectedIds.push(checkbox.value);
-        });
-        
-        const bulkActions = document.getElementById('bulkActions');
-        const selectedCount = bulkActions.querySelector('.selected-count');
-        
-        if (selectedIds.length > 0) {
-            bulkActions.classList.add('show');
-            selectedCount.textContent = selectedIds.length;
-        } else {
-            bulkActions.classList.remove('show');
-        }
-        
-        // Update select all checkbox state
-        const selectAll = document.getElementById('selectAll');
-        const totalCheckboxes = document.querySelectorAll('.bulk-select-checkbox').length;
-        selectAll.checked = selectedIds.length === totalCheckboxes && totalCheckboxes > 0;
+    const checkboxes = document.querySelectorAll('.bulk-select-checkbox');
+    const checkedBoxes = document.querySelectorAll('.bulk-select-checkbox:checked');
+
+    // Clear selectedIds and repopulate
+    selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = bulkActions.querySelector('.selected-count');
+
+    // Show/hide the bulk actions section
+    if (selectedIds.length > 0) {
+        bulkActions.classList.add('show');
+    } else {
+        bulkActions.classList.remove('show');
     }
+
+    // Update the count
+    selectedCount.textContent = selectedIds.length;
+
+    // Handle "Select All" checkbox logic correctly
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = checkboxes.length > 0 && checkedBoxes.length === checkboxes.length;
+    selectAll.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < checkboxes.length;
+}
+
     
     function bulkDelete() {
         if (selectedIds.length === 0) return;
