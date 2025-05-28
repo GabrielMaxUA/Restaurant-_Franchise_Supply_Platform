@@ -13,7 +13,7 @@
         }
         .container {
             width: 4in;
-            height: 6in;
+            height: auto;
             margin: 20px auto;
             border: 1px solid #000;
             padding: 0.25in;
@@ -120,11 +120,9 @@
     <div class="container">
         <div class="label-content">
             <div class="header">
-                <img src="{{ asset('images/myLogo.png') }}" alt="Company Logo" class="logo">
+                <img src="{{ asset('images/invoiceLogo.png') }}" alt="Company Logo" class="logo">
                 <div class="company-info">
                     <strong>Restaurant Franchise Supply Platform</strong><br>
-                    123 Warehouse St.<br>
-                    Distribution City, ST 12345
                 </div>
             </div>
             

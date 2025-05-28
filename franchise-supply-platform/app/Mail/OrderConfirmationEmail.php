@@ -69,8 +69,8 @@ class OrderConfirmationEmail extends Mailable
         
         // Generate tracking URL
         $trackingUrl = $this->order->email_access_token 
-            ? url('/order/track/' . $this->order->id . '/' . $this->order->email_access_token)
-            : url('/franchisee/orders/' . $this->order->id . '/details');
+        ? url('/order/track/' . $this->order->id . '/' . $this->order->email_access_token)
+        : url('/franchisee/orders/' . $this->order->id . '/details');
 
         return new Content(
             markdown: 'emails.orders.order-confirmation',

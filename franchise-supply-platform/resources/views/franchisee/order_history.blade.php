@@ -1,4 +1,4 @@
-@extends('layouts.franchisee')
+\@extends('layouts.franchisee')
 
 @section('title', 'Order History - Franchisee Portal')
 
@@ -294,13 +294,25 @@
                 <div class="row">
                     <div class="col-md-4">
                         <a href="{{ route('franchisee.orders.reports') }}" class="btn btn-outline-primary w-100 mb-2">
-                            <i class="fas fa-chart-bar me-2"></i> Generate Order Reports
+                            <i class="fas fa-chart-bar me-2"></i> View Analytics & Reports
                         </a>
                     </div>
                     <div class="col-md-4">
-                        <a href="{{ route('franchisee.orders.export') }}" class="btn btn-outline-success w-100 mb-2">
-                            <i class="fas fa-file-excel me-2"></i> Export Order History
-                        </a>
+                        <button type="button" class="btn btn-outline-success w-100 mb-2 dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fas fa-download me-2"></i> Export Data
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item download-export" href="{{ route('franchisee.orders.export') }}?format=csv{{ request('date_from') ? '&date_from=' . request('date_from') : '' }}{{ request('date_to') ? '&date_to=' . request('date_to') : '' }}{{ request('status') ? '&status=' . request('status') : '' }}">
+                                    <i class="fas fa-file-csv me-2"></i> Export as CSV
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item download-export" href="{{ route('franchisee.orders.export') }}?format=csv">
+                                    <i class="fas fa-table me-2"></i> Export All Orders
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                     <div class="col-md-4">
                         <a href="{{ route('franchisee.catalog') }}" class="btn btn-success w-100 mb-2">
@@ -378,6 +390,32 @@
         function submitForm() {
             document.getElementById('filterForm').submit();
         }
+        
+        // Handle export download links
+        document.querySelectorAll('.download-export').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Show loading overlay
+                if (typeof window.showLoadingOverlay === 'function') {
+                    window.showLoadingOverlay('Preparing export...');
+                }
+                
+                // Create iframe for download
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                iframe.src = this.href;
+                
+                // Hide loading overlay after delay
+                setTimeout(() => {
+                    if (typeof window.hideLoadingOverlay === 'function') {
+                        window.hideLoadingOverlay();
+                    }
+                    document.body.removeChild(iframe);
+                }, 2000);
+            });
+        });
     });
 </script>
 @endsection

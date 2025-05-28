@@ -1,9 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Order Status Update</title>
+    <!--[if mso]>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:AllowPNG/>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+    </xml>
+    <![endif]-->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -113,7 +122,13 @@
             
             <div class="cta-section">
                 <p>View your complete order details and track its progress:</p>
-                <a href="{{ $trackingUrl }}" class="cta-button">View Order Details</a>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                    <tr>
+                        <td align="center" style="border-radius: 5px;" bgcolor="{{ $statusColor }}">
+                            <a href="{{ $trackingUrl }}" target="_blank" style="display: inline-block; padding: 12px 30px; font-family: Arial, sans-serif; font-size: 16px; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Order Details</a>
+                        </td>
+                    </tr>
+                </table>
             </div>
             
             <p>If you have any questions about your order, please don't hesitate to contact our customer service team.</p>

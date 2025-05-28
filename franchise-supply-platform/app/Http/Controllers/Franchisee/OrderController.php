@@ -1256,4 +1256,220 @@ public function repeatOrderApi(Request $request, $id)
         // Web response - render the public order details view (no authentication required)
         return view('public.order-details', compact('order'));
     }
+
+    /**
+     * Display order reports page
+     */
+    public function reports(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Get date range from request or default to last 30 days
+        $startDate = $request->input('start_date', Carbon::now()->subDays(30)->startOfDay());
+        $endDate = $request->input('end_date', Carbon::now()->endOfDay());
+        
+        // Ensure dates are Carbon instances
+        if (!$startDate instanceof Carbon) {
+            $startDate = Carbon::parse($startDate)->startOfDay();
+        }
+        if (!$endDate instanceof Carbon) {
+            $endDate = Carbon::parse($endDate)->endOfDay();
+        }
+        
+        // Get orders within date range
+        $orders = Order::where('user_id', $user->id)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->with(['items.product', 'items.variant'])
+            ->get();
+        
+        // Calculate statistics
+        $stats = [
+            'total_orders' => $orders->count(),
+            'total_spent' => $orders->sum('total_amount'),
+            'avg_order_value' => $orders->avg('total_amount'),
+            'total_items' => $orders->sum(function($order) {
+                return $order->items->sum('quantity');
+            })
+        ];
+        
+        // Orders by status
+        $ordersByStatus = $orders->groupBy('status')->map->count();
+        
+        // Most ordered products
+        $productStats = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->where('orders.user_id', $user->id)
+            ->whereBetween('orders.created_at', [$startDate, $endDate])
+            ->select(
+                'products.id',
+                'products.name',
+                DB::raw('SUM(order_items.quantity) as total_quantity'),
+                DB::raw('COUNT(DISTINCT orders.id) as order_count'),
+                DB::raw('SUM(order_items.quantity * order_items.price) as total_revenue')
+            )
+            ->groupBy('products.id', 'products.name')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(10)
+            ->get();
+        
+        // Monthly trends for the past 6 months
+        $monthlyTrends = Order::where('user_id', $user->id)
+            ->where('created_at', '>=', Carbon::now()->subMonths(6))
+            ->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as order_count, SUM(total_amount) as total_amount')
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'month' => Carbon::create($item->year, $item->month)->format('M Y'),
+                    'orders' => $item->order_count,
+                    'revenue' => $item->total_amount
+                ];
+            });
+        
+        // Get weekly spending data (last 7 days)
+        $weeklyData = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $daySpending = Order::where('user_id', $user->id)
+                ->whereDate('created_at', $date)
+                ->whereIn('status', ['approved', 'packed', 'shipped', 'delivered'])
+                ->sum('total_amount');
+            
+            $dayOrders = Order::where('user_id', $user->id)
+                ->whereDate('created_at', $date)
+                ->whereIn('status', ['approved', 'packed', 'shipped', 'delivered'])
+                ->count();
+                
+            $weeklyData['labels'][] = $date->format('D');
+            $weeklyData['spending'][] = round($daySpending, 2);
+            $weeklyData['orders'][] = $dayOrders;
+        }
+        
+        // Get monthly spending data (current year)
+        $monthlyData = [];
+        $currentYear = Carbon::now()->year;
+        for ($month = 1; $month <= 12; $month++) {
+            $monthSpending = Order::where('user_id', $user->id)
+                ->whereYear('created_at', $currentYear)
+                ->whereMonth('created_at', $month)
+                ->whereIn('status', ['approved', 'packed', 'shipped', 'delivered'])
+                ->sum('total_amount');
+                
+            $monthOrders = Order::where('user_id', $user->id)
+                ->whereYear('created_at', $currentYear)
+                ->whereMonth('created_at', $month)
+                ->whereIn('status', ['approved', 'packed', 'shipped', 'delivered'])
+                ->count();
+                
+            $monthlyData['labels'][] = Carbon::create($currentYear, $month)->format('M');
+            $monthlyData['spending'][] = round($monthSpending, 2);
+            $monthlyData['orders'][] = $monthOrders;
+        }
+        
+        // Prepare chart data
+        $chartData = [
+            'weekly' => $weeklyData,
+            'monthly' => $monthlyData
+        ];
+        
+        return view('franchisee.reports', compact(
+            'stats',
+            'ordersByStatus',
+            'productStats',
+            'monthlyTrends',
+            'startDate',
+            'endDate',
+            'chartData'
+        ));
+    }
+
+    /**
+     * Export order history to Excel/CSV
+     */
+    public function export(Request $request)
+    {
+        $user = Auth::user();
+        $format = $request->input('format', 'csv'); // Default to CSV
+        
+        // Get filters from request
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $status = $request->input('status');
+        
+        // Build query
+        $query = Order::where('user_id', $user->id)
+            ->with(['items.product', 'items.variant']);
+        
+        // Apply filters
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+        if ($status) {
+            $query->where('status', $status);
+        }
+        
+        $orders = $query->orderBy('created_at', 'desc')->get();
+        
+        // Prepare data for export
+        $exportData = [];
+        $headers = [
+            'Order ID',
+            'Order Date',
+            'Status',
+            'Total Amount',
+            'Shipping Cost',
+            'Items Count',
+            'Delivery Date',
+            'Delivery Time',
+            'Shipping Address',
+            'Notes'
+        ];
+        
+        foreach ($orders as $order) {
+            $exportData[] = [
+                $order->id,
+                $order->created_at->format('Y-m-d H:i:s'),
+                ucfirst($order->status),
+                number_format($order->total_amount, 2),
+                number_format($order->shipping_cost ?? 0, 2),
+                $order->items->sum('quantity'),
+                $order->delivery_date ?? 'N/A',
+                $order->delivery_time ?? 'N/A',
+                $order->shipping_address . ', ' . $order->shipping_city . ', ' . $order->shipping_state . ' ' . $order->shipping_zip,
+                $order->notes ?? ''
+            ];
+        }
+        
+        // Generate filename
+        $filename = 'order_history_' . date('Y-m-d_His');
+        
+        if ($format === 'csv') {
+            // CSV Export
+            $callback = function() use ($exportData, $headers) {
+                $file = fopen('php://output', 'w');
+                fputcsv($file, $headers);
+                
+                foreach ($exportData as $row) {
+                    fputcsv($file, $row);
+                }
+                
+                fclose($file);
+            };
+            
+            return response()->stream($callback, 200, [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
+            ]);
+        } else {
+            // For Excel format, we'd need to install a package like maatwebsite/excel
+            // For now, return a message
+            return redirect()->back()->with('error', 'Excel export requires additional setup. Please use CSV format for now.');
+        }
+    }
 }

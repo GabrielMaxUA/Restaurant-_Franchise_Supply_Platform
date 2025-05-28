@@ -1,9 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
     <meta charset="UTF-8">
     <title>Invoice {{ $invoiceNumber }} - Order Approved</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if mso]>
+    <xml>
+        <o:OfficeDocumentSettings>
+            <o:AllowPNG/>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+    </xml>
+    <![endif]-->
     <style>
         body {
             background-color: #f1f3f5;
@@ -130,7 +139,13 @@
 
             <!-- Button -->
             <div class="button-container">
-                <a href="{{ $trackingUrl }}" class="button">Track Your Order</a>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                    <tr>
+                        <td align="center" style="border-radius: 5px;" bgcolor="#28a745">
+                            <a href="{{ $trackingUrl }}" target="_blank" style="display: inline-block; padding: 12px 28px; font-family: Arial, sans-serif; font-size: 15px; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: 600;">Track Your Order</a>
+                        </td>
+                    </tr>
+                </table>
             </div>
 
             <p>We'll notify you again once your order status updates. In the meantime, feel free to reach out if you have any questions.</p>
@@ -147,6 +162,8 @@
         <div class="footer">
             <p>This is an automated message. Please do not reply directly.</p>
             <p>&copy; {{ date('Y') }} {{ config('company.name', 'Restaurant Franchise Supply Platform') }}. All rights reserved.</p>
+            <p style="margin-top: 10px; font-size: 11px; color: #999;">If the button above doesn't work, copy and paste this link into your browser:<br>
+            <a href="{{ $trackingUrl }}" style="color: #999; text-decoration: underline;">{{ $trackingUrl }}</a></p>
         </div>
     </div>
 </body>

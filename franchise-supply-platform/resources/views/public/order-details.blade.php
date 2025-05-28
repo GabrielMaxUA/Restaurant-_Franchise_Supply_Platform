@@ -90,7 +90,7 @@
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <img src="{{ asset('images/myLogo.png') }}" alt="Logo" height="40">
+                <img src="{{ asset('images/invoiceLogo.png') }}" alt="Logo" height="40">
             </a>
             <span class="navbar-text">
                 Order Tracking

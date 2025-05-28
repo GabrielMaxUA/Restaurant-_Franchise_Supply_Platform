@@ -16,7 +16,7 @@
             
             @page {
                 size: letter;
-                margin: 0.5in;
+                margin: 0;
             }
         }
         
@@ -54,13 +54,10 @@
         }
         
         .invoice-container {
-            max-width: 850px;
-            margin: 40px auto;
+            max-width: 100%;
+            margin: 0;
             padding: 40px;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
             background-color: white;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
         }
         
         .invoice-header {
@@ -335,8 +332,8 @@
             <div class="company-info">
                 @if($adminDetail && $adminDetail->logo_path && file_exists(public_path('storage/' . $adminDetail->logo_path)))
                     <img src="{{ asset('storage/' . $adminDetail->logo_path) }}" alt="Company Logo" class="company-logo">
-                @elseif(file_exists(public_path('images/myLogo.png')))
-                    <img src="{{ asset('images/myLogo.png') }}" alt="Company Logo" class="company-logo">
+                @elseif(file_exists(public_path('images/invoiceLogo.png')))
+                    <img src="{{ asset('images/invoiceLogo.png') }}" alt="Company Logo" class="company-logo">
                 @endif
                 
                 <div class="company-name">

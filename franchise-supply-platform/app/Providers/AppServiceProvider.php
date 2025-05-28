@@ -32,5 +32,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Register the Order observer
         Order::observe(OrderObserver::class);
+
+        // Force HTTPS in production or when using ngrok
+        if ($this->app->environment('production') || strpos(config('app.url'), 'ngrok') !== false) {
+            \URL::forceScheme('https');
+        }
     }
 }

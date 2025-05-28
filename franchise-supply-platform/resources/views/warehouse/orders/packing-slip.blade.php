@@ -58,7 +58,6 @@
         }
         .signature {
             margin-top: 50px;
-            border-top: 1px solid #000;
             display: inline-block;
             padding-top: 5px;
             margin-right: 50px;
@@ -98,7 +97,7 @@
     <button class="print-button" onclick="window.print()">Print Packing Slip</button>
     
     <div class="header">
-        <img src="{{ asset('images/myLogo.png') }}" alt="Company Logo" class="logo">
+        <img src="{{ asset('images/invoiceLogo.png') }}" alt="Company Logo" class="logo">
         <h1>PACKING SLIP</h1>
         <p>Order #{{ $order->id }}</p>
     </div>
