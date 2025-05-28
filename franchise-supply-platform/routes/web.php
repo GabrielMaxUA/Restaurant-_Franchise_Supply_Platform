@@ -27,6 +27,9 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
+// Public order tracking route with token
+Route::get('/order/track/{order}/{token}', [OrderController::class, 'publicOrderDetails'])->name('order.public.track');
+
 Route::get('/test-push', function (PushNotificationService $pushService) {
   $token = 'paste_a_valid_device_token_here';
   return $pushService->sendTestNotification($token) ? '✅ Sent' : '❌ Failed';

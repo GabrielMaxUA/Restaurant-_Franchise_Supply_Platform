@@ -55,7 +55,9 @@ class EmailNotificationService
                 'recipientName' => $recipientName,
                 'statusMessage' => $statusMessage,
                 'statusColor' => $statusColor,
-                'trackingUrl' => url('/franchisee/orders/' . $order->id . '/details')
+                'trackingUrl' => $order->email_access_token 
+                    ? url('/order/track/' . $order->id . '/' . $order->email_access_token)
+                    : url('/franchisee/orders/' . $order->id . '/details')
             ];
 
             // Send the email using Laravel's mail system
@@ -364,7 +366,9 @@ class EmailNotificationService
                 'order' => $order,
                 'recipientName' => $recipientName,
                 'invoiceNumber' => $invoiceNumber,
-                'trackingUrl' => url('/franchisee/orders/' . $order->id . '/details')
+                'trackingUrl' => $order->email_access_token 
+                    ? url('/order/track/' . $order->id . '/' . $order->email_access_token)
+                    : url('/franchisee/orders/' . $order->id . '/details')
             ];
 
             // Send the email with attachment

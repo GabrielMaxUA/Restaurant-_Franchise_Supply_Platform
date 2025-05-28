@@ -1160,4 +1160,100 @@ public function repeatOrderApi(Request $request, $id)
             'dueDate' => $dueDate
         ]);
     }
+    
+    /**
+     * Display order details using email access token (public route - no authentication required)
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $orderId
+     * @param  string  $token
+     * @return \Illuminate\Http\Response
+     */
+    public function publicOrderDetails(Request $request, $orderId, $token)
+    {
+        // Find order by ID and token
+        $order = Order::findByIdAndToken($orderId, $token);
+        
+        if (!$order) {
+            // Invalid token or order not found
+            return redirect('/login')->with('error', 'Invalid or expired order link. Please login to view your order.');
+        }
+        
+        // Load relationships
+        $order->load(['items.product', 'items.variant', 'user.franchiseeProfile']);
+        
+        // Count total items
+        $order->items_count = $order->items->sum('quantity');
+        
+        // Format created_at as estimated delivery date (just for display purposes)
+        if (!$order->estimated_delivery && in_array($order->status, ['pending', 'processing', 'packed', 'shipped'])) {
+            $order->estimated_delivery = $order->created_at->addDays(7);
+        }
+        
+        // Log the access for security monitoring
+        Log::info('Order accessed via email token', [
+            'order_id' => $orderId,
+            'user_id' => $order->user_id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+        
+        // Check if this is an API request
+        if ($request->expectsJson() || $request->wantsJson()) {
+            // For API responses, format the order items to include only necessary data
+            $items = [];
+            foreach ($order->items as $item) {
+                $itemData = [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'variant_id' => $item->variant_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'subtotal' => $item->price * $item->quantity
+                ];
+                
+                // Add product details
+                if ($item->product) {
+                    $itemData['product'] = [
+                        'id' => $item->product->id,
+                        'name' => $item->product->name,
+                        'description' => $item->product->description,
+                        'image_url' => $item->product->images->isNotEmpty() ? $item->product->images->first()->image_url : null
+                    ];
+                }
+                
+                // Add variant details if applicable
+                if ($item->variant) {
+                    $itemData['variant'] = [
+                        'id' => $item->variant->id,
+                        'name' => $item->variant->name,
+                        'price_adjustment' => $item->variant->price_adjustment
+                    ];
+                }
+                
+                $items[] = $itemData;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'order' => [
+                    'id' => $order->id,
+                    'status' => $order->status,
+                    'total_amount' => $order->total_amount,
+                    'shipping_address' => $order->shipping_address,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                    'delivery_date' => $order->delivery_date,
+                    'delivery_time' => $order->delivery_time,
+                    'delivery_preference' => $order->delivery_preference,
+                    'estimated_delivery' => $order->estimated_delivery,
+                    'items_count' => $order->items_count,
+                    'items' => $items
+                ]
+            ]);
+        }
+        
+        // Web response - render the public order details view (no authentication required)
+        return view('public.order-details', compact('order'));
+    }
 }

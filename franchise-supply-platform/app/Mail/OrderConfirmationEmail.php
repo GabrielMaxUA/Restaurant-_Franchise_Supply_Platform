@@ -68,7 +68,9 @@ class OrderConfirmationEmail extends Mailable
         $shippingCost = $this->order->shipping_cost ?? 0;
         
         // Generate tracking URL
-        $trackingUrl = url('/franchisee/orders/' . $this->order->id . '/details');
+        $trackingUrl = $this->order->email_access_token 
+            ? url('/order/track/' . $this->order->id . '/' . $this->order->email_access_token)
+            : url('/franchisee/orders/' . $this->order->id . '/details');
 
         return new Content(
             markdown: 'emails.orders.order-confirmation',
