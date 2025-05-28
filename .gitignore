@@ -1,0 +1,92 @@
+
+# Dependencies
+node_modules/
+**/node_modules/
+franchiseeMobile/node_modules/
+
+# Android/Java
+*.hprof
+.cxx/
+*.iml
+.gradle/
+franchiseeMobile/android/.gradle/
+franchiseeMobile/android/app/build/
+franchiseeMobile/android/build/
+franchiseeMobile/android/app/.cxx/
+franchiseeMobile/android/local.properties
+franchiseeMobile/android/app/*.keystore
+!franchiseeMobile/android/app/debug.keystore
+
+# iOS
+franchiseeMobile/ios/build/
+franchiseeMobile/ios/Pods/
+franchiseeMobile/ios/Podfile.lock
+*.xcworkspace
+xcuserdata/
+
+# macOS
+.DS_Store
+
+# Build outputs
+build/
+dist/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# React Native
+.bundle/
+*.jsbundle
+
+# Metro
+.metro-health-check*
+
+# testing
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+.env.local
+.env.*.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Generated files
+franchiseeMobile/android/app/src/main/assets/
+franchiseeMobile/android/app/src/main/res/drawable-*/
+franchiseeMobile/android/app/src/main/res/raw/
+franchiseeMobile/android/.gradle/
+franchiseeMobile/android/app/.gradle/
+franchiseeMobile/android/gradle/
+franchiseeMobile/android/gradlew
+franchiseeMobile/android/gradlew.bat
+
+# Package lock files (if using yarn)
+# yarn.lock
+
+# Vendor directory
+vendor/
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+
+# Certificates
+*.p8
+*.p12
+*.key
+*.mobileprovision
