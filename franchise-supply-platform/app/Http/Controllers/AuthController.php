@@ -331,7 +331,31 @@ class AuthController extends Controller
                 $user->load('role');
             }
             
-            // Redirect based on role
+            // Check if there's an intended URL from the email link
+            $intendedUrl = $request->input('intended');
+            if ($intendedUrl && $user->role->name === 'franchisee') {
+                // Validate that it's an order details URL
+                if (preg_match('/\/franchisee\/orders\/(\d+)\/details/', $intendedUrl, $matches)) {
+                    $orderId = $matches[1];
+                    
+                    // Verify the order belongs to this user
+                    $order = \App\Models\Order::where('id', $orderId)
+                        ->where('user_id', $user->id)
+                        ->first();
+                    
+                    if ($order) {
+                        // Set welcome message for franchisees
+                        session([
+                            'welcome_back' => true,
+                            'user_name' => $user->username  // Store the name in session
+                        ]);
+                        // Redirect to the franchisee order details page
+                        return redirect()->route('franchisee.orders.details', ['order' => $orderId]);
+                    }
+                }
+            }
+            
+            // Default role-based redirects
             if ($user->role->name === 'admin') {
                 session([
                     'welcome_back' => true,

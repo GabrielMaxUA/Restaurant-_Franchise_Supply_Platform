@@ -411,10 +411,7 @@ class OrderController extends Controller
 
             // Set delivery timestamp if status is changed to delivered
             if ($newStatus === 'delivered') {
-                // Check if delivered_at column exists
-                if (Schema::hasColumn('orders', 'delivered_at')) {
-                    $order->delivered_at = now();
-                }
+                $order->delivered_at = now();
             }
 
             $order->save();

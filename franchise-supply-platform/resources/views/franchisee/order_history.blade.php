@@ -194,7 +194,7 @@
                             <th style="width: 80px">Image</th>
                             <th>Order Details</th>
                             <th style="width: 120px" class="text-center">Total</th>
-                            <th style="width: 180px" class="text-end">Actions</th>
+                            <th style="width: 180px" class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -256,12 +256,12 @@
                                 <span class="fw-medium">${{ number_format($order->total_amount, 2) }}</span>
                             </td>
                             <td>
-                                <div class="d-flex justify-content-end">
-                                    <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm btn-outline-primary me-2" title="View Details">
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <a href="{{ route('franchisee.orders.details', $order->id) }}" class="btn btn-sm btn-primary me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; padding: 0;" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     @if(in_array($order->status, ['approved', 'packed', 'shipped', 'delivered']))
-                                    <a href="{{ route('franchisee.orders.invoice', $order->id) }}?print=true" class="btn btn-sm btn-outline-warning me-2" title="View & Print Invoice" target="_blank">
+                                    <a href="{{ route('franchisee.orders.invoice', $order->id) }}?print=true" class="btn btn-sm btn-warning me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; padding: 0;" title="View & Print Invoice" target="_blank">
                                         <i class="fas fa-file-invoice"></i>
                                     </a>
                                     @endif

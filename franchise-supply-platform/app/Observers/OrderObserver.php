@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Events\OrderSaved;
 use App\Models\Order;
-use Illuminate\Support\Str;
 
 class OrderObserver
 {
@@ -16,11 +15,6 @@ class OrderObserver
         // Set default status if not already set
         if (!$order->status) {
             $order->status = 'pending';
-        }
-        
-        // Generate email access token for the order
-        if (!$order->email_access_token) {
-            $order->email_access_token = Str::random(64);
         }
     }
 

@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
-use Illuminate\Support\Str;
 
 class Order extends Model
 {
@@ -155,26 +154,6 @@ class Order extends Model
     public function getFormattedLocalDeliveryDateAttribute()
     {
         return $this->local_delivery_date ? $this->local_delivery_date->format('Y-m-d') : 'Not scheduled';
-    }
-    
-    /**
-     * Generate a unique email access token
-     */
-    public function generateEmailAccessToken()
-    {
-        $this->email_access_token = Str::random(64);
-        $this->save();
-        return $this->email_access_token;
-    }
-    
-    /**
-     * Find order by ID and token
-     */
-    public static function findByIdAndToken($orderId, $token)
-    {
-        return static::where('id', $orderId)
-                     ->where('email_access_token', $token)
-                     ->first();
     }
     
 }

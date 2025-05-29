@@ -104,7 +104,11 @@
                 <hr>
                 
                 <div class="mb-3">
-                    <strong>Delivery Date:</strong> {{ $order->local_delivery_date ? $order->local_delivery_date->format('Y-m-d') : 'Not scheduled' }}
+                    @if($order->status == 'delivered' && $order->delivered_at)
+                        <strong>Delivered On:</strong> {{ $order->delivered_at->format('Y-m-d \a\t g:i A') }}
+                    @else
+                        <strong>Delivery Date:</strong> {{ $order->local_delivery_date ? $order->local_delivery_date->format('Y-m-d') : 'Not scheduled' }}
+                    @endif
                 </div>
                 <div class="mb-3">
                     <strong>Delivery Time:</strong> 

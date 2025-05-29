@@ -279,7 +279,7 @@
 @section('content')
 <div class="container-fluid">
 
-    @if(session('success'))
+    <!-- @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show">
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             {{ session('success') }}
@@ -291,7 +291,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             {{ session('error') }}
         </div>
-    @endif
+    @endif -->
 
     <div class="row">
         <div class="col-lg-8">
@@ -345,7 +345,16 @@
                             <div class="info-row"><div class="info-label">ZIP</div><div class="info-value">{{ $order->shipping_zip }}</div></div>
                         </div>
                         <div class="col-md-6">
-                            <div class="info-row"><div class="info-label">Delivery Date</div><div class="info-value">{{ $order->delivery_date ? \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') : 'Not specified' }}</div></div>
+                            <div class="info-row">
+                                <div class="info-label">{{ $order->status == 'delivered' ? 'Delivered On' : 'Delivery Date' }}</div>
+                                <div class="info-value">
+                                    @if($order->status == 'delivered' && $order->delivered_at)
+                                        {{ $order->delivered_at->format('F j, Y') }}
+                                    @else
+                                        {{ $order->delivery_date ? \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') : 'Not specified' }}
+                                    @endif
+                                </div>
+                            </div>
                             <div class="info-row"><div class="info-label">Delivery Time</div><div class="info-value">{{ $order->delivery_time ?? 'Not specified' }}</div></div>
                             <div class="info-row"><div class="info-label">Delivery Method</div><div class="info-value">{{ $order->delivery_preference ?? 'Standard' }}</div></div>
                             <div class="info-row"><div class="info-label">Contact</div><div class="info-value">{{ $order->contact_phone ?? 'Not provided' }}</div></div>
@@ -567,8 +576,12 @@
             <div class="card order-details-card">
                 <div class="card-header"><h5 class="card-title mb-0">Delivery Information</h5></div>
                 <div class="card-body">
-                    <p><i class="fas fa-truck text-primary me-2"></i> Estimated delivery:
-                        {{ $order->delivery_date ? \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') : '3-5 business days' }}
+                    <p><i class="fas fa-truck text-primary me-2"></i> 
+                        @if($order->status == 'delivered' && $order->delivered_at)
+                            Delivered on: {{ $order->delivered_at->format('F j, Y \a\t g:i A') }}
+                        @else
+                            Estimated delivery: {{ $order->delivery_date ? \Carbon\Carbon::parse($order->delivery_date)->format('F j, Y') : '3-5 business days' }}
+                        @endif
                     </p>
                     <p><i class="fas fa-map-marker-alt text-primary me-2"></i>
                         Shipping to: {{ $order->shipping_address }}, {{ $order->shipping_city }}, {{ $order->shipping_state }} {{ $order->shipping_zip }}

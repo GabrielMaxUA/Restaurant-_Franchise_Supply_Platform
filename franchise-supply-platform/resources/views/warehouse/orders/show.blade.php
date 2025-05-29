@@ -165,9 +165,9 @@
                     </div>
                 @endif
 
-                @if($order->delivered_at)
+                @if($order->status === 'delivered' && $order->delivered_at)
                     <div class="mb-3">
-                        <strong>Delivery Date:</strong> {{ \Carbon\Carbon::parse($order->delivered_at)->format('M d, Y H:i') }}
+                        <strong>Delivered On:</strong> {{ $order->delivered_at->format('M d, Y \a\t g:i A') }}
                     </div>
                 @endif
                 <hr>
@@ -206,8 +206,13 @@
                 </div>
                 <hr>
                 <div class="mb-3">
-                    <strong>Requested Delivery Date:</strong> 
-                    {{ $order->delivery_date ? $order->delivery_date->format('M d, Y') : 'Not specified' }}
+                    @if($order->status == 'delivered' && $order->delivered_at)
+                        <strong>Delivered On:</strong> 
+                        {{ $order->delivered_at->format('M d, Y \a\t g:i A') }}
+                    @else
+                        <strong>Requested Delivery Date:</strong> 
+                        {{ $order->delivery_date ? $order->delivery_date->format('M d, Y') : 'Not specified' }}
+                    @endif
                 </div>
                 <div class="mb-3">
                     <strong>Delivery Time:</strong> 

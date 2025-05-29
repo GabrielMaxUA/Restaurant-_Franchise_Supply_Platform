@@ -67,10 +67,9 @@ class OrderConfirmationEmail extends Mailable
         $subtotal = $this->order->total_amount - ($this->order->shipping_cost ?? 0);
         $shippingCost = $this->order->shipping_cost ?? 0;
         
-        // Generate tracking URL
-        $trackingUrl = $this->order->email_access_token 
-        ? url('/order/track/' . $this->order->id . '/' . $this->order->email_access_token)
-        : url('/franchisee/orders/' . $this->order->id . '/details');
+        // Generate tracking URL that goes to login with intended redirect
+        $intendedUrl = config('app.url') . '/franchisee/orders/' . $this->order->id . '/details';
+        $trackingUrl = config('app.url') . '/login?intended=' . urlencode($intendedUrl);
 
         return new Content(
             markdown: 'emails.orders.order-confirmation',

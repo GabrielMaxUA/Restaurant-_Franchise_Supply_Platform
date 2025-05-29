@@ -79,6 +79,9 @@
                                     
                                     <form class="user" method="POST" action="{{ url('/login') }}">
                                         @csrf
+                                        @if(request('intended'))
+                                            <input type="hidden" name="intended" value="{{ request('intended') }}">
+                                        @endif
                                         <div class="form-group mb-3">
                                             <label for="email">Email Address</label>
                                             <input type="email" class="form-control" 
