@@ -9,6 +9,7 @@ use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use App\Services\DeepLinkService;
 
 class OrderConfirmationEmail extends Mailable
 {
@@ -67,9 +68,9 @@ class OrderConfirmationEmail extends Mailable
         $subtotal = $this->order->total_amount - ($this->order->shipping_cost ?? 0);
         $shippingCost = $this->order->shipping_cost ?? 0;
         
-        // Generate tracking URL that goes to login with intended redirect
-        $intendedUrl = config('app.url') . '/franchisee/orders/' . $this->order->id . '/details';
-        $trackingUrl = config('app.url') . '/login?intended=' . urlencode($intendedUrl);
+        // Generate deep link tracking URL
+        $deepLinkService = new DeepLinkService();
+        $trackingUrl = $deepLinkService->generateOrderTrackingLink($this->order);
 
         return new Content(
             markdown: 'emails.orders.order-confirmation',

@@ -121,6 +121,25 @@
                     </div>
                 </div>
 
+                <hr class="my-4">
+                
+                <h6 class="mb-3">Notification Preferences</h6>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" value="1" 
+                                {{ old('email_notifications_enabled', $user->email_notifications_enabled ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="email_notifications_enabled">
+                                <strong>Receive Email Notifications for Order Status Updates</strong>
+                                <br>
+                                <small class="text-muted">When enabled, you'll receive email notifications when order statuses change.</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
                 <div class="mb-3">
                     <label for="address" class="form-label">Address</label>
                     <input type="text" class="form-control @error('address') is-invalid @enderror" id="address" name="address" value="{{ old('address', $adminDetail->address ?? '') }}">

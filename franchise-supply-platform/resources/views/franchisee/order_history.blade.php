@@ -7,6 +7,11 @@
 @section('styles')
     <link href="{{ asset('css/status-styles.css') }}" rel="stylesheet">
 <style>
+    /* Remove top padding from main content to match pending orders */
+    .main-content {
+        padding-top: 0 !important;
+    }
+    
     .order-card {
         transition: all 0.2s ease;
         border-radius: 8px;
@@ -23,7 +28,7 @@
         background-color: #f8f9fa;
         border-radius: 0.5rem;
         padding: 1rem;
-        margin-bottom: 1.5rem;
+        margin-top: 0 !important;
     }
     
     .status-badge {
@@ -115,7 +120,7 @@
 
 @section('content')
 <!-- Filter Section -->
-<div class="filter-section mb-4">
+<div class="filter-section" style="margin-bottom: 1.5rem; margin-top: 0;">
     <form id="filterForm" action="{{ route('franchisee.orders.history') }}" method="GET">
         <div class="row align-items-end">
             <div class="col-md-3 mb-3 mb-md-0">

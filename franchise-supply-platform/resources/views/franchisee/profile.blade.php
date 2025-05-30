@@ -212,6 +212,25 @@
                     </div>
                 </div>
                 
+                <!-- Notification Preferences Section -->
+                <div class="section-divider">
+                    <span>Notification Preferences</span>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" value="1" 
+                                {{ old('email_notifications_enabled', $user->email_notifications_enabled ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="email_notifications_enabled">
+                                <strong>Receive Email Notifications for Order Status Updates</strong>
+                                <br>
+                                <small class="text-muted">When enabled, you'll receive email notifications when your order status changes. You'll always receive order invoices regardless of this setting.</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Company Information Section -->
                 <div class="section-divider">
                     <span>Company Information</span>

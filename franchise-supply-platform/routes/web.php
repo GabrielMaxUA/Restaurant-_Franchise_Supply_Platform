@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DeepLinkController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Franchisee\DashboardController as FranchiseeDashboardController;
 use App\Http\Controllers\Franchisee\CatalogController;
@@ -25,6 +26,27 @@ use App\Services\PushNotificationService;
 // Set the login page as the default landing page
 Route::get('/', function () {
     return redirect('/login');
+});
+
+// Deep link handler route
+Route::get('/deeplink', [DeepLinkController::class, 'handle'])->name('deeplink.handle');
+
+// Test route for deep linking
+Route::get('/test-deeplink', function () {
+    $order = App\Models\Order::first();
+    if (!$order) {
+        return '❌ No orders found to test with';
+    }
+    
+    $deepLinkService = new App\Services\DeepLinkService();
+    
+    return view('emails.test-deeplink', [
+        'deepLink' => $deepLinkService->generateOrderTrackingLink($order),
+        'order' => $order,
+        'directLink' => $deepLinkService->generateDirectOrderLink($order),
+        'testAppLink' => $deepLinkService->generateTestDeepLink($order),
+        'isTestMode' => true
+    ]);
 });
 
 

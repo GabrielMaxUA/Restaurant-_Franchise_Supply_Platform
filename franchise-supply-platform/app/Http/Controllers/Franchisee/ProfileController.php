@@ -103,6 +103,7 @@ class ProfileController extends Controller
             $user->username = $request->username;
             $user->email = $request->email;
             $user->phone = $request->phone;
+            $user->email_notifications_enabled = $request->has('email_notifications_enabled') ? true : false;
             $user->updated_at = now();
             $user->updated_by = $user->username;
             $user->save();

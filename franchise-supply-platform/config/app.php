@@ -107,6 +107,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Deep Linking Configuration
+    |--------------------------------------------------------------------------
+    |
+    | These configuration options are used for mobile app deep linking.
+    | The deep_link_scheme should match your mobile app's URL scheme.
+    | The app store URLs are used for download prompts when the app isn't installed.
+    |
+    */
+
+    'deep_link_scheme' => env('APP_DEEP_LINK_SCHEME', 'restaurantfranchise'),
+    'ios_app_store_url' => env('APP_IOS_STORE_URL', '#'),
+    'android_play_store_url' => env('APP_ANDROID_STORE_URL', '#'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

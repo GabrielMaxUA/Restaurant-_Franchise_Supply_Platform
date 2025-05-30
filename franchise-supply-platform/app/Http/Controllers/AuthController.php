@@ -333,24 +333,63 @@ class AuthController extends Controller
             
             // Check if there's an intended URL from the email link
             $intendedUrl = $request->input('intended');
-            if ($intendedUrl && $user->role->name === 'franchisee') {
-                // Validate that it's an order details URL
-                if (preg_match('/\/franchisee\/orders\/(\d+)\/details/', $intendedUrl, $matches)) {
-                    $orderId = $matches[1];
-                    
-                    // Verify the order belongs to this user
-                    $order = \App\Models\Order::where('id', $orderId)
-                        ->where('user_id', $user->id)
-                        ->first();
-                    
-                    if ($order) {
-                        // Set welcome message for franchisees
-                        session([
-                            'welcome_back' => true,
-                            'user_name' => $user->username  // Store the name in session
-                        ]);
-                        // Redirect to the franchisee order details page
-                        return redirect()->route('franchisee.orders.details', ['order' => $orderId]);
+            if ($intendedUrl) {
+                if ($user->role->name === 'franchisee') {
+                    // Validate that it's an order details URL
+                    if (preg_match('/\/franchisee\/orders\/(\d+)\/details/', $intendedUrl, $matches)) {
+                        $orderId = $matches[1];
+                        
+                        // Verify the order belongs to this user
+                        $order = \App\Models\Order::where('id', $orderId)
+                            ->where('user_id', $user->id)
+                            ->first();
+                        
+                        if ($order) {
+                            // Set welcome message for franchisees
+                            session([
+                                'welcome_back' => true,
+                                'user_name' => $user->username  // Store the name in session
+                            ]);
+                            // Redirect to the franchisee order details page
+                            return redirect()->route('franchisee.orders.details', ['order' => $orderId]);
+                        }
+                    }
+                } elseif ($user->role->name === 'admin') {
+                    // Validate that it's an admin order details URL
+                    if (preg_match('/\/admin\/orders\/(\d+)/', $intendedUrl, $matches)) {
+                        $orderId = $matches[1];
+                        
+                        // Verify the order exists
+                        $order = \App\Models\Order::where('id', $orderId)->first();
+                        
+                        if ($order) {
+                            session([
+                                'welcome_back' => true,
+                                'user_name' => $user->username
+                            ]);
+                            // Redirect to the admin order details page
+                            return redirect()->route('admin.orders.show', ['order' => $orderId]);
+                        }
+                    }
+                } elseif ($user->role->name === 'warehouse') {
+                    // Validate that it's a warehouse order details URL
+                    if (preg_match('/\/warehouse\/orders\/(\d+)/', $intendedUrl, $matches)) {
+                        $orderId = $matches[1];
+                        
+                        // Verify the order exists
+                        $order = \App\Models\Order::where('id', $orderId)->first();
+                        
+                        if ($order) {
+                            session([
+                                'welcome_back' => true,
+                                'user_name' => $user->username,
+                                'low_stock_items' => Product::where('inventory_count', '<=', 10)
+                                    ->where('inventory_count', '>', 0)->count(),
+                                'out_of_stock_items' => Product::where('inventory_count', 0)->count()
+                            ]);
+                            // Redirect to the warehouse order details page
+                            return redirect()->route('warehouse.orders.show', ['order' => $orderId]);
+                        }
                     }
                 }
             }

@@ -25,6 +25,7 @@ class User extends Authenticatable implements JWTSubject
         'role_id',
         'updated_by',
         'status',
+        'email_notifications_enabled',
     ];
 
     /**
@@ -46,6 +47,7 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
         'role_id' => 'integer',
         'status' => 'boolean', // Cast status to boolean
+        'email_notifications_enabled' => 'boolean',
     ];
 
     /**
@@ -440,7 +442,7 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Get admin email addresses
+     * Get admin email addresses (only for users with email notifications enabled)
      *
      * @return array
      */
@@ -450,12 +452,16 @@ class User extends Authenticatable implements JWTSubject
             $query->where('name', 'admin');
         })
         ->whereNotNull('email')
+        ->where(function($query) {
+            $query->where('email_notifications_enabled', true)
+                  ->orWhereNull('email_notifications_enabled'); // Default to enabled if null
+        })
         ->pluck('email')
         ->toArray();
     }
 
     /**
-     * Get warehouse email addresses
+     * Get warehouse email addresses (only for users with email notifications enabled)
      *
      * @return array
      */
@@ -465,6 +471,10 @@ class User extends Authenticatable implements JWTSubject
             $query->where('name', 'warehouse');
         })
         ->whereNotNull('email')
+        ->where(function($query) {
+            $query->where('email_notifications_enabled', true)
+                  ->orWhereNull('email_notifications_enabled'); // Default to enabled if null
+        })
         ->pluck('email')
         ->toArray();
     }

@@ -87,6 +87,8 @@ public function update(Request $request)
         $user->username = $request->username;
         $user->email = $request->email;
         $user->phone = $request->phone;
+
+        $user->email_notifications_enabled = $request->has('email_notifications_enabled') ? true : false;
         $user->updated_by = Auth::user()->username;
         $user->updated_at = Carbon::now();
         $user->save();

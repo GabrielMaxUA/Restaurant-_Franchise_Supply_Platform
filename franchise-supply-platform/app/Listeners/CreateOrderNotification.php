@@ -9,6 +9,7 @@ use App\Services\PushNotificationService;
 use App\Services\EmailNotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Cache;
 
 class CreateOrderNotification
 {
@@ -29,13 +30,22 @@ class CreateOrderNotification
     {
         $order = $event->order;
         
+        \Log::info('CreateOrderNotification::handle called', [
+            'order_id' => $order->id,
+            'status_changed' => $event->statusChanged,
+            'old_status' => $event->oldStatus,
+            'new_status' => $order->status,
+            'was_recently_created' => $order->wasRecentlyCreated
+        ]);
+        
         // If this is a new order, notify all admins and warehouse staff
         if (!$event->statusChanged && $order->wasRecentlyCreated) {
+            \Log::info('Processing new order notifications', ['order_id' => $order->id]);
+            
             $this->notifyStaffAboutNewOrder($order);
             
-            // Send email notifications to admin and warehouse about new order
+            // Send email notification to admin only for new orders
             $this->emailNotificationService->sendAdminOrderNotification($order);
-            $this->emailNotificationService->sendWarehouseOrderNotification($order);
             
             // Send order confirmation to the franchisee
             $this->emailNotificationService->sendCustomerOrderConfirmation($order);
@@ -46,22 +56,45 @@ class CreateOrderNotification
         // If the status changed, create notifications for the franchisee owner
         // and for relevant staff members
         if ($event->statusChanged) {
-            // Notify the franchisee about the status change
-            $this->createNotificationForOwner($order, $event->oldStatus);
+            // Add a cache key to prevent duplicate processing
+            $processKey = "order_status_processing_{$order->id}_{$order->status}_{$event->oldStatus}";
             
-            // Send push notification to franchisee
-            $this->pushNotificationService->sendOrderStatusNotification($order, $event->oldStatus);
-            
-            // Send email notification to franchisee about status change
-            $this->emailNotificationService->sendOrderStatusChangeNotification($order, $event->oldStatus);
-            
-            // If order was just approved, also send invoice email
-            if ($order->status === 'approved' && $event->oldStatus !== 'approved') {
-                $this->emailNotificationService->sendInvoiceEmail($order);
+            // Check if we're already processing this status change
+            if (\Cache::has($processKey)) {
+                \Log::info('Duplicate status change processing prevented', [
+                    'order_id' => $order->id,
+                    'new_status' => $order->status,
+                    'old_status' => $event->oldStatus
+                ]);
+                return;
             }
             
-            // Notify staff based on the new status
-            $this->notifyStaffAboutStatusChange($order, $event->oldStatus);
+            // Set the cache key for 10 seconds to prevent duplicate processing
+            \Cache::put($processKey, true, 10);
+            
+            try {
+                // Notify the franchisee about the status change
+                $this->createNotificationForOwner($order, $event->oldStatus);
+                
+                // Send push notification to franchisee
+                $this->pushNotificationService->sendOrderStatusNotification($order, $event->oldStatus);
+                
+                // Send email notification to franchisee about status change
+                $this->emailNotificationService->sendOrderStatusChangeNotification($order, $event->oldStatus);
+                
+                // If order was just approved, send invoice email and notify warehouse
+                if ($order->status === 'approved' && $event->oldStatus !== 'approved') {
+                    $this->emailNotificationService->sendInvoiceEmail($order);
+                    // Send email notification to warehouse when order is approved
+                    $this->emailNotificationService->sendWarehouseOrderNotification($order);
+                }
+                
+                // Notify staff based on the new status
+                $this->notifyStaffAboutStatusChange($order, $event->oldStatus);
+            } finally {
+                // Remove the cache key after processing
+                \Cache::forget($processKey);
+            }
         }
     }
     

@@ -49,7 +49,7 @@
                                 <tr>
                                     <td width="60%" style="vertical-align: top;">
                                             @if(file_exists(public_path('images/invoiceLogo.png')))
-                                                <img src="{{ public_path('images/invoiceLogo.png') }}" alt="Invoice Logo" style="max-width: 180px; max-height: 60px; margin-bottom: 15px;">
+                                                <img src="{{ base_path('public/images/invoiceLogo.png') }}" alt="Invoice Logo" style="max-width: 180px; max-height: 60px; margin-bottom: 15px;">
                                             @endif        
                                         <div style="font-size: 18px; font-weight: bold; color: #333333; margin-bottom: 10px;">{{ $adminDetail->company_name ?? 'Restaurant Franchise Supply' }}</div>
                                         <div style="font-size: 12px; color: #666666; line-height: 1.5;">

@@ -114,7 +114,13 @@ class EmailNotificationService
                 'order' => $order,
                 'franchiseeName' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
                 'actionUrl' => url('/admin/orders/' . $order->id),
-                'actionText' => 'Review Order'
+                'actionText' => 'Review Order',
+                'recipientType' => 'Admin',
+                'formattedDate' => $order->created_at->format('F j, Y g:i A'),
+                'formattedTotal' => '$' . number_format($order->total_amount, 2),
+                'itemCount' => $order->items->count(),
+                'deliveryDate' => $order->requested_delivery_date ? \Carbon\Carbon::parse($order->requested_delivery_date)->format('F j, Y') : 'Not specified',
+                'isExpressDelivery' => $order->express_delivery ?? false
             ];
 
             foreach ($adminEmails as $email) {
@@ -170,7 +176,13 @@ class EmailNotificationService
                 'order' => $order,
                 'franchiseeName' => $order->user->franchiseeProfile->company_name ?? $order->user->username,
                 'actionUrl' => url('/warehouse/orders/' . $order->id),
-                'actionText' => 'View Order'
+                'actionText' => 'View Order',
+                'recipientType' => 'Warehouse',
+                'formattedDate' => $order->created_at->format('F j, Y g:i A'),
+                'formattedTotal' => '$' . number_format($order->total_amount, 2),
+                'itemCount' => $order->items->count(),
+                'deliveryDate' => $order->requested_delivery_date ? \Carbon\Carbon::parse($order->requested_delivery_date)->format('F j, Y') : 'Not specified',
+                'isExpressDelivery' => $order->express_delivery ?? false
             ];
 
             foreach ($warehouseEmails as $email) {

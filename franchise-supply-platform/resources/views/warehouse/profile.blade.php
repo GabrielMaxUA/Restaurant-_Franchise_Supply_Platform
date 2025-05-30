@@ -125,6 +125,23 @@
                     </div>
                 </div>
                 
+                <hr class="my-4">
+                
+                <h6 class="mb-3">Notification Preferences</h6>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="email_notifications_enabled" name="email_notifications_enabled" value="1" 
+                                {{ old('email_notifications_enabled', $user->email_notifications_enabled ?? true) ? 'checked' : '' }}>
+                            <label class="form-check-label" for="email_notifications_enabled">
+                                <strong>Receive Email Notifications for Order Status Updates</strong>
+                                <br>
+                                <small class="text-muted">When enabled, you'll receive email notifications when order statuses change.</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="last-updated">
                         <i class="fas fa-clock"></i> Last updated: {{ $user->updated_at ? $user->updated_at->format('M d, Y, h:i A') : 'Never' }}
