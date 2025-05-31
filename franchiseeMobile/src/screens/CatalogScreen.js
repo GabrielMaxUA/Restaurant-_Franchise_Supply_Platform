@@ -22,7 +22,7 @@ import { cartEventEmitter } from '../components/FranchiseeLayout';
 import FallbackIcon from '../components/icon/FallbackIcon';
 import FranchiseeLayout from '../components/FranchiseeLayout';
 import AddToCartModal from '../components/AddToCartModal';
-import { API_BASE_URL } from '../services/axiosInstance';
+import { BASE_URL } from '../services/axiosInstance';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width / 2) - 15; // 2 cards per row with spacing
@@ -134,19 +134,19 @@ const CatalogScreen = ({ navigation }) => {
             
             // Clean up the path to ensure proper format
             if (storagePath.startsWith('/')) {
-              return `${API_BASE_URL}${storagePath}`;
+              return `${BASE_URL.replace('/api', '')}${storagePath}`;
             } else {
-              return `${API_BASE_URL}/${storagePath}`;
+              return `${BASE_URL.replace('/api', '')}/${storagePath}`;
             }
           } 
           // If path is a direct product-images path
           else if (url.includes('product-images')) {
             // Add the /storage/ prefix that Laravel's asset() would add
-            return `${API_BASE_URL}/storage/${url.replace('product-images', 'product-images/')}`;
+            return `${BASE_URL.replace('/api', '')}/storage/${url.replace('product-images', 'product-images/')}`;
           }
           // For other relative URLs
           else {
-            return `${API_BASE_URL}/${url}`;
+            return `${BASE_URL.replace('/api', '')}/${url}`;
           }
         }
         

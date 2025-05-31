@@ -14,6 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../services/api';
 import { CommonActions } from '@react-navigation/native';
+import DeepLinkService from '../services/DeepLinkService';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -70,24 +71,48 @@ const LoginScreen = ({ navigation }) => {
       setIsLoading(false);
       
       try {
-        // Use CommonActions for more reliable navigation
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [
-              { name: 'Dashboard' },
-            ],
-          })
-        );
+        // Check if there's a pending deep link
+        const pendingDeepLink = DeepLinkService.getPendingDeepLink();
+        
+        if (pendingDeepLink) {
+          console.log('🔗 Handling pending deep link after login');
+          // Clear the pending deep link
+          DeepLinkService.clearPendingDeepLink();
+          
+          // Navigate to the deep link destination
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 1,
+              routes: [
+                { name: 'Dashboard' },
+                { name: pendingDeepLink.screen, params: pendingDeepLink.params },
+              ],
+            })
+          );
+        } else {
+          // Use CommonActions for more reliable navigation
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [
+                { name: 'Dashboard' },
+              ],
+            })
+          );
+        }
         
         // As a fallback, also try regular navigation
         setTimeout(() => {
           try {
             console.log('🔄 Attempting fallback navigation...');
-            if (navigation.canGoBack()) {
+            if (pendingDeepLink) {
+              DeepLinkService.handlePendingDeepLink();
+            } else if (navigation.canGoBack()) {
               navigation.popToTop();
+              navigation.navigate('Dashboard');
+            } else {
+              navigation.navigate('Dashboard');
             }
-            navigation.navigate('Dashboard');
           } catch (navError) {
             console.error('⚠️ Fallback navigation failed:', navError);
           }

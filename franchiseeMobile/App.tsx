@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
 import IconProvider from './src/components/icon/IconProvider';
 import { preloadIconFonts } from './src/utils/iconUtils';
+import DeepLinkService from './src/services/DeepLinkService';
 //import PushNotificationService from './src/services/PushNotificationService';
 
 const App = () => {
@@ -10,6 +11,16 @@ const App = () => {
     preloadIconFonts()
       .then(success => console.log('Icon preloading result:', success))
       .catch(error => console.warn('Icon preloading error:', error));
+  }, []);
+
+  // Initialize deep linking
+  useEffect(() => {
+    DeepLinkService.initialize();
+
+    // Cleanup on unmount
+    return () => {
+      DeepLinkService.cleanup();
+    };
   }, []);
 
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, Platform, Linking } from 'react-native';
 import { setupTokenRefreshInterval, hasValidToken } from '../services/authService';
 import { navigationRef } from './NavigationService';
 // Import screens
@@ -20,6 +20,37 @@ import OrderDetailsScreen from '../screens/OrderDetailsScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 
 const Stack = createNativeStackNavigator();
+
+// Deep linking configuration
+const linking = {
+  prefixes: ['restaurantfranchise://', 'https://yourdomain.com/app', 'https://www.yourdomain.com/app'],
+  config: {
+    screens: {
+      Login: 'login',
+      Dashboard: 'dashboard',
+      Profile: 'profile',
+      ProfileEdit: 'profile/edit',
+      ChangePassword: 'change-password',
+      Cart: 'cart',
+      Catalog: 'catalog',
+      OrdersScreen: 'orders',
+      OrderHistory: 'order-history',
+      Checkout: 'checkout',
+      ProductDetail: {
+        path: 'product/:productId',
+        parse: {
+          productId: (productId) => productId,
+        },
+      },
+      OrderDetails: {
+        path: 'order/:orderId',
+        parse: {
+          orderId: (orderId) => orderId,
+        },
+      },
+    },
+  },
+};
 
 const AppNavigator = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -67,7 +98,11 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer 
+      ref={navigationRef}
+      linking={linking}
+      fallback={<ActivityIndicator size="large" color="#0066cc" />}
+    >
       <Stack.Navigator
         initialRouteName={isAuthenticated ? "Dashboard" : "Login"}
         screenOptions={{ headerShown: false }}

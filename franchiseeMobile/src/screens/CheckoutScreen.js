@@ -215,7 +215,7 @@ const handlePlaceOrder = async () => {
         [
           {
             text: 'View Orders',
-            onPress: () => navigation.navigate('Orders')
+            onPress: () => navigation.navigate('OrdersScreen')
           },
           {
             text: 'Continue Shopping',

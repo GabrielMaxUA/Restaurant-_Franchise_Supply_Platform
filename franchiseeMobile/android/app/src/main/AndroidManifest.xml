@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <application
       android:name=".MainApplication"
@@ -20,6 +23,23 @@
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        <!-- Deep linking intent filter -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <!-- URL scheme for deep links -->
+            <data android:scheme="restaurantfranchise" />
+        </intent-filter>
+        <!-- App Links intent filter for HTTPS URLs -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <!-- Replace with your actual domain -->
+            <data android:scheme="https" android:host="yourdomain.com" android:pathPrefix="/app" />
+            <data android:scheme="https" android:host="www.yourdomain.com" android:pathPrefix="/app" />
         </intent-filter>
       </activity>
     </application>

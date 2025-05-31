@@ -17,7 +17,7 @@ import FranchiseeLayout, { cartEventEmitter, sessionEventEmitter } from '../comp
 import { getOrderDetails, repeatOrder } from '../services/api';
 import OrderProgressTracker from '../components/OrderProgressTracker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../services/axiosInstance';
+import { BASE_URL } from '../services/axiosInstance';
 const OrderDetailsScreen = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ const OrderDetailsScreen = () => {
     
     if (!orderData) return orderData;
     
-    console.log('🖼️ Processing order item images with base URL:', API_BASE_URL);
+    console.log('🖼️ Processing order item images with base URL:', BASE_URL.replace('/api', ''));
     
     // Create a deep copy to avoid mutating the original
     const processedOrder = { ...orderData };
@@ -120,19 +120,19 @@ const OrderDetailsScreen = () => {
             
             // Clean up the path to ensure proper format
             if (storagePath.startsWith('/')) {
-              processedItem.image_url = `${API_BASE_URL}${storagePath}`;
+              processedItem.image_url = `${BASE_URL.replace('/api', '')}${storagePath}`;
             } else {
-              processedItem.image_url = `${API_BASE_URL}/${storagePath}`;
+              processedItem.image_url = `${BASE_URL.replace('/api', '')}/${storagePath}`;
             }
           } 
           // If path is a direct product-images path
           else if (imageUrl.includes('product-images')) {
             // Add the /storage/ prefix that Laravel's asset() would add
-            processedItem.image_url = `${API_BASE_URL}/storage/${imageUrl.replace('product-images', 'product-images/')}`;
+            processedItem.image_url = `${BASE_URL.replace('/api', '')}/storage/${imageUrl.replace('product-images', 'product-images/')}`;
           }
           // For other relative URLs
           else {
-            processedItem.image_url = `${API_BASE_URL}/${imageUrl}`;
+            processedItem.image_url = `${BASE_URL.replace('/api', '')}/${imageUrl}`;
           }
           
           console.log(`Converted to absolute URL: ${processedItem.image_url}`);
