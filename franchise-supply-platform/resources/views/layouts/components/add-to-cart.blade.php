@@ -140,8 +140,7 @@
 .badge.bg-warning, 
 .badge.bg-danger,
 .badge.bg-secondary {
-    font-weight: 500;
-    padding: 0.35em 0.65em;
+    font-weight: 500;th
 }
 
 /* Improve modal layout */

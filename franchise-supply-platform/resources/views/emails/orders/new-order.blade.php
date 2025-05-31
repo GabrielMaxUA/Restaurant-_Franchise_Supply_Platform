@@ -199,16 +199,19 @@
             </div>
             @endif
 
-            <!-- Action Button -->
+            <p>To view the order details and manage the order, please click the link below:</p>
+
+            <!-- Action Link -->
             <div class="button-container">
-                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                    <tr>
-                        <td align="center" style="border-radius: 5px;" bgcolor="#dc3545">
-                            <a href="{{ $actionUrl }}" target="_blank" style="display: inline-block; padding: 12px 28px; font-family: Arial, sans-serif; font-size: 15px; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: 600;">{{ $actionText }}</a>
-                        </td>
-                    </tr>
-                </table>
+                <a href="{{ $actionUrl }}" class="button" style="display: inline-block;">
+                    {{ $actionText }}
+                </a>
             </div>
+            
+            <p style="margin-top: 10px; font-size: 13px; color: #6c757d; text-align: center;">
+                If the button above doesn't work, copy and paste this link into your browser:<br>
+                <a href="{{ $actionUrl }}" style="color: #dc3545; text-decoration: underline; word-break: break-all;">{{ $actionUrl }}</a>
+            </p>
 
             <p>Thank you for your prompt attention to this order.</p>
 

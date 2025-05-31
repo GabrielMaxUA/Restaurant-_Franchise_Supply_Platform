@@ -84,9 +84,9 @@
 </head>
 <body>
     <div class="container">
-        <img src="/images/myLogo.png" alt="{{ config('app.name') }}" class="logo">
+        <img src="images/invoiceLogo.png" alt="Restaurant Franchise Supply" class="logo">
         
-        <h1>Opening {{ config('app.name') }}...</h1>
+        <h1>Opening Restaurant Franchise Supply...</h1>
         
         <p>We're trying to open your order in the app. If it doesn't open automatically, you can:</p>
         

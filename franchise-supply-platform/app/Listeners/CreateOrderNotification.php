@@ -79,12 +79,11 @@ class CreateOrderNotification
                 // Send push notification to franchisee
                 $this->pushNotificationService->sendOrderStatusNotification($order, $event->oldStatus);
                 
-                // Send email notification to franchisee about status change
+                // Send status change email (for approved orders, this will include the invoice attachment)
                 $this->emailNotificationService->sendOrderStatusChangeNotification($order, $event->oldStatus);
                 
-                // If order was just approved, send invoice email and notify warehouse
+                // If order was just approved, notify warehouse
                 if ($order->status === 'approved' && $event->oldStatus !== 'approved') {
-                    $this->emailNotificationService->sendInvoiceEmail($order);
                     // Send email notification to warehouse when order is approved
                     $this->emailNotificationService->sendWarehouseOrderNotification($order);
                 }

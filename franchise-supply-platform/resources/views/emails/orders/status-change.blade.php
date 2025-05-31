@@ -98,6 +98,14 @@
             
             <p>{{ $statusMessage }}</p>
             
+            @if(isset($hasInvoiceAttachment) && $hasInvoiceAttachment)
+            <div style="background-color: #e2f0ff; border-left: 4px solid #0d6efd; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <p style="margin: 0; font-size: 15px; color: #084298;">
+                    <strong>Invoice Attached:</strong> Your invoice #{{ $invoiceNumber }} has been attached to this email for your records.
+                </p>
+            </div>
+            @endif
+            
             <div class="order-details">
                 <h3>Order Details</h3>
                 <div class="detail-row">

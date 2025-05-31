@@ -44,13 +44,16 @@ Last updated: May 13, 2025
 - Support for different notification types
 - **Pending**: Push notifications (Firebase integration)
 
-## ❌ Pending Features
 
 ### Mobile Application
-- React Native app for iOS/Android not implemented
-- Secure mobile login not implemented
-- Mobile product browsing experience missing
-- Mobile cart and ordering functionality missing
+- React Native app for iOS/Android is implemented
+- Secure mobile login is implemented
+- Mobile product browsing experience ? not sure on that
+- Mobile cart and ordering functionality is ready and flowing 
+
+
+## ❌ Pending Features
+
 
 ### QuickBooks Integration (Remaining Parts)
 - Actual invoice and customer data synchronization
@@ -62,19 +65,18 @@ Last updated: May 13, 2025
 - Complete error tracking and logging
 
 ### Future Scope (V2 Features)
-- Payment gateway integration
-- Analytics dashboard
+- Payment gateway integration - invoice sent to user for payments
+- Analytics dashboard - 
 - Franchise communication module
 
 ## Development Progress Summary
 
-**Overall Completion**: Approximately 65-70%
+**Overall Completion**: Approximately 85%
 
 The project has a solid web backend foundation with most core features implemented. The key missing components are:
 
-1. The entire mobile application (a critical user-facing component)
-2. Complete QuickBooks integration
-3. Push notifications through Firebase
-4. Some infrastructure and security elements
+1. Complete QuickBooks integration
+2. Push notifications through Firebase (need developer pro apple account/payment)
+3. Some infrastructure and security elements (jwt is implemented and session handling)
 
-The current implementation provides a functional web backend for admins and warehouse staff, but the franchisee mobile experience needs to be developed to fulfill the complete requirements.
+The current implementation provides a functional web backend for admins and warehouse staff,the franchisee mobile experience is in mobile branch.

@@ -31,19 +31,19 @@ class DeepLinkService
      */
     private function createUniversalLink(string $webUrl, string $webUrlWithLogin, string $type, int $id, string $action): string
     {
-        // Get app scheme from config (to be added)
+        // Get app scheme from config
         $appScheme = config('app.deep_link_scheme', 'restaurantfranchise');
         
         // Create the app deep link
         $appDeepLink = sprintf('%s://%s/%d/%s', $appScheme, $type, $id, $action);
         
         // Use a universal link pattern that can be intercepted by the app
-        // This will be the primary URL that handles routing
+        // Avoid double URL encoding by not encoding the webUrlWithLogin again
         $universalLink = config('app.url') . '/deeplink?' . http_build_query([
             'app' => $appDeepLink,
             'web' => $webUrlWithLogin,
             'fallback' => $webUrl
-        ]);
+        ], '', '&', PHP_QUERY_RFC3986);
         
         return $universalLink;
     }
