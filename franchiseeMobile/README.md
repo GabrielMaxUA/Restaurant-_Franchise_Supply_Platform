@@ -1,186 +1,353 @@
-# Franchisee Mobile App
+# Restaurant Franchise Supply Platform - Mobile App
 
-This is the mobile application for franchisees to connect to the Restaurant Franchise Supply Platform. It allows franchisees to browse the product catalog, place orders, view order history, and manage their account.
+A React Native mobile application designed for restaurant franchise owners to manage their supply orders efficiently. The app provides a comprehensive e-commerce experience with real-time inventory management, order tracking, and seamless integration with the supply platform backend.
 
-## API Connection Overview
+## Table of Contents
+- [Features](#features)
+- [Setup Guide](#setup-guide)
+- [Environment Configuration](#environment-configuration)
+- [Running the Application](#running-the-application)
+- [Troubleshooting](#troubleshooting)
 
-The mobile app connects to the Laravel backend via RESTful API endpoints. The API service is designed to be resilient and handle a variety of response formats and conditions.
+## Features
 
-### Key API Features
+### 🔐 Authentication & Security
+- **Secure Login System** - Email/password authentication with JWT token management
+- **Session Management** - Automatic session timeout handling with renewal prompts
+- **Deep Link Support** - Handle email links to navigate directly to specific screens (e.g., order details)
+- **Password Management** - Secure password change functionality with validation requirements
 
-1. **Content-Type Verification**
-   - All API responses are checked for proper content-type headers
-   - HTML responses are detected and handled properly
-   - Non-JSON responses are caught and reported with diagnostic information
+### 📊 Dashboard & Analytics
+- **Interactive Dashboard** - Quick overview of business metrics and activities
+- **Visual Analytics** - Weekly/monthly spending charts with bar graph visualization
+- **Key Metrics Display**:
+  - Monthly spending with percentage change indicators
+  - Pending orders count with trend analysis
+  - Low stock items alerts
+  - Incoming deliveries tracking
+- **Recent Orders** - Quick view of latest orders with status indicators
+- **Popular Products** - Most ordered items with quick add-to-cart functionality
 
-2. **Multi-Endpoint Fallback**
-   - The API service tries multiple common endpoint patterns when connecting
-   - This allows for flexibility in backend routing structure
-   - Endpoints are attempted in sequence until a successful one is found
+### 🛍️ Product Catalog & Shopping
+- **Grid View Catalog** - Browse all products with images and pricing
+- **Real-time Search** - Find products by name or description instantly
+- **Advanced Filtering**:
+  - Category-based filtering
+  - Favorites filter
+  - Stock status filter
+- **Sorting Options** - Sort by name (A-Z/Z-A), price (low/high), or popularity
+- **Favorites Management** - Mark/unmark products as favorites for quick access
+- **Stock Indicators** - Visual badges for in-stock, low stock, or out of stock items
+- **Product Variants** - Support for multiple sizes, types, or configurations
 
-3. **Robust Error Handling**
-   - Detailed error reporting with both error codes and response bodies
-   - Full stack traces in development mode
-   - Fallback error handling when JSON parsing fails
+### 📱 Product Details
+- **Comprehensive Product View** - Large images with detailed descriptions
+- **Variant Selection** - Easy switching between product variants
+- **Smart Quantity Management** - Increment/decrement with real-time inventory validation
+- **Live Inventory Updates** - Shows exact available stock
+- **Intelligent Cart Addition** - Prevents over-ordering based on stock levels
 
-4. **Adaptive Response Parsing**
-   - Automatically detects and adapts to different Laravel response structures
-   - Handles standard Laravel responses, resource collections, and direct data arrays
-   - Normalizes response format for consistent data structure across the app
+### 🛒 Shopping Cart
+- **Dynamic Cart Management** - Real-time updates of items and quantities
+- **Inline Quantity Editing** - Adjust quantities with inventory validation
+- **Quick Item Removal** - Remove items with swipe or button tap
+- **Automatic Calculations** - Real-time subtotal, tax, and total calculations
+- **Stock Validation** - Prevents checkout if items exceed available inventory
+- **Persistent Cart Badge** - Shows item count across all screens
 
-5. **Comprehensive Diagnostics**
-   - Built-in diagnostic tools for API connection testing
-   - Content-type and response format analysis
-   - Detailed reporting for troubleshooting
+### 💳 Checkout Process
+- **Flexible Shipping Options**:
+  - Use franchise address (default)
+  - Enter custom delivery address
+- **Delivery Methods**:
+  - Standard delivery (3-5 days, free)
+  - Express delivery (1-2 days, $15)
+  - Scheduled delivery (select specific date)
+- **Order Customization** - Add special instructions or notes
+- **Transparent Pricing** - Automatic 8% tax calculation with itemized breakdown
+- **Order Review** - Complete summary before placing order
 
-## Running the App
+### 📦 Order Management
+- **Visual Order Tracking** - Progress tracker showing current order status
+- **Advanced Filtering** - Filter orders by status (pending, processing, packed, shipped, delivered)
+- **Complete Order History** - View all past orders including rejected ones
+- **Detailed Order Views**:
+  - All ordered items with quantities and prices
+  - Shipping information and tracking
+  - Delivery estimates and contact details
+  - Status timeline with timestamps
+- **One-Click Reorder** - Repeat previous orders with current inventory validation
+- **Pull-to-Refresh** - Get latest order updates instantly
+
+### 👤 Profile Management
+- **Profile Viewing** - Display user and company information with logo
+- **Profile Editing**:
+  - Update personal information (username, email, phone)
+  - Modify company details (name, address, contact)
+  - Upload or remove company logo
+- **Real-time Sync** - Always fetches latest data from server
+
+### 🔔 Notifications & Deep Linking
+- **Push Notifications** - Firebase Cloud Messaging integration for order updates
+- **Universal Deep Links** - Navigate to specific screens from external links
+- **Background Handling** - Works whether app is in foreground, background, or closed
+
+### 📱 User Experience
+- **Intuitive Navigation** - Slide-out drawer menu with all main sections
+- **Persistent Header** - Always-visible cart badge and navigation
+- **Pull-to-Refresh** - Available on all data screens for latest updates
+- **Loading States** - Clear activity indicators during operations
+- **Error Handling** - User-friendly error messages with retry options
+- **Toast Notifications** - Non-intrusive success/error feedback
+- **Responsive Design** - Adapts to different screen sizes and orientations
+
+## Setup Guide
 
 ### Prerequisites
+- **Node.js**: Version 22.x or higher (check with `node --version` or run `nvm use` to use node verson asigned to this app)
+- **npm**: Version 10.x or higher (check with `npm --version`)
+- **React Native CLI**: Install globally with `npm install -g react-native-cli`
+- **Platform-specific requirements**:
+  - **iOS**: macOS with Xcode 15+ and CocoaPods
+  - **Android**: Android Studio with SDK 34+ and configured emulator
 
-- Node.js and npm
-- React Native development environment
-- Android Studio or Xcode
-- Backend Laravel API server running
+### Initial Setup
 
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd Restaurant-_Franchise_Supply_Platform/franchiseeMobile
    ```
+
+2. **Install Node version**
+   ```bash
+   # If using nvm (recommended)
+   nvm install 22
+   nvm use 22
+   
+   # Verify Node version
+   node --version  # Should show v22.x.x
+   ```
+
+3. **Install dependencies**
+   ```bash
    npm install
    ```
-3. Install pods for iOS:
+
+4. **iOS-specific setup** (macOS only)
+   ```bash
+   cd ios
+   pod install
+   cd ..
    ```
-   cd ios && pod install && cd ..
+
+5. **Android-specific setup**
+   ```bash
+   # Make the setup script executable
+   chmod +x android-setup.sh
+   
+   # Run the setup script (optional, for troubleshooting)
+   ./android-setup.sh
    ```
 
-### Running on Android
+## Environment Configuration
 
-```
-npx react-native run-android
-```
+### 1. Create Environment File
+Create a `.env` file in the project root:
 
-### Running on iOS
-
-```
-npx react-native run-ios
+```bash
+touch .env
 ```
 
-## API Configuration
+### 2. Environment Variables Template
+Add the following to your `.env` file:
 
-The API base URL is configured in `src/services/api.js`. By default, it uses:
+```env
+# API Configuration
+API_BASE_URL=http://localhost:8000/api
+# For physical device testing, use your machine's IP:
+# API_BASE_URL=http://192.168.1.100:8000/api
 
-- Android emulator: `http://10.0.2.2:8000/api`
-- iOS simulator: `http://localhost:8000/api`
+# Deep Linking Configuration
+DEEP_LINK_SCHEME=restaurantfranchise
+DEEP_LINK_DOMAIN=yourdomain.com
 
-## Troubleshooting API Connections
+# Push Notification Configuration (if using Firebase)
+FIREBASE_API_KEY=your_firebase_api_key_here
+FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain_here
+FIREBASE_PROJECT_ID=your_firebase_project_id_here
+FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket_here
+FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here
+FIREBASE_APP_ID=your_app_id_here
 
-If you're experiencing issues with API connections:
-
-1. Use the built-in "Test API Connection" feature in the app
-2. Check the API diagnostics report for detailed information
-3. Verify the API base URL in `src/services/api.js`
-4. Check for proper content-type headers in the backend responses
-5. Look for HTML responses that might indicate server errors
-6. Verify authentication token handling in both frontend and backend
-
-## Key Files
-
-- `src/services/api.js` - Main API service with endpoint definitions
-- `src/utils/ApiDiagnostics.js` - API diagnostics utilities
-- `src/utils/ApiTest.js` - API testing functionality
-- `src/screens/*.js` - Screen components that use the API service
-
-## Common API Issues
-
-1. **HTML instead of JSON responses**
-   - Often indicates a server error or middleware issue
-   - Check Laravel logs for details
-   - Verify API routes and controllers
-
-2. **Authentication token issues**
-   - Token storage/retrieval problems
-   - Token validation issues in Laravel
-   - Middleware configuration problems
-
-3. **Response format inconsistencies**
-   - Laravel's response structure may vary
-   - Resource collections vs. direct data arrays
-   - Pagination structure differences
-
-4. **Cross-origin issues**
-   - CORS configuration in Laravel
-   - Headers and allowed origins
-
-5. **Base URL configuration**
-   - Different requirements for simulators vs. physical devices
-   - Network connectivity and firewall issues
-   - HTTP vs. HTTPS requirements
-
----
-
-## Original React Native Documentation
-
-This is a [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
-
-### Getting Started
-
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
-
-#### Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+# Optional: Development Settings
+DEV_MODE=true
+LOG_LEVEL=debug
 ```
 
-#### Step 2: Build and run your app
+### 3. Update API Configuration
+Edit `src/services/axiosInstance.js` to match your backend URL:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+```javascript
+// For local development
+export const BASE_URL = 'http://localhost:8000/api';  // iOS simulator
+// export const BASE_URL = 'http://10.0.2.2:8000/api';  // Android emulator
 
-##### Android
+// For physical device testing (replace with your machine's IP or ngrock address)
+// export const BASE_URL = 'http://192.168.1.100:8000/api';
 
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+// For production
+// export const BASE_URL = 'https://api.yourdomain.com/api';
 ```
 
-##### iOS
+### 4. Configure Deep Linking
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+**iOS** - Update `ios/franchiseeMobile/Info.plist`:
+- The URL scheme is already configured as `restaurantfranchise`
+- To change it, modify the `CFBundleURLSchemes` array
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+**Android** - Update `android/app/src/main/AndroidManifest.xml`:
+- The URL scheme is already configured as `restaurantfranchise`
+- Replace `yourdomain.com` with your actual domain for HTTPS deep links
 
-```sh
-bundle install
+## Running the Application
+
+### Development Mode
+
+1. **Start Metro bundler**
+   ```bash
+   npm start
+   # or
+   npx react-native start --reset-cache  # If you encounter caching issues
+   ```
+
+2. **Run on iOS** (macOS only)
+   ```bash
+   npm run ios
+   # or for specific simulator
+   npx react-native run-ios --simulator="iPhone 15"
+   ```
+
+3. **Run on Android**
+   ```bash
+   # Start Android emulator first, then:
+   npm run android
+   # or
+   npx react-native run-android
+   ```
+
+### Building for Release
+
+**iOS**:
+1. Open `ios/franchiseeMobile.xcworkspace` in Xcode
+2. Select Generic iOS Device
+3. Product → Archive
+4. Follow the distribution wizard
+
+**Android**:
+```bash
+cd android
+./gradlew assembleRelease
+# APK will be in android/app/build/outputs/apk/release/
 ```
 
-Then, and every time you update your native dependencies, run:
+## Troubleshooting
 
-```sh
-bundle exec pod install
-```
+### Common Issues
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+1. **Metro bundler issues**
+   ```bash
+   npx react-native start --reset-cache
+   ```
 
-```sh
-# Using npm
-npm run ios
+2. **iOS build failures**
+   ```bash
+   cd ios
+   pod deintegrate
+   pod install
+   cd ..
+   ```
 
-# OR using Yarn
-yarn ios
-```
+3. **Android build failures**
+   ```bash
+   cd android
+   ./gradlew clean
+   cd ..
+   npm run android
+   ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+4. **Node version mismatch**
+   ```bash
+   nvm use 22
+   ```
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+5. **Permission issues on Android**
+   - Ensure all permissions are granted in device settings
+   - Check `AndroidManifest.xml` for required permissions
+
+### Network Configuration
+
+**For iOS Simulator**:
+- Use `http://localhost:8000` for local backend
+
+**For Android Emulator**:
+- Use `http://10.0.2.2:8000` for local backend - your computes ip address
+
+**For Physical Devices**:
+- Use your machine's IP address (e.g., `http://192.168.1.100:8000` use ngrock ip address)
+- Ensure your device is on the same network as your development machine
+- May need to disable firewall temporarily for testing
+
+### API Connection Issues
+
+The app includes built-in diagnostics for API troubleshooting:
+
+1. **Content-Type Verification** - Detects HTML responses instead of JSON
+2. **Multi-Endpoint Fallback** - Tries multiple common endpoint patterns
+3. **Robust Error Handling** - Detailed error reporting with stack traces
+4. **Adaptive Response Parsing** - Handles different Laravel response structures
+5. **Comprehensive Diagnostics** - Built-in tools for connection testing
+
+### Debugging
+
+1. **Enable Debug Menu**:
+   - iOS: Cmd + D
+   - Android: Cmd + M (Mac) or Ctrl + M (Windows/Linux)
+
+2. **React Native Debugger**:
+   ```bash
+   # Install globally
+   brew install react-native-debugger  # macOS
+   ```
+
+3. **Check logs**:
+   ```bash
+   # iOS
+   npx react-native log-ios
+   
+   # Android
+   npx react-native log-android
+   ```
+
+## Additional Resources
+
+- [React Native Documentation](https://reactnative.dev/docs/getting-started)
+- [React Navigation Documentation](https://reactnavigation.org/docs/getting-started)
+- [Troubleshooting Guide](https://reactnative.dev/docs/troubleshooting)
+
+## Support
+
+For issues specific to this application, please check:
+1. The backend API is running and accessible
+2. All environment variables are correctly set
+3. Database migrations are up to date
+4. Required permissions are granted on the device
+
+For further assistance, please refer to the project documentation or contact the development team.
+
+
+users available:
+1. username - admin@example.com, password - password
+2. username - user@franchisee.com, password - password
+
+or simply login as admin and create/add user with REAL EMAIL in order to test email notifications and deep link testing
